@@ -1,0 +1,15 @@
+# 依赖（仅本地测试用，无需部署）
+node_modules/
+
+# 锁文件（纯静态站点，无构建步骤）
+package-lock.json
+
+# 临时测试脚本（验证完应删除，勿入库/部署）
+_playtest_*.js
+_smoke_*.js
+_test_*.js
+
+# 日志与系统文件
+*.log
+.DS_Store
+Thumbs.db

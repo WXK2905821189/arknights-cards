@@ -1,0 +1,81 @@
+/* tokens.css — 罗德岛棋局 · 统一设计令牌（UI 设计系统方案 §2–§6）
+ * 单一事实来源：game.css / style.css 都通过本文件引入，不再各自定义 :root。
+ * 旧名（--ink/--ink2/--gold2/--text/--muted/--gold-dim/--accent/--bg2/--panel2/--r6）
+ * 以别名映射保留，便于渐进迁移；推荐后续直接改用规范名。
+ */
+:root{
+  /* —— 基础 surface（靠明度分层） —— */
+  --bg:#0e1116;
+  --bg-sunk:#0a0d12;
+  --bg2:#141a22;            /* 图鉴弹窗盒底色（保留原值） */
+  --panel:#171c24;
+  --panel-2:#1f2630;
+  --panel2:var(--panel-2);  /* 兼容旧名 */
+  --line:#2c3543;
+  --line-soft:#222a35;
+
+  /* —— 文本 —— */
+  --text:#e7ecf3;
+  --text-2:#9aa7b8;
+  --text-3:#6b7787;
+  --ink:var(--text);        /* 兼容旧名 */
+  --ink2:var(--text-2);     /* 兼容旧名 */
+  --muted:var(--text-2);    /* 兼容旧名 */
+
+  /* —— 品牌金（唯一主色） —— */
+  --gold:#e8b84b;
+  --gold-strong:#f4d27a;
+  --gold-deep:#cf9a2e;
+  --gold-soft:rgba(232,184,75,.12);
+  --gold2:var(--gold-strong);   /* 兼容旧名 */
+  --gold-dim:var(--gold-deep);  /* 兼容旧名 */
+
+  /* —— 语义色 —— */
+  --ally:#5ac8e0;
+  --enemy:#e07a5a;
+  --hp:#e05a5a;
+  --medic:#5ac8e0;         /* 战斗日志治疗色（原遗漏定义，已补回） */
+  --success:#5fd08a;
+  --warning:#f5c542;
+  --danger:#e05a5a;
+  --info:#5aa0e0;
+  --accent:var(--info);    /* 兼容旧名 */
+
+  /* —— 职业色（8） —— */
+  --c-vanguard:#6fcf97; --c-guard:#eb5757; --c-defender:#56a0e0;
+  --c-sniper:#f2c94c;  --c-caster:#bb6bd9; --c-medic:#5ac8e0;
+  --c-supporter:#4dc9b0; --c-specialist:#f2994a;
+
+  /* —— 费色（全局唯一编码） —— */
+  --cost-1:#c8ccd2; --cost-2:#22c55e; --cost-3:#3b82f6;
+  --cost-4:#a855f7; --cost-5:#e8b84b;
+
+  /* —— 圆角 —— */
+  --r-card:12px; --r-btn:8px; --r-chip:999px; --r-panel:12px;
+
+  /* —— 阴影三档 —— */
+  --sh-1:0 1px 2px rgba(0,0,0,.35);
+  --sh-2:0 6px 18px rgba(0,0,0,.4);
+  --sh-3:0 16px 48px rgba(0,0,0,.55);
+
+  /* —— 动效（统一时长 / 缓动） —— */
+  --ease:cubic-bezier(.2,.7,.3,1);
+  --dur-fast:120ms;
+  --dur:200ms;
+  --dur-slow:300ms;
+
+  /* —— 间距阶梯（4px 基数） —— */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
+  --sp-6:24px; --sp-8:32px; --sp-12:48px; --sp-16:64px;
+
+  /* —— 遗留兼容 —— */
+  --r6:var(--gold);
+}
+
+/* 全局尊重「减少动效」偏好（无障碍） */
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+
+/* 无障碍：统一键盘焦点环（桌面 Web · WCAG AA） */
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}

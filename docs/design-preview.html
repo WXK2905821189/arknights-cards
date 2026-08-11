@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>罗德岛棋局 · UI 设计系统预览</title>
+<style>
+/* ===== 统一设计令牌（来自 UI设计系统方案.md §2-§6） ===== */
+:root{
+  --bg:#0e1116; --bg-sunk:#0a0d12; --panel:#171c24; --panel-2:#1f2630;
+  --line:#2c3543; --line-soft:#222a35;
+  --text:#e7ecf3; --text-2:#9aa7b8; --text-3:#6b7787;
+  --gold:#e8b84b; --gold-strong:#f4d27a; --gold-deep:#cf9a2e; --gold-soft:rgba(232,184,75,.12);
+  --ally:#5ac8e0; --enemy:#e07a5a; --hp:#e05a5a; --success:#5fd08a; --warning:#f5c542; --danger:#e05a5a; --info:#5aa0e0;
+  --c-vanguard:#6fcf97; --c-guard:#eb5757; --c-defender:#56a0e0; --c-sniper:#f2c94c;
+  --c-caster:#bb6bd9; --c-medic:#5ac8e0; --c-supporter:#4dc9b0; --c-specialist:#f2994a;
+  --cost-1:#c8ccd2; --cost-2:#22c55e; --cost-3:#3b82f6; --cost-4:#a855f7; --cost-5:#e8b84b;
+  --r-card:12px; --r-btn:8px; --r-chip:999px; --r-panel:12px;
+  --sh-1:0 1px 2px rgba(0,0,0,.35); --sh-2:0 6px 18px rgba(0,0,0,.4); --sh-3:0 16px 48px rgba(0,0,0,.55);
+  --ease:cubic-bezier(.2,.7,.3,1);
+  --dur-fast:120ms; --dur:200ms; --dur-slow:300ms;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(1200px 600px at 82% -12%, rgba(58,160,255,.07), transparent 60%),
+    radial-gradient(900px 500px at 0% 0%, rgba(232,184,75,.06), transparent 55%),
+    var(--bg);
+  color:var(--text);
+  font-family:"PingFang SC","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
+  font-size:14px; line-height:1.6;
+}
+.num{font-variant-numeric:tabular-nums}
+a{color:var(--gold-strong);text-decoration:none}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+/* ===== 顶栏 ===== */
+.topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:18px;
+  padding:12px 22px;background:linear-gradient(180deg,rgba(23,28,36,.92),rgba(14,17,22,.7));
+  border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+.brand{font-weight:700;font-size:18px;letter-spacing:.5px;color:var(--gold-strong)}
+.brand .sub{color:var(--text-2);font-weight:400;font-size:13px;margin-left:6px}
+.res{display:flex;gap:14px;align-items:center;flex:1;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text-2);
+  background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-chip);padding:4px 12px}
+.chip b{color:var(--text);font-size:14px}
+.chip.gold b{color:var(--gold-strong)} .chip.hp b{color:var(--hp)}
+.expbar{display:inline-block;width:72px;height:7px;background:var(--bg-sunk);border:1px solid var(--line);border-radius:4px;overflow:hidden;vertical-align:middle}
+.expbar i{display:block;height:100%;width:42%;background:linear-gradient(90deg,#3a7bd5,var(--ally))}
+.icon-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);
+  color:var(--text);cursor:pointer;font-size:16px;transition:var(--dur-fast) var(--ease);flex-shrink:0}
+.icon-btn:hover{border-color:var(--gold);transform:translateY(-1px)}
+
+/* ===== Tabs 导航 ===== */
+.tabs{display:flex;gap:6px;padding:14px 22px 0;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--panel);color:var(--text-2);border-radius:8px;
+  padding:8px 16px;cursor:pointer;font-size:14px;transition:var(--dur-fast) var(--ease)}
+.tab:hover{color:var(--text);border-color:var(--info)}
+.tab.active{background:var(--gold);color:#1a1408;font-weight:700;border-color:var(--gold)}
+.screen{display:none;padding:22px;max-width:1180px;margin:0 auto}
+.screen.active{display:block;animation:fade var(--dur-slow) var(--ease)}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ===== 区块标题 ===== */
+.sec-title{font-size:13px;letter-spacing:2px;color:var(--gold);margin:26px 0 12px;
+  border-left:3px solid var(--gold);padding-left:10px;text-transform:uppercase}
+.sec-title:first-child{margin-top:0}
+.lead{color:var(--text-2);font-size:13px;margin:0 0 16px;max-width:760px}
+
+/* ===== 令牌：颜色 ===== */
+.swatch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.swatch{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+.swatch .c{height:56px}
+.swatch .m{padding:8px 10px}
+.swatch .nm{font-size:13px;font-weight:600}
+.swatch .vl{font-size:11px;color:var(--text-2);font-family:ui-monospace,monospace}
+
+/* ===== 令牌：字体 / 间距 ===== */
+.type-row{display:flex;align-items:baseline;gap:16px;padding:6px 0;border-bottom:1px solid var(--line-soft)}
+.type-row .px{width:46px;color:var(--gold);font-weight:700;font-family:ui-monospace,monospace}
+.type-row .tx{color:var(--text)}
+.sp-row{display:flex;align-items:center;gap:12px;margin:6px 0}
+.sp-row .bar{background:linear-gradient(90deg,var(--gold-deep),var(--gold));border-radius:4px;height:14px}
+.sp-row .px{font-family:ui-monospace,monospace;color:var(--text-2);font-size:12px;width:42px}
+
+/* ===== 组件：按钮 ===== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);
+  background:var(--panel-2);color:var(--text);border-radius:var(--r-btn);padding:9px 16px;font-size:14px;
+  cursor:pointer;transition:var(--dur-fast) var(--ease);font-family:inherit}
+.btn:hover{border-color:var(--gold);color:var(--gold-strong);transform:translateY(-1px);box-shadow:var(--sh-1)}
+.btn:active{transform:translateY(0)}
+.btn.primary{background:linear-gradient(180deg,var(--gold-strong),var(--gold-deep));color:#1a1408;font-weight:700;border:none}
+.btn.primary:hover{filter:brightness(1.06);box-shadow:var(--sh-2)}
+.btn.danger{border-color:#5a2a2a;color:#e08a8a}
+.btn.danger:hover{border-color:var(--danger);color:#ffb3b3}
+.btn.small{padding:6px 12px;font-size:12px}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* ===== 组件：单位卡（方舟风） ===== */
+.ucard,.shop-card{position:relative;overflow:hidden;border-radius:10px;background:var(--panel-2);
+  border:2px solid var(--line);cursor:grab;transition:transform var(--dur-fast) var(--ease),border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+  user-select:none}
+.shop-card{width:128px;height:176px}
+.ucard{width:84px;height:100px}
+.ucard:hover,.shop-card:hover{transform:translateY(-3px);border-color:var(--gold);box-shadow:var(--sh-2)}
+.ucard.sel,.shop-card.sel{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold-soft)}
+.ucard .av,.shop-card .av{position:absolute;inset:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+  font-size:30px;font-weight:800;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.6);background-size:cover}
+.shop-card .av{font-size:42px}
+.fade{position:absolute;left:0;right:0;bottom:0;height:64%;background:linear-gradient(180deg,transparent 14%,rgba(0,0,0,.45) 52%,rgba(0,0,0,.92) 86%)}
+.ctags{position:absolute;left:3px;right:3px;bottom:30px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;z-index:2}
+.ctag{font-size:9px;line-height:12px;padding:1px 5px;border-radius:5px;color:#0c0f14;font-weight:700;white-space:nowrap}
+.footer{position:absolute;left:0;right:0;bottom:0;height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 7px;z-index:3}
+.cf-name{font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 3px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:64px}
+.cf-cost{font-size:12px;font-weight:800;color:var(--gold-strong);text-shadow:0 0 6px rgba(255,200,0,.4)}
+.star{position:absolute;top:3px;left:4px;font-size:10px;color:var(--gold-strong);z-index:3;text-shadow:0 0 2px #000}
+/* 费色边框 */
+.ucard.c1,.shop-card.c1{border-color:var(--cost-1)} .ucard.c2,.shop-card.c2{border-color:var(--cost-2)}
+.ucard.c3,.shop-card.c3{border-color:var(--cost-3)} .ucard.c4,.shop-card.c4{border-color:var(--cost-4);box-shadow:0 0 0 1px rgba(168,85,247,.3)}
+.ucard.c5,.shop-card.c5{border-color:var(--cost-5);box-shadow:0 0 0 1px rgba(232,184,75,.45)}
+.card-row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;font-size:12px}
+.legend .l{padding:2px 10px;border-radius:var(--r-chip);font-weight:700;border:2px solid}
+.l.c1{border-color:var(--cost-1)} .l.c2{border-color:var(--cost-2)} .l.c3{border-color:var(--cost-3)}
+.l.c4{border-color:var(--cost-4)} .l.c5{border-color:var(--cost-5)}
+
+/* ===== 组件：羁绊条 / 项 ===== */
+.bonds-bar{display:flex;gap:8px;flex-wrap:wrap}
+.bond{background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--gold);
+  border-radius:7px;padding:6px 11px;font-size:12px;cursor:default}
+.bond b{color:var(--gold-strong)} .bond .tier{color:var(--text-2);margin-left:4px}
+.bp{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;max-width:320px}
+.bp-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;cursor:pointer;
+  border-left:3px solid var(--line);background:var(--panel-2);margin-bottom:6px;transition:var(--dur-fast) var(--ease)}
+.bp-item:hover{border-left-color:var(--gold)}
+.bp-item.active{border-left-color:var(--gold);background:#1f2a1c}
+.bp-dot{width:9px;height:9px;border-radius:50%;background:#39424f;flex:0 0 auto}
+.bp-dot.on{background:var(--gold);box-shadow:0 0 0 2px var(--gold-soft)}
+.bp-item b{font-size:13px} .bp-item .tier{font-size:11px;color:var(--text-2);margin-left:auto}
+
+/* ===== 组件：面板 / 弹窗 demo ===== */
+.overlay-demo{position:relative;border:1px dashed var(--line);border-radius:var(--r-panel);
+  padding:40px;background:var(--bg-sunk);min-height:220px;display:flex;align-items:center;justify-content:center}
+.overlay-demo .scrim{position:absolute;inset:0;background:rgba(8,10,14,.7);border-radius:var(--r-panel)}
+.panel{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-panel);
+  padding:26px 30px;max-width:420px;text-align:center;box-shadow:var(--sh-3);z-index:2}
+.panel h2{margin:0 0 8px;color:var(--gold-strong)}
+.panel p{color:var(--text-2);font-size:13px;margin:0 0 16px}
+
+/* ===== 主对局 mock ===== */
+.arena{max-width:1080px;margin:0 auto}
+.enemy-preview{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:12px}
+.enemy-head{font-size:13px;color:var(--enemy);font-weight:600;margin-bottom:8px}
+.mini-team{display:flex;gap:8px;flex-wrap:wrap}
+.mini-chip{display:flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:4px 9px;font-size:12px}
+.board-wrap{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.board-label{font-size:12px;color:var(--text-2);margin:4px 0 8px}
+.board-label b{color:var(--gold-strong)}
+.board-grid{display:grid;grid-template-columns:repeat(3,92px);grid-template-rows:repeat(3,106px);gap:8px;
+  justify-content:center;padding:10px;background:var(--bg-sunk);border:1px solid var(--line);border-radius:8px}
+.cell{width:92px;height:106px;border:1px dashed #2a3340;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  background:#10141b;position:relative}
+.cell.filled{border-style:solid;border-color:var(--line);background:var(--panel-2)}
+.cell.locked{border-color:#1b2029;background:#0a0d12;opacity:.7}
+.cell.locked::after{content:"🔒";font-size:18px;opacity:.45}
+.bench{display:flex;gap:8px;flex-wrap:wrap;min-height:104px;padding:8px;border:1px dashed var(--line-soft);border-radius:8px}
+.sell-zone{margin-top:10px;border:2px dashed #5a2a2a;border-radius:8px;padding:10px;text-align:center;color:#e08a8a;font-size:13px;background:#1a1010}
+.action-bar{display:flex;align-items:center;gap:14px;margin-top:16px}
+.phase-hint{color:var(--text-2);font-size:13px}
+
+/* ===== 战斗 mock ===== */
+.battle-stage{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;max-width:900px;margin:0 auto}
+.bf-legend{text-align:center;font-size:13px;color:var(--text-2);margin-bottom:10px}
+.bf-legend .ally{color:var(--ally);font-weight:700}.bf-legend .enemy{color:var(--enemy);font-weight:700}
+.bf-grid{position:relative;margin:0 auto;width:min(92vw,720px);height:320px;background:var(--bg-sunk);
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background-image:linear-gradient(#161c25 1px,transparent 1px),linear-gradient(90deg,#161c25 1px,transparent 1px);background-size:64px 64px}
+.bf-grid::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;background:repeating-linear-gradient(180deg,#3a4660 0 6px,transparent 6px 12px)}
+.bf-unit{position:absolute;width:58px;height:70px;border-radius:8px;display:flex;flex-direction:column;align-items:center;
+  padding:3px;box-sizing:border-box;border:2px solid transparent}
+.bf-unit.ally{border-color:var(--ally);background:rgba(64,180,220,.1)}
+.bf-unit.enemy{border-color:var(--enemy);background:rgba(224,122,90,.1)}
+.bf-unit .av{width:42px;height:42px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-weight:800;color:#fff;font-size:16px;background:#1a2230;border:1px solid rgba(255,255,255,.1)}
+.bf-unit .nm{font-size:9px;color:#c8d0dc;margin-top:2px;white-space:nowrap}
+.bf-unit .hpbar{height:3px;width:90%;background:rgba(0,0,0,.6);border-radius:2px;margin-top:2px;overflow:hidden}
+.bf-unit .hpbar i{display:block;height:100%;background:var(--ally)} .bf-unit.enemy .hpbar i{background:var(--enemy)}
+.bf-unit .spbar{height:3px;width:90%;background:rgba(0,0,0,.6);border-radius:2px;margin-top:1px;overflow:hidden}
+.bf-unit .spbar i{display:block;height:100%;background:var(--gold)}
+.battle-log{background:var(--bg-sunk);border:1px solid var(--line);border-radius:8px;margin-top:14px;padding:10px 14px;
+  height:130px;overflow-y:auto;font-size:12px;color:var(--text-2);line-height:1.7;max-width:900px;margin-left:auto;margin-right:auto}
+.battle-log .hit{color:#f0a0c0}.battle-log .skill{color:var(--gold-strong);font-weight:600}
+
+/* ===== 图鉴 mock ===== */
+.codex-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:18px}
+.ccard{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  cursor:pointer;transition:var(--dur) var(--ease);border-top:3px solid var(--gold-deep)}
+.ccard:hover{transform:translateY(-4px);border-color:var(--gold);box-shadow:var(--sh-2)}
+.ccard .thumb{aspect-ratio:3/4;background:linear-gradient(160deg,#1a2230,#0a0d12);display:grid;place-items:center;font-size:38px;font-weight:800;color:#fff}
+.ccard .body{padding:10px 12px}
+.ccard .nm{font-weight:700;font-size:15px}
+.ccard .en{font-size:11px;color:var(--text-2);margin-top:2px}
+.ccard .star{position:absolute;top:8px;right:10px;color:var(--gold);text-shadow:0 1px 3px #000}
+.tag{display:inline-block;margin-top:8px;font-size:11px;padding:3px 10px;border-radius:var(--r-chip);color:#0c0f14;font-weight:700}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">罗德岛棋局<span class="sub">// 货币战争</span></div>
+  <div class="res">
+    <span class="chip gold">💰 <b class="num">32</b></span>
+    <span class="chip">Lv.<b class="num">4</b> <span class="expbar"><i></i></span></span>
+    <span class="chip hp">❤ <b class="num">84</b></span>
+    <span class="chip">节点 <b class="num">7</b>/<b class="num">12</b></span>
+    <span class="chip">难度 <b>普通(2)</b></span>
+  </div>
+  <button class="icon-btn" title="音效开关">🔊</button>
+  <a class="tab" style="text-decoration:none" href="#" onclick="return false">← 图鉴</a>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-t="sys">设计系统</button>
+  <button class="tab" data-t="arena">主对局</button>
+  <button class="tab" data-t="battle">战斗演出</button>
+  <button class="tab" data-t="codex">干员图鉴</button>
+</nav>
+
+<!-- ========== 设计系统 ========== -->
+<section class="screen active" id="sys">
+  <h3 class="sec-title">颜色令牌</h3>
+  <p class="lead">暗色为骨、金为魂；费色（白1绿2蓝3紫4金5）为全局唯一费用编码。所有色板满足 WCAG AA 对比度。</p>
+  <div class="swatch-grid" id="swatches"></div>
+
+  <h3 class="sec-title">字体阶梯</h3>
+  <p class="lead">字号 12→36px，数字一律 tabular-nums 对齐。行高：正文 1.6 / 标题 1.2。</p>
+  <div id="typeScale"></div>
+
+  <h3 class="sec-title">间距阶梯（4px 基数）</h3>
+  <div id="spaceScale"></div>
+
+  <h3 class="sec-title">组件 · 按钮</h3>
+  <div class="btn-row">
+    <button class="btn primary">⚔ 开战</button>
+    <button class="btn">刷新 (2💰)</button>
+    <button class="btn small">买经验</button>
+    <button class="btn danger">售出</button>
+    <button class="btn" disabled>已锁定</button>
+  </div>
+
+  <h3 class="sec-title">组件 · 单位卡（费色边框 + 头像满铺 + 底栏）</h3>
+  <div class="card-row" id="cardRow"></div>
+  <div class="legend">
+    <span class="l c1">白·1费</span><span class="l c2">绿·2费</span><span class="l c3">蓝·3费</span>
+    <span class="l c4">紫·4费</span><span class="l c5">金·5费</span>
+  </div>
+
+  <h3 class="sec-title">组件 · 羁绊条 / 项</h3>
+  <div class="bonds-bar" style="margin-bottom:14px">
+    <span class="bond">先锋 <b>2/2</b><span class="tier">已激活</span></span>
+    <span class="bond">罗德岛 <b>4/6</b><span class="tier">进行中</span></span>
+    <span class="bond">术师 <b>1/2</b><span class="tier">未达成</span></span>
+  </div>
+  <div class="bp">
+    <div class="bp-item active"><span class="bp-dot on"></span><b>先锋 · 2</b><span class="tier">激活</span></div>
+    <div class="bp-item"><span class="bp-dot"></span><b>罗德岛 · 4/6</b><span class="tier">进行中</span></div>
+    <div class="bp-item"><span class="bp-dot"></span><b>重装 · 0/2</b><span class="tier">未达成</span></div>
+  </div>
+
+  <h3 class="sec-title">组件 · 面板 / 弹窗</h3>
+  <div class="overlay-demo">
+    <div class="scrim"></div>
+    <div class="panel">
+      <h2>策略节点</h2>
+      <p>选择一项全局增益，永久生效。档位 青铜 &lt; 白银 &lt; 黄金 &lt; 彩色。</p>
+      <button class="btn primary">选择</button>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 主对局 ========== -->
+<section class="screen" id="arena">
+  <div class="arena">
+    <div class="enemy-preview">
+      <div class="enemy-head">敌方编队 · 第 7 关 · 整合运动小队</div>
+      <div class="mini-team">
+        <span class="mini-chip">🟥 碎骨</span><span class="mini-chip">🟥 弑君者</span><span class="mini-chip">🟥 梅菲斯特</span>
+      </div>
+    </div>
+    <div class="board-wrap">
+      <div class="board-label">我方部署区 · 把卡牌拖入格子上场（人口 <b>6</b>，灰色🔒为未解锁格）</div>
+      <div class="board-grid" id="board">
+        <div class="cell filled"></div><div class="cell filled"></div><div class="cell locked"></div>
+        <div class="cell filled"></div><div class="cell filled"></div><div class="cell locked"></div>
+        <div class="cell locked"></div><div class="cell locked"></div><div class="cell locked"></div>
+      </div>
+      <div class="board-label">备战席 <b>4</b>/10 · 拖到上方格子即可上场</div>
+      <div class="bench" id="bench"></div>
+      <div class="sell-zone">🗑 拖到此处售出</div>
+    </div>
+    <div class="bonds-bar" style="margin-bottom:12px">
+      <span class="bond">先锋 <b>2/2</b><span class="tier">✦</span></span>
+      <span class="bond">罗德岛 <b>4/6</b></span>
+      <span class="bond">重装 <b>2/2</b><span class="tier">✦</span></span>
+    </div>
+    <div class="shop">
+      <div class="board-label" style="display:flex;justify-content:space-between">
+        <span>商店</span>
+        <span style="color:var(--text-2)"><button class="btn small">刷新 (2💰)</button> <button class="btn small">买经验 (4💰)</button></span>
+      </div>
+      <div class="card-row" id="shopRow" style="margin-top:10px"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn primary">⚔ 开战</button>
+      <button class="btn hidden">前进 →</button>
+      <span class="phase-hint">布置完成后开战 · 当前人口 6</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 战斗演出 ========== -->
+<section class="screen" id="battle">
+  <div class="battle-stage">
+    <div class="bf-legend"><span class="ally">我方</span> ⚔ <span class="enemy">敌方</span> · 站位决定先手与射程</div>
+    <div class="bf-grid" id="bfGrid"></div>
+  </div>
+  <div class="battle-log">
+    <div class="sys">⚑ 回合 1 开始</div>
+    <div class="skill">✦ 史尔特尔 释放【熔毁】对敌方造成 412 范围伤害</div>
+    <div class="hit">能天使 普通攻击命中 碎骨 -86</div>
+    <div class="hit">碎骨 反击 史尔特尔 -54</div>
+    <div class="skill">✦ 闪灵 释放【法术护盾】为史尔特尔附加护盾</div>
+    <div class="hit">弑君者 突进 银灰 -71</div>
+  </div>
+</section>
+
+<!-- ========== 图鉴 ========== -->
+<section class="screen" id="codex">
+  <div class="codex-grid" id="codexGrid"></div>
+</section>
+
+<script>
+/* ===== 数据 ===== */
+const ops=[
+  {n:"能天使",c:5,r:"狙击",a:"企鹅物流",s:"★★★★★",g:["#3a2a5a","#1a1024"]},
+  {n:"史尔特尔",c:5,r:"术师",a:"罗德岛",s:"★★★★★",g:["#5a1f1f","#2a0e0e"]},
+  {n:"银灰",c:5,r:"近卫",a:"喀兰贸易",s:"★★★★★",g:["#1f3a5a","#0e1a2a"]},
+  {n:"闪灵",c:5,r:"医疗",a:"罗德岛",s:"★★★★★",g:["#1f4a4a","#0e2424"]},
+  {n:"推进之王",c:5,r:"近卫",a:"格拉斯哥",s:"★★★★★",g:["#3a3a1f","#1a1a0e"]},
+  {n:"艾雅法拉",c:4,r:"术师",a:"罗德岛",s:"★★★★",g:["#3a2a5a","#1a1024"]},
+  {n:"陈",c:4,r:"近卫",a:"龙门",s:"★★★★",g:["#1f3a5a","#0e1a2a"]},
+  {n:"斯卡蒂",c:4,r:"近卫",a:"深海",s:"★★★★",g:["#1f2a4a","#0e1424"]},
+];
+const shopPool=[
+  {n:"玫兰莎",c:1,r:"近卫",a:"龙门"},
+  {n:"芬",c:1,r:"先锋",a:"罗德岛"},
+  {n:"炎客",c:3,r:"近卫",a:"炎"},
+  {n:"夜烟",c:2,r:"术师",a:"罗德岛"},
+  {n:"白雪",c:3,r:"狙击",a:"罗德岛"},
+];
+const roleColor={先锋:"var(--c-vanguard)",近卫:"var(--c-guard)",重装:"var(--c-defender)",
+  狙击:"var(--c-sniper)",术师:"var(--c-caster)",医疗:"var(--c-medic)",辅助:"var(--c-supporter)",特种:"var(--c-specialist)"};
+
+/* ===== 渲染：令牌色板 ===== */
+const colors=[
+  ["--bg 页面底","#0e1116"],["--panel 面板","#171c24"],["--panel-2 卡面","#1f2630"],["--line 描边","#2c3543"],
+  ["--text 主文","#e7ecf3"],["--text-2 次文","#9aa7b8"],["--gold 品牌金","#e8b84b"],["--gold-strong","#f4d27a"],
+  ["--ally 我方","#5ac8e0"],["--enemy 敌方","#e07a5a"],["--hp 生命","#e05a5a"],["--success","#5fd08a"],
+  ["费1 白","#c8ccd2"],["费2 绿","#22c55e"],["费3 蓝","#3b82f6"],["费4 紫","#a855f7"],["费5 金","#e8b84b"],
+];
+document.getElementById("swatches").innerHTML=colors.map(([n,v])=>`
+  <div class="swatch"><div class="c" style="background:${v}"></div>
+  <div class="m"><div class="nm">${n.split(" ")[0]}</div><div class="vl">${v}</div></div></div>`).join("");
+
+/* ===== 字体阶梯 ===== */
+[12,13,14,16,18,20,24,30,36].forEach(px=>{
+  const d=document.createElement("div");d.className="type-row";
+  d.innerHTML=`<span class="px num">${px}</span><span class="tx" style="font-size:${px}px">罗德岛棋局 货币战争 Rhodеs Island</span>`;
+  document.getElementById("typeScale").appendChild(d);
+});
+/* ===== 间距阶梯 ===== */
+[4,8,12,16,24,32,48,64].forEach(px=>{
+  const d=document.createElement("div");d.className="sp-row";
+  d.innerHTML=`<span class="px num">${px}</span><span class="bar" style="width:${px*3}px"></span>`;
+  document.getElementById("spaceScale").appendChild(d);
+});
+
+/* ===== 单位卡 ===== */
+function cardHTML(o,cls){
+  const g=o.g?`background-image:linear-gradient(160deg,${o.g[0]},${o.g[1]})`:"background:#1a2230";
+  return `<div class="${cls} c${o.c}">
+    <div class="av" style="${g}">${o.n[0]}</div>
+    <div class="fade"></div>
+    <div class="ctags">
+      <span class="ctag" style="background:${roleColor[o.r]||'#7f8ea3'}">${o.r}</span>
+      <span class="ctag" style="background:#d98b4a">${o.a}</span>
+    </div>
+    <div class="star">${o.s||""}</div>
+    <div class="footer"><span class="cf-name">${o.n}</span><span class="cf-cost">${o.c}💰</span></div>
+  </div>`;
+}
+document.getElementById("cardRow").innerHTML=ops.slice(0,5).map(o=>cardHTML(o,"ucard")).join("");
+document.getElementById("shopRow").innerHTML=shopPool.map(o=>cardHTML(o,"shop-card")).join("");
+document.getElementById("bench").innerHTML=shopPool.slice(0,4).map(o=>cardHTML(o,"ucard")).join("");
+
+/* ===== 战斗单位 ===== */
+const bf=[
+  {n:"史尔特尔",side:"ally",x:18,y:20,hp:100},{n:"能天使",side:"ally",x:18,y:60,hp:78},
+  {n:"银灰",side:"ally",x:30,y:40,hp:64},
+  {n:"碎骨",side:"enemy",x:62,y:22,hp:88},{n:"弑君者",side:"enemy",x:64,y:58,hp:70},
+  {n:"梅菲斯特",side:"enemy",x:74,y:40,hp:95},
+];
+document.getElementById("bfGrid").innerHTML=bf.map(u=>{
+  const g={ally:"linear-gradient(160deg,#1f3a4a,#0e1a24)",enemy:"linear-gradient(160deg,#4a1f1f,#240e0e)"}[u.side];
+  return `<div class="bf-unit ${u.side}" style="left:${u.x}%;top:${u.y}%">
+    <div class="av" style="background-image:${g}">${u.n[0]}</div>
+    <div class="nm">${u.n}</div>
+    <div class="hpbar"><i style="width:${u.hp}%"></i></div>
+    <div class="spbar"><i style="width:${u.side==='ally'?70:40}%"></i></div>
+  </div>`;
+}).join("");
+
+/* ===== 图鉴 ===== */
+document.getElementById("codexGrid").innerHTML=ops.map(o=>{
+  const g=`background-image:linear-gradient(160deg,${o.g[0]},${o.g[1]})`;
+  return `<div class="ccard">
+    <div class="thumb" style="${g}">${o.n[0]}</div>
+    <div class="star">${o.s}</div>
+    <div class="body"><div class="nm">${o.n}</div><div class="en">${o.r} · ${o.a}</div>
+    <span class="tag" style="background:${roleColor[o.r]}">${o.r}</span></div>
+  </div>`;
+}).join("");
+
+/* ===== Tab 切换 ===== */
+document.querySelectorAll(".tab[data-t]").forEach(t=>t.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active");document.getElementById(t.dataset.t).classList.add("active");
+});
+</script>
+</body>
+</html>

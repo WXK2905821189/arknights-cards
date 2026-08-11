@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>罗德岛干员档案 · 六星图鉴</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">◆</span>
+    <div class="brand-text">
+      <h1>罗德岛干员档案</h1>
+      <p class="sub">SIX-STAR OPERATOR ARCHIVE · 六星图鉴</p>
+    </div>
+  </div>
+  <div class="meta-count"><span id="count">--</span> / <span id="total">--</span> 名干员</div>
+  <a class="portal-link" href="home.html">门户</a>
+  <a class="game-link" href="game.html" target="_blank">🎮 进入游戏 →</a>
+</header>
+
+<section class="controls">
+  <div class="filters" id="filters"></div>
+  <div class="tools">
+    <input id="search" class="search" type="text" placeholder="搜索代号 / 英文名…" autocomplete="off">
+    <select id="sort" class="sort">
+      <option value="class">排序：按职业</option>
+      <option value="name">排序：按代号</option>
+    </select>
+  </div>
+</section>
+
+<main id="grid" class="grid"></main>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-box">
+    <button class="modal-close" data-close aria-label="关闭">×</button>
+    <div class="modal-art">
+      <img id="m-art" alt="立绘">
+      <div class="modal-zoom">
+        <button data-zoom="out" title="缩小">－</button>
+        <button data-zoom="reset" title="还原">⟲</button>
+        <button data-zoom="in" title="放大">＋</button>
+      </div>
+      <div class="zoom-hint">滚轮 / 点击立绘可缩放</div>
+    </div>
+    <div class="modal-info" id="m-info"></div>
+  </div>
+</div>
+
+<footer class="foot">数据来源 PRTS Wiki · 仅供个人 / 同好圈非商业使用</footer>
+
+<script src="data.js"></script>
+<script src="signatures.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>罗德岛棋局 · 货币战争</title>
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="game.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">罗德岛棋局 <span class="sub">// 货币战争</span></div>
+    <div class="stats">
+      <span class="stat gold">💰 <b id="gold">0</b></span>
+      <span class="stat lvl">Lv.<b id="level">1</b> <span id="expbar" class="expbar"><i id="expfill"></i></span> <b id="expText" class="exp-text"></b></span>
+      <span class="stat hp">❤ <b id="hp">100</b></span>
+      <span class="stat node">节点 <b id="nodeIdx">0</b>/<b id="nodeTotal">0</b></span>
+      <span class="stat diff" id="diffChip"></span>
+      <span class="stat streak" id="streak"></span>
+    </div>
+    <button id="sfxBtn" class="sfx-btn" title="音效开关">🔊</button>
+    <a class="codex-link" href="index.html" target="_blank">← 图鉴</a>
+  </header>
+
+  <main id="stage">
+    <!-- 进度流程条（页面上方） -->
+    <div id="nodeFlow" class="node-flow hidden"></div>
+
+    <!-- 开始 / 继续 -->
+    <section id="startScreen" class="overlay hidden">
+      <div class="panel">
+        <h2>罗德岛棋局 · 货币战争</h2>
+        <p id="startInfo" class="hint"></p>
+        <div class="start-actions">
+          <button id="btnContinue" class="btn primary">继续游戏</button>
+          <button id="btnNew" class="btn">新游戏（清除存档）</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 难度选择（数字 1-5，由易到难） -->
+    <section id="diffScreen" class="overlay">
+      <div class="panel">
+        <h2>选择难度</h2>
+        <p class="hint">数字越大越难：敌方更强、数量更多，但奖励也更丰厚。建议从「普通(2)」起步，由易到难。</p>
+        <div id="diffChoices" class="env-choices"></div>
+      </div>
+    </section>
+
+    <!-- 投资环境选择 -->
+    <section id="envScreen" class="overlay">
+      <div class="panel">
+        <h2>选择投资环境</h2>
+        <p class="hint">进入棋局前，先押注一项全局增益。高风险高回报，决定你这一局的运营风格。</p>
+        <div id="envChoices" class="env-choices"></div>
+      </div>
+    </section>
+
+    <!-- 主对局 -->
+    <section id="arena" class="arena hidden">
+      <div class="arena-flex">
+        <aside id="bondsPanel" class="bonds-panel"></aside>
+        <div class="arena-main">
+          <div class="enemy-preview">
+            <div class="enemy-head">敌方编队 · <span id="enemyDesc"></span></div>
+            <div id="enemyTeam" class="mini-team"></div>
+          </div>
+
+          <div class="board-wrap">
+            <div class="board-label">我方部署区 · 把卡牌拖入格子上场（人口 <span id="boardCap"></span>，灰色🔒为未解锁格）</div>
+            <div id="board" class="board-grid"></div>
+            <div class="board-label">备战席 <span id="benchCap"></span> · 拖到上方格子即可上场；超过 10 名需先售出</div>
+            <div id="benchWarn" class="bench-warn hidden"></div>
+            <div id="bench" class="bench"></div>
+            <div id="sellZone" class="sell-zone">🗑 拖到此处售出</div>
+          </div>
+
+          <div class="bonds-bar" id="bondsBar"></div>
+
+          <div class="shop">
+            <div class="shop-head">
+              <span>商店<span class="shop-cap" id="shopCapHint"></span></span>
+              <span class="shop-actions">
+                <button id="btnRefresh" class="btn small">刷新 (<span id="refreshCost">2</span>💰)</button>
+                <button id="btnExp" class="btn small">买经验 (4💰)</button>
+              </span>
+            </div>
+            <div class="cost-legend">
+              <span class="cl c1">白·1费</span><span class="cl c2">绿·2费</span><span class="cl c3">蓝·3费</span><span class="cl c4">紫·4费</span><span class="cl c5">金·5费</span>
+            </div>
+            <div id="shopCards" class="shop-cards"></div>
+          </div>
+
+          <div class="action-bar">
+            <button id="btnFight" class="btn primary">⚔ 开战</button>
+            <button id="btnNext" class="btn hidden">前进 →</button>
+            <span id="phaseHint" class="phase-hint"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 策略节点（青铜/白银/黄金/彩色） -->
+    <section id="strategyScreen" class="overlay hidden">
+      <div class="panel">
+        <h2>策略节点</h2>
+        <p class="hint">选择一项全局增益，永久生效。档位 青铜 &lt; 白银 &lt; 黄金 &lt; 彩色，强度递增；越后面的策略节点可选档位越高。</p>
+        <div id="strategyChoices" class="env-choices"></div>
+      </div>
+    </section>
+
+    <!-- 遭遇节点（难度选择） -->
+    <section id="encounterScreen" class="overlay hidden">
+      <div class="panel">
+        <h2>遭遇节点</h2>
+        <p class="hint">选择挑战难度：难度越高，敌方越强、奖励越丰厚。</p>
+        <div id="encounterChoices" class="env-choices"></div>
+      </div>
+    </section>
+
+    <!-- 战斗演出 -->
+    <section id="battleScreen" class="overlay hidden">
+      <div class="battle-stage">
+        <div class="bf-legend"><span class="ally">我方</span> ⚔ <span class="enemy">敌方</span> · 站位决定先手与射程，前排扛伤、后排输出</div>
+        <div class="bf-grid" id="bfGrid"></div>
+      </div>
+      <div class="battle-log" id="battleLog"></div>
+      <button id="btnSkip" class="btn small">跳过演出</button>
+    </section>
+
+    <!-- 结算 -->
+    <section id="resultScreen" class="overlay hidden">
+      <div class="panel">
+        <h2 id="resultTitle"></h2>
+        <p id="resultBody" class="hint"></p>
+        <button id="btnResult" class="btn primary"></button>
+      </div>
+    </section>
+    <!-- 羁绊详情弹窗 -->
+    <section id="bondModal" class="overlay hidden">
+      <div class="panel bond-modal">
+        <h2 id="bondModalTitle"></h2>
+        <div id="bondModalBody"></div>
+        <div style="text-align:center;margin-top:14px">
+          <button id="bondModalClose" class="btn">关闭</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 选中单位图鉴/操作条 -->
+  <div id="unitBar" class="unit-bar hidden">
+    <div class="ub-top">
+      <img id="ubAvatar" class="ub-avatar" />
+      <div class="ub-info">
+        <b id="ubName"></b> <span id="ubStar"></span>
+        <div id="ubStats" class="ub-stats"></div>
+      </div>
+    </div>
+    <div id="ubBonds" class="ub-bonds"></div>
+    <div id="ubSkill" class="ub-skill"></div>
+    <div class="ub-actions">
+      <button id="ubSell" class="btn small danger">售出</button>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="signatures.js"></script>
+  <script src="audio_assets.js"></script>
+  <script src="audio.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

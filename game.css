@@ -1,0 +1,359 @@
+/* 设计令牌已统一在 tokens.css（由 game.html 优先引入），此处不再定义 :root */
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;}
+a{color:var(--gold2);text-decoration:none}
+.hidden{display:none !important}
+
+/* top bar */
+.topbar{display:flex;align-items:center;gap:18px;padding:10px 18px;
+  background:linear-gradient(180deg,#1b212b,#141922);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:20}
+.brand{font-weight:700;font-size:18px;letter-spacing:.5px;color:var(--gold2)}
+.brand .sub{color:var(--ink2);font-weight:400;font-size:13px}
+.stats{display:flex;gap:16px;align-items:center;flex:1;flex-wrap:wrap}
+.stat{font-size:14px;color:var(--ink2)}
+.stat b{color:var(--ink);font-size:15px}
+.stat.gold b{color:var(--gold2)}
+.stat.hp b{color:var(--hp)}
+.expbar{display:inline-block;width:70px;height:7px;background:#0c0f14;border:1px solid var(--line);border-radius:4px;vertical-align:middle;overflow:hidden}
+.expbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3a7bd5,#5ac8e0)}
+.codex-link{font-size:13px}
+.sfx-btn{font-size:16px;line-height:1;background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+  width:34px;height:34px;cursor:pointer;color:var(--ink);transition:var(--dur-fast);flex-shrink:0}
+.sfx-btn:hover{border-color:var(--gold);transform:translateY(-1px)}
+.sfx-btn.muted{opacity:.55}
+
+/* arena */
+.arena{padding:14px 18px 90px;max-width:1100px;margin:0 auto}
+.enemy-preview{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:12px}
+.enemy-head{font-size:13px;color:var(--enemy);margin-bottom:8px;font-weight:600}
+.mini-team{display:flex;gap:8px;flex-wrap:wrap}
+.mini-chip{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:8px;padding:4px 8px;font-size:12px}
+.mini-chip img{width:26px;height:26px;border-radius:4px;object-fit:cover}
+.cost-dot{display:inline-block;width:14px;height:14px;line-height:14px;text-align:center;border-radius:50%;font-size:10px;color:#0c0f14;font-weight:700}
+.cost-dot.c1{background:#e3eaf2}.cost-dot.c2{background:#4cd07a;color:#06210f}
+.cost-dot.c3{background:#4d9fff;color:#04203f}.cost-dot.c4{background:#b06bf0;color:#fff}
+.cost-dot.c5{background:#f0c24b;color:#3a2a00}
+
+/* board / deploy grid */
+.board-wrap{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.board-label{font-size:12px;color:var(--ink2);margin:4px 0 8px}
+.board-label #boardCap,.board-label #benchCap{color:var(--gold2);font-weight:700}
+.board-grid{display:grid;grid-template-columns:repeat(3,92px);grid-template-rows:repeat(3,106px);
+  gap:8px;justify-content:center;padding:10px;background:#0c0f14;border:1px solid var(--line);border-radius:8px}
+.board-cell{width:92px;height:106px;border:1px dashed #2a3340;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;background:#10141b;position:relative}
+.board-cell.filled{border-style:solid;border-color:var(--line);background:var(--panel2)}
+.board-cell.locked{border-style:dashed;border-color:#1b2029;background:#0a0d12;opacity:.7;cursor:not-allowed}
+.board-cell.locked::after{content:"🔒";font-size:18px;opacity:.45}
+.board-cell.drop-hover{border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,184,75,.45) inset;background:#1a1f29}
+.board-cell:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-color:var(--gold)}
+.bench-warn{background:#2a1414;border:1px solid #5a2a2a;color:#f0a0a0;font-size:12px;padding:6px 10px;border-radius:8px;margin:4px 0}
+.bench{display:flex;gap:8px;flex-wrap:wrap;min-height:96px;padding:8px;border:1px dashed transparent;border-radius:8px;max-height:176px;overflow-y:auto}
+.bench.drop-hover{border-color:var(--gold);background:#141922}
+.slot{width:88px;height:102px;border:1px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#39424f;font-size:11px;background:#10141b}
+.slot.empty::after{content:"空"}
+
+/* ===== 方舟风格单位卡（商店 / 棋盘 / 备战席 统一） ===== */
+/* 通用：大头像满铺 + 底部渐变 + 标签叠层 + 彩色底栏 + 费用指示 */
+.ucard,.shop-card{position:relative;overflow:hidden;border-radius:8px;background:#151a23;
+  border:1px solid var(--line);cursor:grab;transition:transform var(--dur-fast),border-color var(--dur-fast),box-shadow var(--dur);
+  touch-action:none;user-select:none;-webkit-user-drag:none;display:block}
+.ucard{width:88px;height:104px}
+.shop-card{width:124px;height:172px;border-radius:10px;border-width:2px;flex-shrink:0}
+.ucard:hover,.shop-card:hover{transform:translateY(-3px);border-color:var(--gold);box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.ucard.sel,.shop-card.sel{border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,184,75,.5)}
+.ucard.dragging,.shop-card.dragging{opacity:.25}
+.ucard .avatar,.shop-card .avatar{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;background:#151a23;pointer-events:none}
+/* 底部渐变遮罩 */
+.ucard .card-fade,.shop-card .card-fade{position:absolute;bottom:0;left:0;right:0;height:62%;
+  background:linear-gradient(180deg,transparent 18%,rgba(0,0,0,.42) 52%,rgba(0,0,0,.9) 86%);pointer-events:none;z-index:1}
+/* 标签区（卡面定位，单列左对齐；通用样式见下方 .card-tags 统一定义） */
+.ucard .card-tags,.shop-card .card-tags{position:absolute;bottom:30px;left:3px;right:3px;z-index:2;pointer-events:none}
+.ucard .ctag,.shop-card .ctag{display:inline-flex;align-items:center;gap:2px;font-size:9px;line-height:12px;color:#eef2f7;text-shadow:0 1px 2px rgba(0,0,0,.85);background:rgba(10,14,20,.62);padding:0 4px;border-radius:4px;max-width:100%;white-space:normal;word-break:break-word}
+.ucard .ctag-icon,.shop-card .ctag-icon{font-size:9px;opacity:.85;flex-shrink:0}
+.ucard .ctag-txt,.shop-card .ctag-txt{font-weight:600}
+.ucard .ctag-sk,.shop-card .ctag-sk{color:#f0c27a}
+/* 底栏：名字 + 费用 */
+.ucard .card-footer,.shop-card .card-footer{position:absolute;bottom:0;left:0;right:0;height:28px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 6px;z-index:3;pointer-events:none}
+.ucard .cf-name,.shop-card .cf-name{font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62px}
+.ucard .cf-cost,.shop-card .cf-cost{font-size:12px;font-weight:800;color:#ffd700;text-shadow:0 0 6px rgba(255,200,0,.4),0 1px 2px rgba(0,0,0,.9);display:flex;align-items:center;gap:2px}
+.ucard .coin-icon,.shop-card .coin-icon{color:#ffc107;font-size:11px;text-shadow:0 0 4px rgba(255,193,7,.5)}
+/* 右上角费用指示器 */
+.ucard .cost-pip,.shop-card .cost-pip{position:absolute;top:4px;right:4px;display:flex;gap:1px;z-index:3;pointer-events:none}
+.ucard .cost-pip,.shop-card .cost-pip{color:rgba(255,255,255,.7);font-size:9px;text-shadow:0 0 3px rgba(0,0,0,.7);letter-spacing:-1px}
+/* 升级星标（棋盘 / 备战席） */
+.ucard .star{position:absolute;top:3px;left:3px;font-size:10px;color:var(--gold2);text-shadow:0 0 2px #000;z-index:3}
+.ucard.sold{opacity:.35;filter:grayscale(1)}
+.ucard.locked{opacity:.5;cursor:not-allowed}
+
+/* 费用边框 + 底栏配色（白1 绿2 蓝3 紫4 金5） */
+.ucard.c1,.shop-card.c1{border-color:#9aa7b8}.ucard.c2,.shop-card.c2{border-color:#22c55e}
+.ucard.c3,.shop-card.c3{border-color:#3b82f6}.ucard.c4,.shop-card.c4{border-color:#a855f7}
+.ucard.c5,.shop-card.c5{border-color:#e8b84b}
+.ucard.c1 .card-footer{background:linear-gradient(90deg,#5a6270,#3d4452)}
+.ucard.c2 .card-footer{background:linear-gradient(90deg,#1a6b36,#0d4422)}
+.ucard.c3 .card-footer{background:linear-gradient(90deg,#1a50a0,#0c2a5e)}
+.ucard.c4 .card-footer{background:linear-gradient(90deg,#6b3aa0,#3d1f66)}
+.ucard.c5 .card-footer{background:linear-gradient(90deg,#8a6a1a,#5a4208)}
+
+/* drag ghost */
+.drag-ghost{position:fixed;width:88px;height:104px;pointer-events:none;opacity:.9;z-index:200;
+  transform:rotate(-3deg);box-shadow:0 10px 28px rgba(0,0,0,.55);border-radius:8px;overflow:hidden}
+
+/* cost colors — 白1 绿2 蓝3 紫4 金5 */
+/* cost-dot badge (saturated, for small number) */
+.c1{background:#c8ccd2;color:#1a1f26}.c2{background:#22c55e;color:#fff}.c3{background:#3b82f6;color:#fff}.c4{background:#a855f7;color:#fff}.c5{background:#e8b84b;color:#1a1408}
+
+/* bonds */
+.bonds-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;min-height:10px}
+.bond{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--gold);
+  border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;transition:var(--dur-fast)}
+.bond:hover{border-color:var(--gold);background:#222c38}
+.bond b{color:var(--gold2)}
+.bond .tier{color:var(--ink2);font-size:11px}
+
+/* shop */
+.shop{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.shop-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--ink2);margin-bottom:8px}
+.shop-actions{display:flex;gap:8px}
+.cost-legend{display:flex;gap:6px;flex-wrap:wrap;padding:0 2px 4px;font-size:11px}
+.cost-legend .cl{padding:1px 7px;border-radius:9px;font-weight:700;color:#cdd6e0;border:2px solid}
+.cost-legend .c1{border-color:#e3eaf2}
+.cost-legend .c2{border-color:#4cd07a}
+.cost-legend .c3{border-color:#4d9fff}
+.cost-legend .c4{border-color:#b06bf0}
+.cost-legend .c5{border-color:#f0c24b}
+.shop-cap{font-size:11px;color:var(--ink2);margin-left:6px}
+.shop-cards{display:flex;gap:12px;flex-wrap:wrap;min-height:102px}
+
+/* buttons */
+.btn{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;
+  padding:9px 16px;font-size:14px;cursor:pointer;transition:var(--dur-fast)}
+.btn:hover{border-color:var(--gold);color:var(--gold2)}
+.btn.primary{background:linear-gradient(180deg,#e8b84b,#cf9a2e);color:#1a1408;font-weight:700;border:none}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.small{padding:6px 10px;font-size:12px}
+.btn.danger{border-color:#5a2a2a;color:#e08a8a}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+.action-bar{display:flex;align-items:center;gap:14px;margin-top:14px}
+.phase-hint{color:var(--ink2);font-size:13px}
+
+/* overlays */
+.overlay{position:fixed;inset:0;background:rgba(8,10,14,.86);display:flex;align-items:center;justify-content:center;z-index:40}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:26px 30px;max-width:640px;text-align:center}
+.panel h2{margin:0 0 8px;color:var(--gold2)}
+.hint{color:var(--ink2);font-size:13px;line-height:1.6}
+.env-choices{display:flex;gap:14px;margin-top:18px;justify-content:center;flex-wrap:wrap}
+.env-card{width:170px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px;cursor:pointer;text-align:left;transition:var(--dur-fast)}
+.env-card:hover{border-color:var(--gold);transform:translateY(-3px)}
+.env-card h4{margin:0 0 6px;color:var(--gold2)}
+.env-card p{margin:0;font-size:12px;color:var(--ink2);line-height:1.5}
+/* 难度选择卡（复用 env-card 容器） */
+.diff-card{width:172px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px;cursor:pointer;text-align:center;transition:var(--dur-fast)}
+.diff-card:hover{border-color:var(--gold);transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.diff-card .dc-num{font-size:30px;font-weight:800;color:var(--gold);line-height:1}
+.diff-card .dc-name{font-size:15px;font-weight:700;margin:6px 0 4px;color:var(--gold2)}
+.diff-card .dc-desc{font-size:11px;color:var(--ink2);line-height:1.5;min-height:32px}
+.diff-card .dc-enemy{font-size:11px;color:#7fb0e8;margin-top:8px;font-weight:700}
+
+/* battle — positioned grid */
+.battle-stage{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;max-width:920px;width:94%}
+.bf-legend{text-align:center;font-size:13px;color:var(--ink2);margin-bottom:10px}
+.bf-legend .ally{color:var(--ally);font-weight:700}
+.bf-legend .enemy{color:var(--enemy);font-weight:700}
+.bf-grid{position:relative;margin:0 auto;width:512px;height:256px;
+  background:#0c0f14;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background-image:linear-gradient(#161c25 1px,transparent 1px),linear-gradient(90deg,#161c25 1px,transparent 1px);
+  background-size:64px 64px}
+.bf-grid::before{content:"";position:absolute;left:256px;top:0;bottom:0;width:2px;z-index:3;
+  background:repeating-linear-gradient(180deg,#3a4660 0 6px,transparent 6px 12px)}
+.bf-unit{position:absolute;width:58px;height:66px;top:0;left:0;transition:transform var(--dur-slow) linear;will-change:transform;z-index:2;
+  border-radius:8px;display:flex;flex-direction:column;align-items:center;padding:2px;box-sizing:border-box;
+  border:2px solid transparent}
+.bf-unit.ally{border-color:var(--ally);background:rgba(64,180,220,0.1)}
+.bf-unit.enemy{border-color:var(--enemy);background:rgba(220,80,80,0.1)}
+.bf-unit .av{width:44px;height:44px;border-radius:6px;object-fit:cover;background:#161c25;
+  border:1px solid rgba(255,255,255,0.08);display:block;flex-shrink:0}
+.bf-unit.enemy{border-color:var(--enemy);background:rgba(220,80,80,0.1)}
+.bf-unit .nm{font-size:9px;text-align:center;color:#c8d0dc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.1;margin-top:1px}
+.bf-unit .hpbar{height:3px;background:rgba(0,0,0,0.6);border-radius:2px;margin-top:1px;overflow:hidden;width:90%}
+.bf-unit .hpbar i{display:block;height:100%;background:var(--ally);transition:width var(--dur)}
+.bf-unit.enemy .hpbar i{background:var(--enemy)}
+.bf-unit .spbar{height:3px;background:rgba(0,0,0,0.6);border-radius:2px;margin-top:1px;overflow:hidden;width:90%}
+.bf-unit .spbar i{display:block;height:100%;background:var(--gold);transition:width var(--dur) linear}
+.bf-unit.enemy .spbar i{background:#ffcf6b}
+.bf-unit.has-shield .av{box-shadow:0 0 0 2px #6fd3ff, 0 2px 6px rgba(0,0,0,.4)}
+.bf-unit.casting{animation:castFlash .28s ease-out;z-index:5}
+.bf-unit.casting::after{content:'✦';position:absolute;top:-6px;right:-4px;font-size:14px;color:var(--gold);text-shadow:0 0 6px var(--gold)}
+@keyframes castFlash{0%{filter:brightness(2.2) drop-shadow(0 0 8px var(--gold))}100%{filter:none}}
+.bf-unit.dead{opacity:.25;filter:grayscale(1)}
+.battle-log{background:#0c0f14;border:1px solid var(--line);border-radius:8px;margin-top:14px;padding:10px 14px;height:120px;overflow-y:auto;font-size:12px;color:var(--ink2);line-height:1.7;text-align:left;max-width:880px;width:94%;margin-left:auto;margin-right:auto}
+.battle-log .hit{color:#f0a0c0}
+.battle-log .heal{color:var(--medic)}
+.battle-log .skill{color:var(--gold2);font-weight:600}
+.battle-log .sys{color:var(--gold2)}
+#btnSkip{position:absolute;top:14px;right:18px}
+/* 战斗全屏化：上下结构（战场在上、信息框在下） */
+#battleScreen{flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;background:rgba(6,8,12,.98);z-index:46}
+#battleScreen .battle-stage{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;max-width:none;width:100%;border:none;border-radius:0;background:transparent;padding:22px 16px}
+#battleScreen .bf-grid{width:min(92vw,760px);height:min(46vh,380px)}
+#battleScreen .battle-log{height:30vh;max-width:none;width:100%;margin:0;border-radius:0;border-left:none;border-right:none}
+#battleScreen #btnSkip{position:fixed;top:14px;right:18px;z-index:48}
+
+/* unit bar */
+.unit-bar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:var(--panel);
+  border:1px solid var(--line);border-radius:12px;padding:12px 16px;z-index:30;width:min(94vw,440px);max-height:82vh;overflow:auto;display:flex;flex-direction:column;gap:2px}
+.unit-bar .ub-top{display:flex;gap:12px;align-items:center}
+.ub-avatar{width:54px;height:54px;border-radius:8px;object-fit:cover;background:#0c0f14;flex-shrink:0}
+.ub-info{flex:1;min-width:0}
+.ub-info b{font-size:15px;color:var(--gold2)}
+.ub-info #ubStar{color:var(--gold);font-size:12px;margin-left:4px}
+.ub-stats{color:var(--ink2);font-size:11px;margin-top:3px;line-height:1.55}
+.ub-bonds{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.ub-bond-tags{display:flex;flex-wrap:wrap;gap:4px}
+.ub-bond-note{font-size:11px;color:var(--ink2);margin-top:5px;line-height:1.5}
+.ub-skill{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);max-width:none}
+.ub-actions{margin-top:10px;display:flex;gap:8px}
+.sk-block{border-top:1px solid var(--line);padding-top:6px}
+.sk-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sk-name{font-size:14px;font-weight:700;color:var(--gold)}
+.sk-head .badge{font-size:10px;padding:1px 6px;border-radius:10px;background:#16202e;border:1px solid var(--line);color:#9fb4cc}
+.sk-head .badge.gold{background:#2a2410;border-color:#5a4a1e;color:#e8b84b}
+.sk-brief{font-size:12px;color:var(--ink);margin-top:4px;line-height:1.5}
+.sk-detail{font-size:12px;color:#cdd9e8;margin-top:4px;line-height:1.6}
+.sk-eff{color:#9fe0c4}
+.sk-sp{color:#8fa6c0}
+.sk-toggle{margin-top:6px;padding:3px 10px;font-size:11px}
+.sk-none{font-size:12px;color:var(--ink2);margin-top:4px}
+
+/* 角色技能弹窗 */
+.skill-modal{max-width:520px;text-align:left}
+.skill-modal h2{text-align:center;margin-bottom:12px}
+.sm-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.sm-avatar{width:54px;height:54px;border-radius:8px;object-fit:cover;background:#0c0f14}
+.sm-name{font-size:18px;font-weight:700;color:var(--gold)}
+.sm-head .card-tags{position:static;margin-top:4px}
+
+/* 经验数字 */
+.exp-text{font-size:11px;color:#9fb4cc;margin-left:4px;font-variant-numeric:tabular-nums}
+
+@media (max-width:680px){
+  .ucard,.slot{width:62px;height:78px}
+  .board-grid{grid-template-columns:repeat(3,62px);grid-template-rows:repeat(3,80px)}
+  .board-cell{width:62px;height:80px}
+  .ucard .card-tags,.shop-card .card-tags{bottom:24px;left:2px;right:2px}
+  .ucard .cf-name,.shop-card .cf-name{max-width:40px;font-size:10px}
+  .stat{font-size:12px}.stats{gap:10px}
+}
+
+/* 进度流程条（页面上方） */
+.node-flow{padding:10px 14px 12px;margin:0 auto;max-width:1080px}
+.nf-head{font-size:12px;font-weight:700;color:var(--gold2);letter-spacing:.5px;margin-bottom:6px;text-align:center}
+.nf-track{display:flex;align-items:center;gap:0;flex-wrap:nowrap;overflow-x:auto;padding:4px 2px 8px;max-width:100%}
+.nf-node{display:flex;flex-direction:column;align-items:center;width:62px;padding:6px 0;border-radius:8px;
+  background:#16202e;border:1px solid #26344a;color:#8fa6c0;transition:var(--dur);flex:0 0 auto}
+.nf-node .nf-ico{font-size:18px;line-height:1}
+.nf-node .nf-num{font-size:12px;font-weight:700;margin-top:2px}
+.nf-node .nf-tag{font-size:10px;opacity:.85;margin-top:1px;white-space:nowrap}
+.nf-link{width:24px;height:2px;background:#26344a;flex:0 0 auto}
+.nf-link.passed{background:#e8b84b}
+.nf-node.done{opacity:.5}
+.nf-node.done .nf-ico::after{content:' ✓';color:#5fd08a;font-size:11px}
+.nf-node.current{border-color:#e8b84b;color:#ffe9b0;background:#2a2410;animation:nfPulse 1.4s infinite}
+.nf-node.upcoming{opacity:.9}
+@keyframes nfPulse{0%,100%{box-shadow:0 0 0 2px rgba(232,184,75,.35)}50%{box-shadow:0 0 0 5px rgba(232,184,75,.1)}}
+.nf-info{text-align:center;margin-top:8px;font-size:13px;color:#cdd9e8}
+.nf-info b{color:#ffe9b0}
+
+/* 开始 / 继续界面 */
+.start-actions{display:flex;gap:12px;justify-content:center;margin-top:16px}
+#startInfo{margin-top:10px}
+
+/* ============ 策略 / 遭遇节点屏 ============ */
+.strategy-card,.encounter-card{width:188px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px;cursor:pointer;text-align:left;transition:var(--dur-fast);border-top:4px solid var(--line)}
+.strategy-card:hover,.encounter-card:hover{border-color:var(--gold);transform:translateY(-3px)}
+/* 策略卡按档次着色（底色+文字对比度） */
+.strategy-card.tier-bronze{background:linear-gradient(180deg,#3a424e,#2c3543);border-top-color:#6b7785}
+.strategy-card.tier-silver{background:linear-gradient(180deg,#3d4a5a,#2f3b4a);border-top-color:#8899aa}
+.strategy-card.tier-gold{background:linear-gradient(180deg,#4a3e28,#3a3020);border-top-color:#cf9a2e}
+.strategy-card.tier-color{background:linear-gradient(180deg,#3e2860,#2e1850);border-top-color:#a855f7}
+.sc-tier{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;margin-bottom:7px}
+.tier-bronze{background:#5a6678;color:#e7ecf3}
+.tier-silver{background:#8899aa;color:#1a212b}
+.tier-gold{background:linear-gradient(180deg,#f4d27a,#cf9a2e);color:#1a1408}
+.tier-color{background:linear-gradient(180deg,#c08bff,#7a3fd0);color:#fff}
+.sc-name{font-size:14px;font-weight:700;color:var(--gold2);margin-bottom:4px;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.sc-desc{font-size:12px;color:#c8d0dc;line-height:1.5}
+/* 策略节点指令风升级：档位徽章 + 图标 + 分隔线 + 档位标签 */
+.sc-head{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.sc-badge{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:24px;padding:0 7px;border-radius:6px;font-weight:800;font-size:13px;letter-spacing:.5px;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.strategy-card.tier-bronze .sc-badge{background:#5a6678;color:#e7ecf3}
+.strategy-card.tier-silver .sc-badge{background:#8899aa;color:#1a212b}
+.strategy-card.tier-gold .sc-badge{background:linear-gradient(180deg,#f4d27a,#cf9a2e);color:#1a1408}
+.strategy-card.tier-color .sc-badge{background:linear-gradient(180deg,#c08bff,#7a3fd0);color:#fff}
+.sc-icon{font-size:22px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))}
+.sc-divider{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent);margin:9px 0}
+.sc-tier-label{font-size:11px;color:var(--ink2);margin-top:7px;letter-spacing:.5px}
+.ec-label{display:inline-block;font-size:13px;font-weight:700;padding:2px 10px;border-radius:10px;margin-bottom:7px;background:var(--enemy);color:#1a1008}
+.ec-desc{font-size:12px;color:var(--ink2);line-height:1.5}
+.ec-reward{margin-top:8px;font-size:12px;color:var(--gold2)}
+
+/* ============ 左侧羁绊面板（仅作战区） ============ */
+.arena-flex{display:flex;gap:14px;align-items:flex-start}
+.arena-main{flex:1;min-width:0}
+.bonds-panel{flex:0 0 188px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;position:sticky;top:64px;max-height:calc(100vh - 84px);overflow-y:auto}
+.bonds-panel .bp-head{font-size:13px;color:var(--gold2);font-weight:700;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.bp-sub{font-size:11px;color:var(--ink2);margin:8px 0 4px}
+.bp-empty{font-size:11px;color:var(--ink2);line-height:1.5}
+.bp-item{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;margin-bottom:5px;cursor:pointer;border-left:3px solid var(--line);background:var(--panel2);transition:var(--dur-fast)}
+.bp-item:hover{border-left-color:var(--gold)}
+.bp-item.active{border-left-color:var(--gold);background:#1f2a1c}
+.bp-item.pot{border-left-color:#3a4660;opacity:.85}
+.bp-item b{font-size:13px;font-weight:600}
+.bp-item.active b{color:var(--gold2)}
+.bp-item.pot b{color:#aebfd2}
+.bp-dot{width:9px;height:9px;border-radius:50%;background:#39424f;flex:0 0 auto}
+.bp-dot.on{background:var(--gold);box-shadow:0 0 0 2px rgba(232,184,75,.3)}
+.bp-tier,.bp-need{font-size:11px;color:var(--ink2);margin-left:auto}
+.bp-item.active .bp-tier{color:#9fd08a}
+
+/* ============ 卡面 / 弹窗通用羁绊标签（单列左对齐，唯一来源） ============ */
+.card-tags{display:flex;flex-direction:column;gap:2px;align-items:flex-start;justify-content:flex-start;padding:2px 0}
+.bond-tag{font-size:9px;line-height:12px;padding:1px 3px;border-radius:4px;color:#0c0f14;font-weight:700;white-space:nowrap}
+.tag-role{background:#7f8ea3}
+.tag-aff{background:#d98b4a}
+/* 费用色彩：1=白 2=绿 3=蓝 4=紫 5=金 */
+.ucard.c1{border:2px solid #e3eaf2}
+.ucard.c2{border:2px solid #4cd07a}
+.ucard.c3{border:2px solid #4d9fff}
+.ucard.c4{border:2px solid #b06bf0;box-shadow:0 0 0 1px rgba(176,107,240,.35)}
+.ucard.c5{border:2px solid #f0c24b;box-shadow:0 0 0 1px rgba(240,194,75,.5)}
+
+/* ============ 售出区 ============ */
+.sell-zone{margin-top:8px;border:2px dashed #5a2a2a;border-radius:8px;padding:10px;text-align:center;color:#e08a8a;font-size:13px;background:#1a1010;transition:var(--dur-fast)}
+.sell-zone.drop-hover{border-color:#e05a5a;background:#2a1414;box-shadow:0 0 0 2px rgba(224,90,90,.4) inset}
+
+/* ============ 羁绊详情弹窗 ============ */
+.bond-modal{max-width:680px;text-align:left}
+.bond-modal h4{margin:12px 0 6px;color:var(--gold2);font-size:14px}
+.bm-thr{font-size:12px;color:var(--ink2);background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 10px;margin-bottom:4px}
+.bm-tiers{background:#0c0f14;border:1px solid var(--line);border-radius:8px;padding:4px 10px;margin-bottom:6px}
+.bm-tier{font-size:13px;color:var(--ink);padding:4px 0;border-bottom:1px dashed var(--line)}
+.bm-tier:last-child{border-bottom:none}
+.bm-tier b{color:var(--gold2)}
+.bm-ops{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.bm-op{display:flex;flex-direction:column;align-items:center;width:54px;font-size:10px;color:var(--ink2);text-align:center}
+.bm-op.on{color:var(--gold2);font-weight:700}
+.bm-op .bond-tag{margin-top:2px}
+.bm-avatar{width:44px;height:44px;border-radius:7px;object-fit:cover;background:#151a23;border:1px solid var(--line);display:block;margin-bottom:3px}
+.bm-op.on .bm-avatar{border-color:var(--gold);box-shadow:0 0 0 1px rgba(232,184,75,.5)}
+
+@media (max-width:860px){
+  .arena-flex{flex-direction:column}
+  .bonds-panel{flex:0 0 auto;width:100%;position:static;max-height:none}
+}
