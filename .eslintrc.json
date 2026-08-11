@@ -20,7 +20,7 @@
     "SIGNATURE_DESC": "readonly"
   },
   "rules": {
-    "eqeqeq": ["error", "always"],
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
     "no-eval": "error",
     "no-debugger": "error",
     "no-console": ["warn", { "allow": ["warn", "error"] }],

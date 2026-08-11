@@ -139,7 +139,7 @@ def rev(samples, wet=0.2):
     return out
 
 
-def norm(samples, peak=0.92):
+def norm(samples, peak=0.78):
     if not samples:
         return samples
     mx = max(abs(v) for v in samples)
@@ -147,6 +147,19 @@ def norm(samples, peak=0.92):
         return samples
     g = peak / mx
     return [v * g for v in samples]
+
+
+def declick(samples, ms_in=0.6, ms_out=0.6):
+    """去除首尾直流阶跃（点击/咔哒声）的极细淡入淡出，柔化波形起止。"""
+    n = len(samples)
+    fi = max(1, int(ms_in / 1000.0 * SR))
+    fo = max(1, int(ms_out / 1000.0 * SR))
+    out = samples[:]
+    for i in range(min(fi, n)):
+        out[i] *= i / fi
+    for i in range(min(fo, n)):
+        out[n - 1 - i] *= i / fo
+    return out
 
 
 def to_wav_bytes(samples):
@@ -186,106 +199,106 @@ def reg(key, count, fn):
 
 
 # —— UI ——
-reg("ui/click", 3, lambda v: env(osc(430 * DET(v), 470 * DET(v), 0.05, "tri", 0.9), 0.002, 0.03, 0.0, 0.02))
-reg("ui/select", 3, lambda v: env(osc(620 * DET(v, 0.05), 680 * DET(v, 0.05), 0.045, "sine", 0.8), 0.002, 0.02, 0.0, 0.02))
-reg("ui/open", 2, lambda v: rev(env(osc(300, 540, 0.12, "sine", 0.8), 0.01, 0.06, 0.0, 0.05), 0.15))
-reg("ui/close", 2, lambda v: env(osc(540, 300, 0.10, "sine", 0.7), 0.01, 0.05, 0.0, 0.04))
-reg("ui/error", 2, lambda v: env(mix(osc(200, 120, 0.18, "saw", 0.8),
-                                      osc(400, 240, 0.18, "saw", 0.25)), 0.002, 0.10, 0.0, 0.05))
+reg("ui/click", 3, lambda v: env(osc(430 * DET(v), 470 * DET(v), 0.05, "tri", 0.8), 0.003, 0.03, 0.0, 0.02))
+reg("ui/select", 3, lambda v: env(osc(620 * DET(v, 0.05), 680 * DET(v, 0.05), 0.045, "sine", 0.7), 0.003, 0.02, 0.0, 0.02))
+reg("ui/open", 2, lambda v: rev(env(osc(300, 540, 0.12, "sine", 0.7), 0.01, 0.06, 0.0, 0.05), 0.15))
+reg("ui/close", 2, lambda v: env(osc(540, 300, 0.10, "sine", 0.6), 0.01, 0.05, 0.0, 0.04))
+reg("ui/error", 2, lambda v: env(mix(osc(200, 120, 0.18, "tri", 0.6),
+                                      osc(400, 240, 0.18, "tri", 0.2)), 0.003, 0.10, 0.0, 0.05))
 
 
 # —— 商店 / 经济 ——
 reg("shop/buy", 3, lambda v: env(mix(
-    osc(690 * DET(v), 720 * DET(v), 0.07, "square", 0.5),
-    delay(osc(980, 1040, 0.09, "square", 0.35), 0.05),
-    delay(noise_burst(0.02, "highpass", 2000, 0.7, 0.4), 0.0)), 0.002, 0.08, 0.0, 0.04))
-reg("shop/reroll", 3, lambda v: env(osc(500 * DET(v), 540 * DET(v), 0.05, "tri", 0.7), 0.002, 0.025, 0.0, 0.02))
-reg("shop/levelup", 2, lambda v: rev(chord_arpeggio([523, 659, 784, 1046], 0.06, "tri", 0.5, 0.10), 0.18))
-reg("shop/sell", 3, lambda v: env(osc(320 * DET(v), 200 * DET(v), 0.10, "sine", 0.7), 0.005, 0.05, 0.0, 0.04))
-reg("shop/insufficient", 2, lambda v: env(osc(180, 120, 0.18, "saw", 0.7), 0.002, 0.10, 0.0, 0.05))
+    osc(660 * DET(v), 700 * DET(v), 0.07, "tri", 0.4),
+    delay(osc(940, 1000, 0.09, "tri", 0.28), 0.05),
+    delay(noise_burst(0.02, "lowpass", 1800, 0.7, 0.18), 0.0)), 0.003, 0.08, 0.0, 0.04))
+reg("shop/reroll", 3, lambda v: env(osc(500 * DET(v), 540 * DET(v), 0.05, "tri", 0.6), 0.003, 0.025, 0.0, 0.02))
+reg("shop/levelup", 2, lambda v: rev(chord_arpeggio([523, 659, 784, 1046], 0.06, "tri", 0.45, 0.10), 0.18))
+reg("shop/sell", 3, lambda v: env(osc(320 * DET(v), 200 * DET(v), 0.10, "sine", 0.6), 0.005, 0.05, 0.0, 0.04))
+reg("shop/insufficient", 2, lambda v: env(osc(180, 120, 0.18, "tri", 0.5), 0.003, 0.10, 0.0, 0.05))
 
 
 # —— 部署 ——
 reg("deploy/place", 3, lambda v: env(mix(
     osc(260 * DET(v), 340 * DET(v), 0.10, "sine", 0.6),
-    noise_burst(0.12, "lowpass", 900, 0.7, 0.5)), 0.001, 0.06, 0.0, 0.03))
-reg("deploy/pickup", 3, lambda v: env(osc(380 * DET(v), 420 * DET(v), 0.06, "sine", 0.7), 0.002, 0.03, 0.0, 0.02))
-reg("deploy/invalid", 2, lambda v: env(osc(160, 110, 0.12, "square", 0.6), 0.002, 0.06, 0.0, 0.04))
+    noise_burst(0.12, "lowpass", 900, 0.7, 0.5)), 0.003, 0.06, 0.0, 0.03))
+reg("deploy/pickup", 3, lambda v: env(osc(380 * DET(v), 420 * DET(v), 0.06, "sine", 0.6), 0.003, 0.03, 0.0, 0.02))
+reg("deploy/invalid", 2, lambda v: env(osc(160, 110, 0.12, "tri", 0.45), 0.003, 0.06, 0.0, 0.04))
 
 
 # —— 战斗 ——
 reg("combat/hit", 4, lambda v: env(mix(
-    osc(150 * DET(v), 55 * DET(v), 0.10, "sine", 0.9),
-    noise_burst(0.08, "lowpass", 700, 0.7, 0.5),
-    delay(noise_burst(0.02, "highpass", 2500, 0.7, 0.4), 0.0)), 0.001, 0.06, 0.0, 0.03))
+    osc(150 * DET(v), 55 * DET(v), 0.10, "sine", 0.85),
+    noise_burst(0.08, "lowpass", 600, 0.7, 0.4),
+    delay(noise_burst(0.02, "lowpass", 1400, 0.7, 0.15), 0.0)), 0.003, 0.06, 0.0, 0.03))
 reg("combat/hit_arts", 4, lambda v: rev(
     biquad(env(mix(
-        osc(1000 * DET(v), 520 * DET(v), 0.14, "sine", 0.7),
-        osc(1500, 800, 0.12, "sine", 0.3),
-        noise_burst(0.05, "bandpass", 1800, 2.0, 0.3)), 0.002, 0.08, 0.0, 0.05), "bandpass", 1200, 1.2), 0.10))
+        osc(820 * DET(v), 440 * DET(v), 0.14, "sine", 0.6),
+        osc(1200, 640, 0.12, "sine", 0.25),
+        noise_burst(0.05, "bandpass", 1000, 2.0, 0.15)), 0.003, 0.08, 0.0, 0.05), "lowpass", 900, 0.7), 0.10))
 reg("combat/skill_default", 3, lambda v: env(biquad(
-    osc(540 * DET(v), 860 * DET(v), 0.16, "tri", 0.6), "lowpass", 3000, 0.7), 0.003, 0.09, 0.0, 0.05))
+    osc(540 * DET(v), 860 * DET(v), 0.16, "tri", 0.5), "lowpass", 2600, 0.7), 0.004, 0.09, 0.0, 0.05))
 reg("combat/skill_heal", 3, lambda v: rev(env(biquad(mix(
-    osc(720 * DET(v), 1120 * DET(v), 0.20, "sine", 0.6),
-    osc(1080, 1680, 0.18, "sine", 0.25)), "lowpass", 2400, 0.7), 0.01, 0.10, 0.0, 0.08), 0.20))
+    osc(720 * DET(v), 1120 * DET(v), 0.20, "sine", 0.55),
+    osc(1080, 1680, 0.18, "sine", 0.22)), "lowpass", 2200, 0.7), 0.01, 0.10, 0.0, 0.08), 0.20))
 reg("combat/skill_shield", 3, lambda v: env(mix(
-    osc(420 * DET(v), 640 * DET(v), 0.22, "tri", 0.6),
-    noise_burst(0.08, "highpass", 3000, 0.7, 0.3)), 0.005, 0.12, 0.0, 0.06))
+    osc(420 * DET(v), 640 * DET(v), 0.22, "tri", 0.55),
+    noise_burst(0.08, "highpass", 1800, 0.7, 0.15)), 0.005, 0.12, 0.0, 0.06))
 reg("combat/skill_buff", 3, lambda v: env(biquad(mix(
-    osc(460 * DET(v), 920 * DET(v), 0.18, "square", 0.5),
-    osc(690, 1380, 0.16, "square", 0.2)), "lowpass", 3000, 0.7), 0.003, 0.10, 0.0, 0.05))
+    osc(460 * DET(v), 920 * DET(v), 0.18, "tri", 0.45),
+    osc(690, 1380, 0.16, "tri", 0.18)), "lowpass", 2600, 0.7), 0.003, 0.10, 0.0, 0.05))
 reg("combat/skill_def", 3, lambda v: env(mix(
-    osc(560 * DET(v), 220 * DET(v), 0.18, "saw", 0.6),
-    noise_burst(0.08, "lowpass", 1400, 0.8, 0.4)), 0.002, 0.10, 0.0, 0.05))
+    osc(560 * DET(v), 220 * DET(v), 0.18, "tri", 0.5),
+    noise_burst(0.08, "lowpass", 1200, 0.8, 0.35)), 0.003, 0.10, 0.0, 0.05))
 reg("combat/skill_summon", 3, lambda v: rev(env(biquad(mix(
-    osc(150 * DET(v), 250 * DET(v), 0.30, "saw", 0.6),
-    noise_burst(0.25, "lowpass", 500, 0.7, 0.4)), "lowpass", 900, 0.7), 0.02, 0.15, 0.0, 0.10), 0.15))
+    osc(150 * DET(v), 250 * DET(v), 0.30, "tri", 0.5),
+    noise_burst(0.25, "lowpass", 500, 0.7, 0.35)), "lowpass", 700, 0.7), 0.02, 0.15, 0.0, 0.10), 0.15))
 reg("combat/skill_burn", 3, lambda v: env(biquad(mix(
-    osc(560 * DET(v), 360 * DET(v), 0.10, "saw", 0.4),
-    noise_burst(0.10, "bandpass", 600, 3.0, 0.5)), "bandpass", 700, 2.0), 0.001, 0.05, 0.0, 0.04))
+    osc(560 * DET(v), 360 * DET(v), 0.10, "tri", 0.3),
+    noise_burst(0.10, "bandpass", 500, 3.0, 0.25)), "lowpass", 700, 2.0), 0.003, 0.05, 0.0, 0.04))
 reg("combat/skill_cast", 2, lambda v: rev(env(biquad(mix(
-    osc(680 * DET(v), 1040 * DET(v), 0.5, "sine", 0.5),
-    osc(1020, 1560, 0.45, "sine", 0.2)), "lowpass", 3000, 0.7), 0.05, 0.20, 0.0, 0.20), 0.35))
+    osc(680 * DET(v), 1040 * DET(v), 0.5, "sine", 0.45),
+    osc(1020, 1560, 0.45, "sine", 0.18)), "lowpass", 2600, 0.7), 0.05, 0.20, 0.0, 0.20), 0.35))
 reg("combat/heal", 3, lambda v: rev(env(biquad(mix(
-    osc(720 * DET(v), 1120 * DET(v), 0.18, "sine", 0.6),
-    osc(1080, 1680, 0.16, "sine", 0.25)), "lowpass", 2400, 0.7), 0.01, 0.09, 0.0, 0.07), 0.18))
+    osc(720 * DET(v), 1120 * DET(v), 0.18, "sine", 0.55),
+    osc(1080, 1680, 0.16, "sine", 0.22)), "lowpass", 2200, 0.7), 0.01, 0.09, 0.0, 0.07), 0.18))
 reg("combat/shield", 3, lambda v: env(mix(
-    osc(420 * DET(v), 640 * DET(v), 0.20, "tri", 0.6),
-    noise_burst(0.08, "highpass", 3000, 0.7, 0.3)), 0.005, 0.11, 0.0, 0.06))
+    osc(420 * DET(v), 640 * DET(v), 0.20, "tri", 0.55),
+    noise_burst(0.08, "highpass", 1800, 0.7, 0.15)), 0.005, 0.11, 0.0, 0.06))
 reg("combat/summon", 3, lambda v: rev(env(biquad(mix(
-    osc(150 * DET(v), 250 * DET(v), 0.30, "saw", 0.6),
-    noise_burst(0.25, "lowpass", 500, 0.7, 0.4)), "lowpass", 900, 0.7), 0.02, 0.15, 0.0, 0.10), 0.15))
+    osc(150 * DET(v), 250 * DET(v), 0.30, "tri", 0.5),
+    noise_burst(0.25, "lowpass", 500, 0.7, 0.35)), "lowpass", 700, 0.7), 0.02, 0.15, 0.0, 0.10), 0.15))
 reg("combat/burn", 3, lambda v: env(biquad(mix(
-    osc(560 * DET(v), 360 * DET(v), 0.10, "saw", 0.4),
-    noise_burst(0.10, "bandpass", 600, 3.0, 0.5)), "bandpass", 700, 2.0), 0.001, 0.05, 0.0, 0.04))
+    osc(560 * DET(v), 360 * DET(v), 0.10, "tri", 0.3),
+    noise_burst(0.10, "bandpass", 500, 3.0, 0.25)), "lowpass", 700, 2.0), 0.003, 0.05, 0.0, 0.04))
 reg("combat/death_ally", 3, lambda v: rev(env(biquad(mix(
-    osc(260 * DET(v), 90 * DET(v), 0.30, "saw", 0.7),
-    noise_burst(0.18, "lowpass", 400, 0.7, 0.4)), "lowpass", 800, 0.7), 0.005, 0.15, 0.0, 0.12), 0.20))
+    osc(260 * DET(v), 90 * DET(v), 0.30, "tri", 0.55),
+    noise_burst(0.18, "lowpass", 400, 0.7, 0.35)), "lowpass", 700, 0.7), 0.006, 0.15, 0.0, 0.12), 0.20))
 reg("combat/death_enemy", 3, lambda v: rev(env(biquad(mix(
-    osc(200 * DET(v), 70 * DET(v), 0.30, "saw", 0.6),
-    noise_burst(0.18, "lowpass", 400, 0.7, 0.4)), "lowpass", 800, 0.7), 0.005, 0.15, 0.0, 0.12), 0.20))
+    osc(200 * DET(v), 70 * DET(v), 0.30, "tri", 0.5),
+    noise_burst(0.18, "lowpass", 400, 0.7, 0.35)), "lowpass", 700, 0.7), 0.006, 0.15, 0.0, 0.12), 0.20))
 
 
 # —— 战略 / 节点 ——
-reg("strategic/node_enter", 2, lambda v: rev(env(osc(330 * DET(v), 500 * DET(v), 0.14, "sine", 0.7), 0.01, 0.06, 0.0, 0.05), 0.12))
+reg("strategic/node_enter", 2, lambda v: rev(env(osc(330 * DET(v), 500 * DET(v), 0.14, "sine", 0.6), 0.01, 0.06, 0.0, 0.05), 0.12))
 reg("strategic/bond_unlock", 2, lambda v: rev(env(mix(
-    osc(523 * DET(v), 523 * DET(v), 0.22, "tri", 0.4),
-    osc(659, 659, 0.22, "tri", 0.4),
-    osc(784, 784, 0.22, "tri", 0.4)), 0.005, 0.10, 0.0, 0.10), 0.25))
-reg("strategic/strategy_pick", 2, lambda v: chord_arpeggio([440, 554, 659, 880], 0.06, "square", 0.4, 0.08))
-reg("strategic/encounter_pick", 2, lambda v: chord_arpeggio([392, 494, 587], 0.07, "tri", 0.4, 0.08))
-reg("strategic/promote", 2, lambda v: rev(chord_arpeggio([523, 659, 784, 1046, 1318], 0.09, "tri", 0.5, 0.10), 0.20))
+    osc(523 * DET(v), 523 * DET(v), 0.22, "tri", 0.35),
+    osc(659, 659, 0.22, "tri", 0.35),
+    osc(784, 784, 0.22, "tri", 0.35)), 0.005, 0.10, 0.0, 0.10), 0.25))
+reg("strategic/strategy_pick", 2, lambda v: chord_arpeggio([440, 554, 659, 880], 0.06, "tri", 0.32, 0.08))
+reg("strategic/encounter_pick", 2, lambda v: chord_arpeggio([392, 494, 587], 0.07, "tri", 0.35, 0.08))
+reg("strategic/promote", 2, lambda v: rev(chord_arpeggio([523, 659, 784, 1046, 1318], 0.09, "tri", 0.45, 0.10), 0.20))
 
 
 # —— 结算 stinger（走音乐总线）——
-reg("result/win", 1, lambda v: rev(chord_arpeggio([440, 554, 659, 880], 0.10, "tri", 0.6, 0.20), 0.30))
+reg("result/win", 1, lambda v: rev(chord_arpeggio([440, 554, 659, 880], 0.10, "tri", 0.55, 0.20), 0.30))
 reg("result/lose", 1, lambda v: rev(env(mix(
-    chord_arpeggio([440, 349, 294, 220], 0.13, "saw", 0.5, 0.05),
-    noise_burst(0.4, "lowpass", 400, 0.7, 0.25)), 0.005, 0.10, 0.0, 0.10), 0.20))
+    chord_arpeggio([440, 349, 294, 220], 0.13, "tri", 0.45, 0.05),
+    noise_burst(0.4, "lowpass", 400, 0.7, 0.2)), 0.006, 0.10, 0.0, 0.10), 0.20))
 reg("result/boss", 1, lambda v: rev(env(biquad(mix(
-    osc(110, 110, 0.8, "saw", 0.5),
-    osc(138.6, 138.6, 0.8, "saw", 0.4),
-    osc(164.8, 164.8, 0.8, "saw", 0.4)), "lowpass", 600, 0.7), 0.02, 0.3, 0.0, 0.2), 0.30))
+    osc(110, 110, 0.8, "tri", 0.45),
+    osc(138.6, 138.6, 0.8, "tri", 0.32),
+    osc(164.8, 164.8, 0.8, "tri", 0.3)), "lowpass", 500, 0.7), 0.02, 0.3, 0.0, 0.2), 0.30))
 
 
 # ---------------------------------------------------------------------------
@@ -299,7 +312,7 @@ def main():
     for key, (count, fn) in EVENTS.items():
         uris = []
         for v in range(count):
-            samples = norm(fn(v), peak=0.92)
+            samples = declick(norm(fn(v), peak=0.78))
             wav = to_wav_bytes(samples)
             raw_bytes += len(wav)
             # 真实 WAV 素材

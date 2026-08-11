@@ -27,11 +27,13 @@
   // ---- 平台常量 ----------------------------------------------------------
   var SAMPLE_RATE = 44100;          // Web Audio 上下文采样率（采样会自动重采样到该率）
   var MAX_SFX_VOICES = 24;          // 单端 SFX 并发语音上限（移动端可调低）
-  var MUSIC_BUS_BASE = 0.5;         // 音乐总线基准增益
+  var MUSIC_BUS_BASE = 0.45;        // 音乐总线基准增益
 
   // ---- 核心对象（懒初始化） ---------------------------------------------
   var AC = null;                    // AudioContext
-  var master = null;                // 主增益 → 压缩 → destination
+  var master = null;                // 主增益
+  var masterSoft = null;            // 柔化低通（滚降极高频，去刺耳）
+  var masterShelf = null;           // 柔化高架（衰减 3.5k+，去明亮毛刺）
   var comp = null;                  // 总线压缩（防止混音削波）
   var buses = {};                   // { music, sfx, ui }
   var noiseBuffer = null;           // 复用白噪声缓冲（生成式音乐用）
@@ -73,19 +75,26 @@
     AC = new Ctx({ sampleRate: SAMPLE_RATE });
 
     master = AC.createGain();
-    master.gain.value = 0.9;
+    master.gain.value = 0.82;
+    // 柔化主链：低通滚降极高频 + 高架衰减 3.5kHz 以上，整体更圆润不刺耳
+    masterSoft = AC.createBiquadFilter();
+    masterSoft.type = 'lowpass'; masterSoft.frequency.value = 9000; masterSoft.Q.value = 0.7;
+    masterShelf = AC.createBiquadFilter();
+    masterShelf.type = 'highshelf'; masterShelf.frequency.value = 3500; masterShelf.gain.value = -5;
     comp = AC.createDynamicsCompressor();
     comp.threshold.value = -18;
     comp.knee.value = 20;
     comp.ratio.value = 4;
     comp.attack.value = 0.003;
     comp.release.value = 0.25;
-    master.connect(comp);
+    master.connect(masterSoft);
+    masterSoft.connect(masterShelf);
+    masterShelf.connect(comp);
     comp.connect(AC.destination);
 
     buses.music = AC.createGain(); buses.music.gain.value = MUSIC_BUS_BASE;
-    buses.sfx = AC.createGain();   buses.sfx.gain.value = 0.9;
-    buses.ui = AC.createGain();     buses.ui.gain.value = 0.9;
+    buses.sfx = AC.createGain();   buses.sfx.gain.value = 0.82;
+    buses.ui = AC.createGain();     buses.ui.gain.value = 0.82;
     buses.music.connect(master);
     buses.sfx.connect(master);
     buses.ui.connect(master);
@@ -251,14 +260,14 @@
   function playPad(notes, t, dur) {
     var g = AC.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.05, t + 0.8);
-    g.gain.setValueAtTime(0.05, t + dur - 0.6);
+    g.gain.exponentialRampToValueAtTime(0.045, t + 0.8);
+    g.gain.setValueAtTime(0.045, t + dur - 0.6);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    var f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1400;
+    var f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1100;
     g.connect(f); f.connect(buses.music);
     notes.forEach(function (n, i) {
       var o = AC.createOscillator();
-      o.type = i === 0 ? 'sawtooth' : 'triangle';
+      o.type = 'triangle';
       o.frequency.value = n; o.detune.value = (i - 1) * 4;
       o.connect(g); o.start(t); o.stop(t + dur + 0.05);
     });
@@ -289,9 +298,9 @@
   }
   function playHat(t, ten) {
     var src = AC.createBufferSource(); src.buffer = noiseBuffer;
-    var f = AC.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000;
+    var f = AC.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 5500;
     var g = AC.createGain();
-    var vol = 0.06 * ten;
+    var vol = 0.045 * ten;
     g.gain.setValueAtTime(Math.max(0.0008, vol), t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
     src.connect(f); f.connect(g); g.connect(buses.music);
@@ -300,7 +309,7 @@
   function playDrone(freq, t, dur) {
     var o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = freq;
     var o2 = AC.createOscillator(); o2.type = 'sine'; o2.frequency.value = freq * 1.005;
-    var f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 420;
+    var f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 360;
     var g = AC.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(0.06, t + 1.0);

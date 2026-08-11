@@ -279,6 +279,11 @@
         active.push({ axis: '签名', value: u.name, count: 1, tier: 0, bonus: s.attr || {}, kw: (s.kw && Object.keys(s.kw)[0]) || null });
       }
     });
+    // P2-3：单干员势力「独行被动」也进入展示，让玩家看到每个单位「有东西」
+    boardUnits.forEach(u => {
+      const f = (u.bonds && u.bonds['阵营']);
+      if (DEPLOY_PASSIVE[f]) active.push({ axis: '独行', value: f, count: 1, tier: 0, bonus: DEPLOY_PASSIVE[f].attr, kw: null });
+    });
     return { active, potential, mult, sig, special };
   }
 
@@ -368,6 +373,16 @@
       let m = mult[u.op.name] || DEF_MULT;
       if (u.buff && u.buff !== 1) { m = Object.assign({}, m); m.atk *= u.buff; m.hp *= u.buff; m.def *= u.buff; }
       if (gmult) { m = Object.assign({}, m); m.atk *= gmult.atk; m.hp *= gmult.hp; m.aspd *= gmult.aspd; m.magicAmp *= gmult.magicAmp; }
+      // P2-3：单干员势力上场即给「独行被动」（按阵营查 DEPLOY_PASSIVE）
+      const dp = DEPLOY_PASSIVE[(u.op.bonds && u.op.bonds['阵营'])];
+      if (dp) {
+        m = Object.assign({}, m);
+        Object.keys(dp.attr).forEach(k => {
+          if (k === 'spInit') m.spInit += dp.attr[k];
+          else if (k === 'spRegen') m.spRegen *= (1 + dp.attr[k]);
+          else m[k] = (m[k] || 1) * (1 + dp.attr[k]);
+        });
+      }
       return makeCombatUnit(u.op, u.star, side, m, sig[u.op.name] || { attr: {}, kw: {} }, special[u.op.name] || null);
     });
   }
@@ -485,6 +500,8 @@
     const logBuf = [];
     const castsThisSnap = [];
     let t = 0;
+    // P2-4：战斗统计（复盘用）——双方累计伤害与阵亡数
+    const stats = { allyDmg: 0, enemyDmg: 0, allyDeaths: 0, enemyDeaths: 0 };
     // 行动间隔：受减速(slowFactor)与施法加速(castAspd)影响
     const ATK = u => {
       const slowF = (u.slowFactor && t < u.slowUntil) ? u.slowFactor : 1;
@@ -546,7 +563,8 @@
         tgt.shield -= absorb; finalDmg -= absorb;
       }
       tgt.hp -= finalDmg;
-      if (tgt.hp <= 0) { tgt.alive = false; occ.delete(tgt.x + ',' + tgt.y); }
+      if (src && src.side === 'ally') stats.allyDmg += finalDmg; else if (src) stats.enemyDmg += finalDmg;
+      if (tgt.hp <= 0) { tgt.alive = false; occ.delete(tgt.x + ',' + tgt.y); if (tgt.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; }
       // 命中破甲（薇薇安娜 / 伊比利亚）
       if (src.defShred && tgt.alive) tgt.def = Math.max(0, tgt.def * (1 - src.defShred));
       // 命中减速（水月）
@@ -641,7 +659,7 @@
         if (u.alive && u.burn && t < u.burn.until) {
           const d = Math.round(u.maxHp * u.burn.dps * DT);
           u.hp -= d;
-          if (u.hp <= 0) { u.alive = false; occ.delete(u.x + ',' + u.y); }
+          if (u.hp <= 0) { u.alive = false; occ.delete(u.x + ',' + u.y); if (u.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; }
         }
       });
       // 急救协议（罗德岛特殊）：全队低于 70% 时回血
@@ -759,7 +777,7 @@
       winner = aHp >= eHp ? 'ally' : 'enemy';
     }
     frames.push({ sys: true, line: winner === 'ally' ? '★ 我方胜利！' : '✗ 敌方胜利…' });
-    return { winner, frames, aAlive, eAlive };
+    return { winner, frames, aAlive, eAlive, stats };
   }
 
   // 兼容别名：自动站位（Node 测试用）
@@ -1065,7 +1083,7 @@
     if (!panel) return;
     const boardUnits = Object.values(G.board).map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star }));
     const { active, potential } = computeBonds(boardUnits);
-    const act = active.filter(b => b.axis === '职业' || b.axis === '阵营' || b.axis === '特殊' || b.axis === '签名');
+    const act = active.filter(b => b.axis === '职业' || b.axis === '阵营' || b.axis === '特殊' || b.axis === '签名' || b.axis === '独行');
     const pot = potential.filter(p => p.axis === '职业' || p.axis === '阵营');
     let html = '<div class="bp-head">羁绊面板</div>';
     html += '<div class="bp-sub">已激活</div>';
@@ -1250,9 +1268,15 @@
   function startRound() {
     const node = G.nodes[G.nodeIdx];
     if (!node) { reset(); return; }
+    routeNode(node);
+  }
+
+  // P2-1：节点路由（抽出自成函数，便于分叉节点解析后复用）
+  function routeNode(node) {
     if (node.type === 'reward') { grantReward(node); return; }
     if (node.type === 'strategy') { showStrategyScreen(node); return; }
     if (node.type === 'encounter') { showEncounterScreen(node); return; }
+    if (node.type === 'fork') { showForkScreen(node); return; }
     enterShopRound(node);
   }
 
@@ -1263,7 +1287,8 @@
     const se = aggregateStrategies();
     const ef = (G.env && G.env.effects) || {};
     G.boardBonus = (se.boardCapBonus || 0) + (ef.boardCapBonus || 0);
-    G.freeRerollLeft = (se.freeReroll || 0) + (ef.rerollBonus || 0);
+    G.freeRerollLeft = (se.freeReroll || 0) + (ef.rerollBonus || 0) + (G.pendingFreeReroll || 0) + (getMeta().unlocks.rerollPlus ? 1 : 0);
+    G.pendingFreeReroll = 0;
     // 敌方编队（遭遇节点按难度缩放，全局难度始终叠加）
     if (node.type === 'encounter' && G.encounterDiff) {
       G.currentEnemy = generateEnemyTeam(G.level, G.nodeIdx, false, ENCOUNTER_DIFFS[G.encounterDiff], diffCfg());
@@ -1509,9 +1534,7 @@
       for (let x = GRID_COLS - 1; x >= 0; x--) for (let y = 0; y < GRID_ROWS; y++) allCells.push({ x, y });
       const cand = allCells.filter(p => !occupied.has(p.x + ',' + p.y)).slice(0, summonUnits.length);
       summonUnits.forEach((s, i) => { if (cand[i]) { allyList.push(s); allyPos.push(cand[i]); } });
-      if (summonUnits.length) console.log('[fight] 召唤物已生成:', summonUnits.length);
     }
-    console.log('[fight] allyList:', allyList.length, 'enemyBase:', enemyBase.length, 'board keys:', Object.keys(G.board));
     const allyUnits = applyBonds(allyList.map(u => ({ op: u.op, star: u.star })), 'ally');
     const enemyUnits = applyBonds(enemyBase.map(t => ({ op: t.op, star: t.star, buff: t.buff })), 'enemy');
     // 关键：给单位分配 uid，与 simulateBattleGrid 内部的 uid 命名一致（aN / eN）
@@ -1520,7 +1543,6 @@
     const enemyPos = autoPositions(enemyUnits, 'enemy');
 
     const res = simulateBattleGrid(allyUnits, enemyUnits, allyPos, enemyPos);
-    console.log('[fight] battle result:', res.winner, 'frames:', res.frames.length);
     G.battleRes = res;
     showBattle(res, allyUnits, enemyUnits);
   }
@@ -1547,7 +1569,6 @@
       }
 
       const allUnits = allyUnits.concat(enemyUnits);
-      console.log('[battle] units:', allUnits.length, 'frames:', res.frames.length);
 
       const initPos = {};
       const f0 = res.frames[0];
@@ -1577,7 +1598,6 @@
         rendered++;
       });
 
-      console.log('[battle] rendered:', rendered, '/', allUnits.length);
 
       // 如果没有渲染出任何单位，显示错误
       if (rendered === 0) {
@@ -1680,6 +1700,8 @@
   function finishBattle(res) {
     G.phase = 'result';
     const node = G.nodes[G.nodeIdx];
+    // P2-4：复盘数据（胜利/失败都展示，失败额外给死因提示）
+    const recap = buildRecap(res);
     if (window.AUDIO) {
       if (res.winner === 'ally') AUDIO.setMusic(node.type === 'boss' ? 'boss' : 'victory');
       else AUDIO.setMusic('defeat');
@@ -1691,8 +1713,11 @@
       if (ef.healPerWin) G.hp = Math.min(G.maxHp, G.hp + ef.healPerWin);
       if (node.type === 'boss') {
         const p = getPromote() + 1; setPromote(p);
-        G._result = { title: '🏆 通关！晋升达成', body: '你击败了最终首领，棋局晋升至 Lv.' + p + '。历史最高晋升：Lv.' + p, btn: '再来一局', kind: 'reset' };
-        showResult(G._result.title, G._result.body, G._result.btn, () => reset());
+        // P2-2：通关 BOSS 获得跨局战利品币（[PLACEHOLDER] 数额需标定）
+        const gain = 8 + G.difficulty * 2;
+        const meta = addMetaCoins(gain);
+        G._result = { title: '🏆 通关！晋升达成', body: '你击败了最终首领，棋局晋升至 Lv.' + p + '。获得战利品币 💎' + gain + '（累计 ' + meta.coins + '）。', btn: '再来一局', kind: 'reset' };
+        showResult(G._result.title, G._result.body, G._result.btn, () => reset(), recap);
         saveGame();
         return;
       }
@@ -1705,34 +1730,59 @@
         G.gold += er; levelUp(); body += ' 遭遇奖励 +' + er + '💰。';
       }
       G._result = { title: '胜利', body, btn: '前进 →', kind: 'next' };
-      showResult(G._result.title, G._result.body, G._result.btn, () => nextNode());
+      showResult(G._result.title, G._result.body, G._result.btn, () => nextNode(), recap);
       saveGame();
     } else {
       G.lossStreak++; G.winStreak = 0;
-      const dmg = Math.round((res.eAlive * 4 + 3) * (diffCfg().hpLossMult || 1));
+      // P1-2：战败扣血平滑——上限 22% 当前血量 ×难度倍率，杜绝「梦魇-78 近即死」（[PLACEHOLDER] 上限需标定）
+      const hlm = diffCfg().hpLossMult || 1;
+      const rawLoss = (res.eAlive * 4 + 3) * hlm;
+      const maxLoss = G.maxHp * 0.22 * hlm;
+      const dmg = Math.min(Math.round(rawLoss), Math.round(maxLoss));
       G.hp -= dmg;
+      // 落后补给：连败额外赠送 1 次免费刷新（橡皮筋），下一运营回合生效
+      G.pendingFreeReroll = (G.pendingFreeReroll || 0) + 1;
       renderTop();
       if (node.type === 'boss') {
         G._result = { title: '⚔ 败于最终首领', body: '你倒在了最终首领面前（剩余生命 ' + Math.max(0, G.hp) + '）。历史最高晋升：Lv.' + getPromote(), btn: '再来一局', kind: 'reset' };
-        showResult(G._result.title, G._result.body, G._result.btn, () => reset());
+        showResult(G._result.title, G._result.body, G._result.btn, () => reset(), recap);
         saveGame();
         return;
       }
       if (G.hp <= 0) {
         G._result = { title: '💀 棋局崩盘', body: '小队生命归零。历史最高晋升：Lv.' + getPromote(), btn: '再来一局', kind: 'reset' };
-        showResult(G._result.title, G._result.body, G._result.btn, () => reset());
+        showResult(G._result.title, G._result.body, G._result.btn, () => reset(), recap);
         saveGame();
         return;
       }
-      G._result = { title: '战败', body: '损失 ' + dmg + ' 生命（剩余 ' + Math.max(0, G.hp) + '）。整顿后再战。', btn: '前进 →', kind: 'next' };
-      showResult(G._result.title, G._result.body, G._result.btn, () => nextNode());
+      G._result = { title: '战败', body: '损失 ' + dmg + ' 生命（剩余 ' + Math.max(0, G.hp) + '）。连败补给：下次刷新免费。整顿后再战。', btn: '前进 →', kind: 'next' };
+      showResult(G._result.title, G._result.body, G._result.btn, () => nextNode(), recap);
       saveGame();
     }
   }
 
-  function showResult(title, body, btn, cb) {
+  // P2-4：战败/胜利复盘面板——把战斗统计与阵容信息合成为可读取的反馈（补上 F9 缺失的反馈通道）
+  function buildRecap(res) {
+    const board = Object.keys(G.board).map(k => G.board[k]);
+    if (!board.length) return '';
+    const info = board.map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star }));
+    const bonds = computeBonds(info);
+    const realBonds = bonds.active.filter(b => b.axis === '职业' || b.axis === '阵营' || b.axis === '特殊').length;
+    const avgStar = (board.reduce((s, u) => s + u.star, 0) / board.length).toFixed(1);
+    const st = res.stats || { allyDmg: 0, enemyDmg: 0, allyDeaths: 0, enemyDeaths: 0 };
+    let cause = '';
+    if (st.allyDeaths > 0 && st.allyDmg < st.enemyDmg * 0.85) cause = '（关键死因：输出不足，建议补强后排/法伤）';
+    else if (st.allyDeaths >= Math.ceil(board.length * 0.6)) cause = '（关键死因：前排承伤不足，建议补重装/减伤）';
+    else if (st.allyDmg >= st.enemyDmg && res.winner === 'enemy') cause = '（关键死因：被处决/真伤穿透，建议分散站位）';
+    return '复盘 → 阵容羁绊 ' + realBonds + ' 组 · 平均 ' + avgStar + '★ · 输出 ' + st.allyDmg + ' / 承伤 ' + st.enemyDmg +
+      ' · 我方阵亡 ' + st.allyDeaths + ' / 敌方 ' + st.enemyDeaths + (res.winner === 'enemy' ? cause : '');
+  }
+
+  function showResult(title, body, btn, cb, recap) {
     $('resultTitle').textContent = title;
     $('resultBody').textContent = body;
+    const rc = $('resultRecap');
+    if (rc) { if (recap) { rc.textContent = recap; rc.classList.remove('hidden'); } else rc.classList.add('hidden'); }
     const b = $('btnResult');
     b.textContent = btn;
     b.onclick = () => { if (window.SFX) SFX.play('click'); cb(); };
@@ -1751,16 +1801,51 @@
   }
 
   function buildNodes() {
-    // 三阶段 × 9 节点 = 27 节点。
-    // 每个阶段固定：1 个策略 + 1 个遭遇（阶段内倒数第三，作为该阶段挑战关）+ 1 个补给（阶段内倒数第二）；
-    // 第一阶段开头额外 2 个补给节点（节点 1、2）；第三阶段末尾是 BOSS（补给紧邻 BOSS 之前）。
-    const phase1 = ['reward', 'reward', 'battle', 'strategy', 'battle', 'battle', 'encounter', 'reward', 'battle'];
-    const phase2 = ['battle', 'strategy', 'battle', 'battle', 'battle', 'battle', 'encounter', 'reward', 'battle'];
-    const phase3 = ['battle', 'strategy', 'battle', 'battle', 'battle', 'battle', 'encounter', 'reward', 'boss'];
-    G.nodes = []
-      .concat(phase1.map(t => ({ type: t, phase: 1 })))
-      .concat(phase2.map(t => ({ type: t, phase: 2 })))
-      .concat(phase3.map(t => ({ type: t, phase: 3 })));
+    // P2-1：三阶段 roguelite 分支地图。每阶段保留固定结构（开头补给 / 策略 / 遭遇 / 阶段末补给 / BOSS 前补给），
+    // 但把中段若干「普通战」替换为「分叉节点」(fork)：玩家在三选一路径中做抉择，补齐中期 agency。
+    // 分叉选项在 build 时随机生成（保证至少一条战斗线），选择后 node.type 锁定并存入存档，重载不再重选。
+    function withForks(arr) {
+      const battles = [];
+      arr.forEach((t, i) => { if (t === 'battle') battles.push(i); });
+      if (battles.length >= 2) {
+        const a = battles[1], b = battles[battles.length - 1];
+        if (a !== b) { arr[a] = 'fork'; arr[b] = 'fork'; }
+      }
+      return arr;
+    }
+    const optsPool = ['battle', 'reward', 'strategy', 'encounter'];
+    const mk = t => {
+      if (t === 'fork') {
+        const opts = shuffle(optsPool.slice()).slice(0, 3);
+        if (opts.indexOf('battle') < 0) opts[0] = 'battle'; // 保证至少一条战斗线
+        return { type: 'fork', options: opts };
+      }
+      return { type: t };
+    };
+    const phase1 = withForks(['reward', 'reward', 'battle', 'strategy', 'battle', 'battle', 'encounter', 'reward', 'battle']).map(mk);
+    const phase2 = withForks(['battle', 'strategy', 'battle', 'battle', 'battle', 'battle', 'encounter', 'reward', 'battle']).map(mk);
+    const phase3 = withForks(['battle', 'strategy', 'battle', 'battle', 'battle', 'battle', 'encounter', 'reward', 'boss']).map(mk);
+    const all = phase1.concat(phase2).concat(phase3);
+    all.forEach((n, i) => { n.phase = (i < 9 ? 1 : i < 18 ? 2 : 3); });
+    G.nodes = all;
+  }
+
+  // P2-1：分叉节点选择屏（复用 overlay/panel/env-choices 样式）
+  function showForkScreen(node) {
+    const wrap = $('forkChoices');
+    if (!wrap) { routeNode(Object.assign({}, node, { type: 'battle' })); return; }
+    const opts = (node.options && node.options.length) ? node.options : ['battle', 'reward', 'strategy'];
+    wrap.innerHTML = opts.map(o =>
+      '<div class="env-card" data-fork="' + o + '"><h4>' + NODE_LABEL[o] + '</h4><p>' + FORK_DESC[o] + '</p></div>'
+    ).join('');
+    wrap.querySelectorAll('.env-card').forEach(c => c.onclick = () => {
+      if (window.SFX) SFX.play('click');
+      const pick = c.dataset.fork;
+      node.type = pick;            // 锁定选择，存档后不再重选
+      $('forkScreen').classList.add('hidden');
+      routeNode(node);
+    });
+    $('forkScreen').classList.remove('hidden');
   }
 
   function showEnemyPreview() {
@@ -1786,7 +1871,7 @@
   function renderEnv() {
     const promo = getPromote();
     const wrap = $('envChoices');
-    const choices = shuffle(ENV_POOL).slice(0, 3);
+    const choices = shuffle(ENV_POOL).slice(0, getMeta().unlocks.envPlus ? 4 : 3);
     wrap.innerHTML = choices.map(e =>
       '<div class="env-card" data-env="' + e.id + '"><h4>' + e.name + '</h4><p>' + e.desc + '</p></div>'
     ).join('') + '<div class="hint" style="width:100%;margin-top:10px">历史最高晋升：Lv.' + promo + '</div>';
@@ -1828,6 +1913,9 @@
   function reset() {
     clearSave();
     G.gold = 0; G.level = 1; G.exp = 0; G.hp = 100; G.maxHp = 100;
+    G.pendingFreeReroll = 0;
+    // P2-2：Meta 解锁「先发棋手」——每局起始等级 +1
+    if (getMeta().unlocks.startLevel) G.level = 2;
     G.winStreak = 0; G.lossStreak = 0;
     G.bench = []; G.board = {}; G.shop = [null, null, null, null, null];
     G.nodeIdx = 0; G.env = null; G.selected = null; G.difficulty = 2;
@@ -2069,12 +2157,65 @@
       sfxBtn.textContent = m ? '🔇' : '🔊';
       sfxBtn.classList.toggle('muted', m);
     };
+    // P2-2：战利品库入口与返回
+    const btnMeta = $('btnMeta');
+    if (btnMeta) btnMeta.onclick = () => { $('startScreen').classList.add('hidden'); showMetaScreen(); };
+    const btnMetaBack = $('btnMetaBack');
+    if (btnMetaBack) btnMetaBack.onclick = () => { $('metaScreen').classList.add('hidden'); $('startScreen').classList.remove('hidden'); };
   }
 
   /* ---- 存档系统（本地进度续档） ---- */
   const SAVE_KEY = 'rh_chess_save';
-  const NODE_ICON = { reward: '🎁', battle: '⚔', elite: '★', boss: '👑', strategy: '💡', encounter: '⚡' };
-  const NODE_LABEL = { reward: '补给节点', battle: '普通战', elite: '精英战', boss: 'BOSS 战', strategy: '策略节点', encounter: '遭遇节点' };
+  const NODE_ICON = { reward: '🎁', battle: '⚔', elite: '★', boss: '👑', strategy: '💡', encounter: '⚡', fork: '🔀' };
+  const NODE_LABEL = { reward: '补给节点', battle: '普通战', elite: '精英战', boss: 'BOSS 战', strategy: '策略节点', encounter: '遭遇节点', fork: '抉择点' };
+  // P2-1：分叉节点各选项的说明
+  const FORK_DESC = {
+    battle: '常规作战，击败敌方编队换取金币与经验。',
+    reward: '补给节点，直接获得金币并有概率白嫖干员。',
+    strategy: '策略节点，三选一永久全局增益。',
+    encounter: '遭遇节点，挑战高难敌队赢取丰厚奖励。',
+  };
+
+  // P2-2：Meta 进度货币（跨局成长）。通关 BOSS 获得 💎，解锁永久增益，把纯装饰的 promote 升级成有意义的成长。
+  const META_KEY = 'rh_chess_meta';
+  const META_UPGRADES = {
+    startLevel: { name: '先发棋手', cost: 30, desc: '每局起始等级 +1（更快刷出高费干员）' },
+    envPlus:    { name: '资本充裕', cost: 25, desc: '开局环境选择 +1 项（更多运营风格）' },
+    rerollPlus: { name: '情报网络', cost: 20, desc: '每回合额外 +1 次免费刷新' },
+  };
+  function getMeta() {
+    try { const m = JSON.parse(localStorage.getItem(META_KEY) || 'null'); if (m && m.unlocks) return m; } catch (e) {}
+    return { coins: 0, unlocks: {} };
+  }
+  function setMeta(m) { try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) {} }
+  function addMetaCoins(n) { const m = getMeta(); m.coins = (m.coins || 0) + n; setMeta(m); return m; }
+  function buyMeta(id) {
+    const m = getMeta();
+    const up = META_UPGRADES[id]; if (!up) return;
+    if (m.unlocks[id]) return;
+    if ((m.coins || 0) < up.cost) { flash('战利品币不足'); return; }
+    m.coins -= up.cost; m.unlocks[id] = true; setMeta(m);
+    if (window.SFX) SFX.play('click');
+    renderMetaScreen();
+  }
+  function renderMetaScreen() {
+    const m = getMeta();
+    const coinsEl = $('metaCoins'); if (coinsEl) coinsEl.textContent = m.coins || 0;
+    const wrap = $('metaChoices');
+    if (wrap) {
+      wrap.innerHTML = Object.keys(META_UPGRADES).map(id => {
+        const up = META_UPGRADES[id];
+        const owned = !!m.unlocks[id];
+        const can = !owned && (m.coins || 0) >= up.cost;
+        return '<div class="env-card tier-gold ' + (owned ? 'owned' : (can ? '' : 'locked')) + '" data-meta="' + id + '">' +
+          '<h4>' + up.name + (owned ? ' ✓' : '') + '</h4><p>' + up.desc + '</p>' +
+          '<div class="mc-cost">' + (owned ? '已解锁' : ('💎 ' + up.cost)) + '</div></div>';
+      }).join('');
+      wrap.querySelectorAll('.env-card').forEach(c => c.onclick = () => buyMeta(c.dataset.meta));
+    }
+    const pe = $('metaPromo'); if (pe) pe.textContent = '历史最高晋升：Lv.' + getPromote();
+  }
+  function showMetaScreen() { renderMetaScreen(); $('metaScreen').classList.remove('hidden'); }
 
   function saveGame() {
     try {
@@ -2180,3 +2321,24 @@
         '<span class="nf-num">' + (pIdx + 1) + '</span><span class="nf-tag">' + NODE_LABEL[n.type] + '</span></div>';
       if (pIdx < phaseNodes.length - 1) html += '<span class="nf-link ' + (gi < cur ? 'passed' : '') + '"></span>';
     });
+    html += '</div>';
+    const nxt = nodes[cur + 1];
+    let info = '本阶段进度 ' + (phaseNodes.indexOf(curNode) + 1) + ' / ' + phaseNodes.length + ' · 当前：' + NODE_LABEL[curNode.type];
+    if (nxt) {
+      if ((nxt.phase || 1) !== curPhase) info += '　|　下一阶段将解锁 ' + (nxt.phase || 1) + ' 阶段节点';
+      else info += '　|　下一站：' + NODE_LABEL[nxt.type];
+    } else info += '　|　终点：决战 BOSS';
+    html += '<div class="nf-info">' + info + '</div>';
+    el.innerHTML = html;
+  }
+
+  /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
+  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, applyBonds, computeBonds, makeSummonOp, autoPositions, renderAll, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap };
+
+  /* ---- 启动 ---- */
+  buildNodes();
+  bind();
+  const _sv = loadSave();
+  if (_sv) showStartScreen(_sv); else reset();
+
+})(typeof window !== 'undefined' ? window : globalThis);

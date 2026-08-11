@@ -34,6 +34,7 @@
         <div class="start-actions">
           <button id="btnContinue" class="btn primary">继续游戏</button>
           <button id="btnNew" class="btn">新游戏（清除存档）</button>
+          <button id="btnMeta" class="btn">战利品库 💎</button>
         </div>
       </div>
     </section>
@@ -118,6 +119,15 @@
       </div>
     </section>
 
+    <!-- 分叉节点（路径抉择 · P2-1） -->
+    <section id="forkScreen" class="overlay hidden">
+      <div class="panel">
+        <h2>抉择点 🔀</h2>
+        <p class="hint">前方出现分岔，选择一条前进路线。每条路线收益不同，请按当前阵容取舍。</p>
+        <div id="forkChoices" class="env-choices"></div>
+      </div>
+    </section>
+
     <!-- 战斗演出 -->
     <section id="battleScreen" class="overlay hidden">
       <div class="battle-stage">
@@ -133,7 +143,22 @@
       <div class="panel">
         <h2 id="resultTitle"></h2>
         <p id="resultBody" class="hint"></p>
+        <div id="resultRecap" class="hidden" style="margin:12px 0;padding:10px 12px;background:#fff7e6;border:1px solid #f0c674;border-radius:8px;font-size:13px;color:#6b4e16;text-align:left;"></div>
         <button id="btnResult" class="btn primary"></button>
+      </div>
+    </section>
+
+    <!-- 战利品库（Meta 进度 · P2-2） -->
+    <section id="metaScreen" class="overlay hidden">
+      <div class="panel">
+        <h2>战利品库 💎</h2>
+        <p class="hint">通关 BOSS 积累战利品币，解锁永久增益，让每一次重开都更强。</p>
+        <div style="margin:8px 0;font-size:15px;">当前战利品币：<b id="metaCoins">0</b> 💎</div>
+        <div id="metaChoices" class="env-choices"></div>
+        <div id="metaPromo" class="hint" style="margin-top:10px"></div>
+        <div style="text-align:center;margin-top:14px">
+          <button id="btnMetaBack" class="btn">返回</button>
+        </div>
       </div>
     </section>
     <!-- 羁绊详情弹窗 -->
