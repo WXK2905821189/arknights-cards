@@ -1,0 +1,19 @@
+# Render Blueprint 配置 — 罗德岛棋局（arknights-cards）静态站点
+#
+# 用法 A（推荐，一键部署）：
+#   Render Dashboard → New → Blueprint → 连接 GitHub 后选中本仓库
+#   Render 会自动读取本文件完成配置并首次部署
+#
+# 用法 B（手动）：
+#   Render Dashboard → New → Static Site → 连接 GitHub 选中本仓库
+#   逐项填写：Name=arknights-cards / Branch=master /
+#   Build Command=留空 / Publish Directory=`.`
+#
+# 说明：本项目是纯静态 HTML/CSS/JS（无 npm 构建步骤），
+# index.html 位于仓库根目录，因此发布目录为 `.`。
+services:
+  - type: static_site
+    name: arknights-cards
+    branch: master
+    buildCommand: ""          # 纯静态，无构建步骤
+    staticPublishPath: "."    # 发布目录 = 仓库根（index.html 在根）
