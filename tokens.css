@@ -60,6 +60,13 @@
   /* —— 间距阶梯（4px 基数） —— */
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
   --sp-6:24px; --sp-8:32px; --sp-12:48px; --sp-16:64px;
+
+  /* —— 明日方舟风格补强（衬线标题 / 暗角 / 源石符号 / HUD / 磁带盒） —— */
+  --font-display:"Songti SC","SimSun",Georgia,"Times New Roman",serif; /* 衬线标题字：古典骑士感 + 军工 */
+  --vignette:radial-gradient(ellipse at center,transparent 56%,rgba(0,0,0,.42) 100%); /* 暗角聚焦 */
+  --c-stone:#f0c24b;          /* 源石三角符号色（与品牌金呼应） */
+  --line-strong:#5a6b80;      /* HUD/观瞄角框线 */
+  --panel-glass:rgba(31,38,48,.72); /* 半透明塑料质感（磁带盒未来主义） */
 }
 
 /* 全局尊重「减少动效」偏好（无障碍） */

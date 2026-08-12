@@ -27,11 +27,16 @@ a{color:var(--gold-strong);text-decoration:none}
 .sfx-btn.muted{opacity:.55}
 
 /* arena */
-.arena{padding:14px 18px 90px;max-width:1100px;margin:0 auto}
-.enemy-head{font-size:13px;color:var(--enemy);margin:10px 0 8px;font-weight:700}
+.arena{padding:14px 18px 90px;max-width:1100px;margin:0 auto;position:relative}
+.arena::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;background:var(--vignette);opacity:.55}
+.enemy-head{font-size:13px;color:var(--enemy);margin:10px 0 8px;font-weight:700;
+  font-family:var(--font-display);letter-spacing:.3px}
+.enemy-head::before{content:"";display:inline-block;width:0;height:0;margin-right:6px;vertical-align:middle;
+  border-left:5px solid var(--c-stone);border-top:4px solid transparent;border-bottom:4px solid transparent}
 .enemy-head .ez-tip{font-size:11px;color:var(--text-2);font-weight:400;margin-left:6px}
 /* 统一棋盘：我方 4×4 部署区 + 敌方站位覆盖层 */
 .board-battle{position:relative;display:block;margin:0 auto;background:#0c0f14;border:1px solid var(--line);border-radius:8px;padding:10px;overflow:hidden;width:fit-content}
+.board-vignette{position:absolute;inset:10px;z-index:4;pointer-events:none;background:var(--vignette);opacity:.7}
 .board-battle::after{content:"";position:absolute;left:50%;top:10px;bottom:10px;width:2px;z-index:2;transform:translateX(-1px);
   background:repeating-linear-gradient(180deg,#3a4660 0 6px,transparent 6px 12px)}
 .enemy-overlay{position:absolute;left:50%;top:10px;right:10px;bottom:10px;z-index:3;pointer-events:none}
@@ -50,7 +55,9 @@ a{color:var(--gold-strong);text-decoration:none}
 
 /* board / deploy grid */
 .board-wrap{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
-.board-label{font-size:12px;color:var(--text-2);margin:4px 0 8px}
+.board-label{font-size:12px;color:var(--text-2);margin:4px 0 8px;font-family:var(--font-display);letter-spacing:.3px}
+.board-label::before{content:"";display:inline-block;width:0;height:0;margin-right:6px;vertical-align:middle;
+  border-left:5px solid var(--c-stone);border-top:4px solid transparent;border-bottom:4px solid transparent}
 .board-label #boardCap,.board-label #benchCap{color:var(--gold-strong);font-weight:700}
 .board-grid{display:grid;grid-template-columns:repeat(4,92px);grid-template-rows:repeat(4,106px);
   gap:8px;justify-content:center;padding:10px;background:#0c0f14;border:1px solid var(--line);border-radius:8px}
@@ -92,14 +99,26 @@ a{color:var(--gold-strong);text-decoration:none}
   padding:0 6px;z-index:3;pointer-events:none}
 .ucard .cf-name,.shop-card .cf-name{font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62px}
 .ucard .cf-cost,.shop-card .cf-cost{font-size:12px;font-weight:800;color:#ffd700;text-shadow:0 0 6px rgba(255,200,0,.4),0 1px 2px rgba(0,0,0,.9);display:flex;align-items:center;gap:2px}
-.ucard .coin-icon,.shop-card .coin-icon{color:#ffc107;font-size:11px;text-shadow:0 0 4px rgba(255,193,7,.5)}
-/* 右上角费用指示器 */
-.ucard .cost-pip,.shop-card .cost-pip{position:absolute;top:4px;right:4px;display:flex;gap:1px;z-index:3;pointer-events:none}
-.ucard .cost-pip,.shop-card .cost-pip{color:rgba(255,255,255,.7);font-size:9px;text-shadow:0 0 3px rgba(0,0,0,.7);letter-spacing:-1px}
-/* 升级星标（棋盘 / 备战席） */
-.ucard .star{position:absolute;top:3px;left:3px;font-size:10px;color:var(--gold-strong);text-shadow:0 0 2px #000;z-index:3}
+/* footer 费用：源石三角（费色由 --cc 提供） */
+.ucard .coin-icon,.shop-card .coin-icon{width:9px;height:9px;flex-shrink:0;background:var(--cc);clip-path:polygon(50% 0,100% 100%,0 100%);display:inline-block;filter:drop-shadow(0 0 3px rgba(0,0,0,.5))}
+/* 右上角费用指示器：源石三角阵列（数量=费用，费色由 --cc 提供） */
+.ucard .cost-pip,.shop-card .cost-pip{position:absolute;top:4px;right:4px;display:flex;gap:2px;z-index:3;pointer-events:none}
+.ucard .cost-pip .cp,.shop-card .cost-pip .cp{width:7px;height:7px;background:var(--cc);clip-path:polygon(50% 0,100% 100%,0 100%);display:block;filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
+/* 左上角职业色三角徽标（源石几何，role→--rc 由 game.js 注入） */
+.ucard .role-tri,.shop-card .role-tri{position:absolute;top:3px;left:3px;width:12px;height:12px;z-index:3;
+  background:var(--rc,var(--c-stone));clip-path:polygon(50% 0,100% 100%,0 100%);
+  filter:drop-shadow(0 0 3px rgba(0,0,0,.55));pointer-events:none}
+/* 升级星标（棋盘 / 备战席）：右移避让职业三角 */
+.ucard .star{position:absolute;top:3px;left:18px;font-size:10px;color:var(--gold-strong);text-shadow:0 0 2px #000;z-index:3}
 .ucard.sold{opacity:.35;filter:grayscale(1)}
 .ucard.locked{opacity:.5;cursor:not-allowed}
+
+/* 源石三角：费色变量（cost-pip / cf-cost 复用，单一事实源来自 tokens.css --cost-N） */
+.ucard.c1,.shop-card.c1{--cc:var(--cost-1)}
+.ucard.c2,.shop-card.c2{--cc:var(--cost-2)}
+.ucard.c3,.shop-card.c3{--cc:var(--cost-3)}
+.ucard.c4,.shop-card.c4{--cc:var(--cost-4)}
+.ucard.c5,.shop-card.c5{--cc:var(--cost-5)}
 
 /* 费用边框 + 底栏配色（白1 绿2 蓝3 紫4 金5） */
 .ucard.c1,.shop-card.c1{border-color:#9aa7b8}.ucard.c2,.shop-card.c2{border-color:#22c55e}
@@ -120,7 +139,9 @@ a{color:var(--gold-strong);text-decoration:none}
 .c1{background:#c8ccd2;color:#1a1f26}.c2{background:#22c55e;color:#fff}.c3{background:#3b82f6;color:#fff}.c4{background:#a855f7;color:#fff}.c5{background:#e8b84b;color:#1a1408}
 
 /* bonds — 单一可折叠羁绊条（§7.4：合并原左侧面板与顶部条） */
-.bonds-bar-wrap{margin-bottom:12px}
+.bonds-bar-wrap{margin-bottom:12px;background:var(--panel-glass);border:1px solid var(--line);
+  border-radius:10px;padding:8px 12px;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+  border-top:3px solid var(--c-stone)}
 .bonds-toggle{display:inline-flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);
   border-radius:8px;padding:5px 11px;font-size:12px;color:var(--text-2);cursor:pointer;transition:var(--dur-fast);font-family:inherit}
 .bonds-toggle:hover{border-color:var(--gold)}
@@ -203,7 +224,7 @@ a{color:var(--gold-strong);text-decoration:none}
 
 /* battle — positioned grid */
 .battle-stage{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;max-width:920px;width:94%}
-.bf-legend{text-align:center;font-size:13px;color:var(--text-2);margin-bottom:10px}
+.bf-legend{text-align:center;font-size:13px;color:var(--text-2);margin-bottom:10px;font-family:var(--font-display);letter-spacing:.3px}
 .bf-legend .ally{color:var(--ally);font-weight:700}
 .bf-legend .enemy{color:var(--enemy);font-weight:700}
 .bf-grid{position:relative;margin:0 auto;width:512px;height:256px;
@@ -212,6 +233,23 @@ a{color:var(--gold-strong);text-decoration:none}
   background-size:64px 64px}
 .bf-grid::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;z-index:3;transform:translateX(-1px);
   background:repeating-linear-gradient(180deg,#3a4660 0 6px,transparent 6px 12px)}
+.bf-grid::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:4;background:var(--vignette)}
+/* PRTS 观瞄 HUD：四角角框 + 全息扫描线（pointer-events:none，不挡操作） */
+.bf-frame{position:relative;display:inline-block;line-height:0}
+.bf-scope{position:absolute;inset:0;pointer-events:none;z-index:6;
+  box-shadow:inset 0 0 0 1px rgba(90,107,128,.35);
+  background:
+    linear-gradient(var(--c-stone),var(--c-stone)) left 10px top 10px/22px 2px no-repeat,
+    linear-gradient(var(--c-stone),var(--c-stone)) left 10px top 10px/2px 22px no-repeat,
+    linear-gradient(var(--c-stone),var(--c-stone)) right 10px top 10px/22px 2px no-repeat,
+    linear-gradient(var(--c-stone),var(--c-stone)) right 10px top 10px/2px 22px no-repeat,
+    linear-gradient(var(--c-stone),var(--c-stone)) left 10px bottom 10px/22px 2px no-repeat,
+    linear-gradient(var(--c-stone),var(--c-stone)) left 10px bottom 10px/2px 22px no-repeat,
+    linear-gradient(var(--c-stone),var(--c-stone)) right 10px bottom 10px/22px 2px no-repeat,
+    linear-gradient(var(--c-stone),var(--c-stone)) right 10px bottom 10px/2px 22px no-repeat}
+.bf-scope::after{content:"";position:absolute;left:0;right:0;height:2px;top:4%;
+  background:linear-gradient(90deg,transparent,var(--ally),transparent);opacity:.5;animation:scopeScan 3.4s linear infinite}
+@keyframes scopeScan{0%{top:4%}100%{top:96%}}
 .bf-unit{position:absolute;width:58px;height:66px;top:0;left:0;transition:transform var(--dur-slow) linear;will-change:transform;z-index:2;
   border-radius:8px;display:flex;flex-direction:column;align-items:center;padding:2px;box-sizing:border-box;
   border:2px solid transparent}

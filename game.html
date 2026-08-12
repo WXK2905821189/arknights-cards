@@ -196,23 +196,27 @@
     </div>
   </div>
 
-  <script src="data.js"></script>
-  <script src="signatures.js"></script>
-  <script src="audio_assets.js"></script>
-  <script src="audio.js"></script>
-  <script src="resonance.js"></script>
-  <script src="bonds_flavor.js"></script>
-  <script src="game.js"></script>
-  <!-- 脚本加载容错：延迟检测 + 自动重试 + 诊断日志，不再硬拦截 -->
+  <!-- 缓存戳：每次发版/改数据后修改 ?v= 即可强制浏览器刷新 -->
+  <script src="data.js?v=20260812a"></script>
+  <script src="signatures.js?v=20260812a"></script>
+  <script src="audio_assets.js?v=20260812a"></script>
+  <script src="audio.js?v=20260812a"></script>
+  <script src="resonance.js?v=20260812a"></script>
+  <script src="bonds_flavor.js?v=20260812a"></script>
+  <script src="game.js?v=20260812a"></script>
+  <!-- 脚本加载容错：延迟检测 + 自动重试 + data.json fallback + 强制进入 -->
   <script>(function(){
-    var CHECKS = 0, MAX = 12;       // 最多重试 12 次 × 500ms = 6 秒
+    var CHECKS = 0, MAX = 24;       // 24 次 × 500ms = 12 秒（data.js 近 1MB，给慢机器/杀毒留时间）
     var MISSING = [];               // 记录缺失函数，用于诊断
+    var FALLBACK_TRIED = false;
+    var FORCE_BOOT = false;
 
     function probe() {
       CHECKS++;
       MISSING = [];
-      if (typeof reset !== 'function') MISSING.push('reset(game.js)');
-      if (typeof renderEnv !== 'function') MISSING.push('renderEnv(game.js)');
+      var rh = (typeof window !== 'undefined' && typeof window.__RH === 'object') ? window.__RH : null;
+      if (!rh || typeof rh.reset !== 'function') MISSING.push('reset(game.js)');
+      if (!rh || typeof rh.renderEnv !== 'function') MISSING.push('renderEnv(game.js)');
       if (typeof __DATA === 'undefined') MISSING.push('__DATA(data.js)');
 
       if (MISSING.length === 0) {
@@ -222,45 +226,72 @@
 
       console.warn('[game-loader] ⏳ 第 ' + CHECKS + '/' + MAX + ' 次检测，缺失: ' + MISSING.join(', '));
 
+      //  midway fallback：若只有 __DATA 缺失，尝试 fetch data.json 注入
+      if (!FALLBACK_TRIED && MISSING.length === 1 && MISSING[0] === '__DATA(data.js)' && typeof fetch === 'function') {
+        FALLBACK_TRIED = true;
+        console.log('[game-loader] 尝试 fallback 加载 data.json …');
+        fetch('data.json?v=' + Date.now())
+          .then(function(r){ if(!r.ok) throw new Error('status '+r.status); return r.json(); })
+          .then(function(j){
+            window.__DATA = j;
+            console.log('[game-loader] data.json fallback 成功，operators=' + (j.operators && j.operators.length));
+          })
+          .catch(function(e){ console.warn('[game-loader] data.json fallback 失败:', e); });
+      }
+
       if (CHECKS < MAX) {
-        setTimeout(probe, 500);     // 等 500ms 再试（给慢脚本/缓存留时间）
+        setTimeout(probe, 500);     // 等 500ms 再试（给慢脚本/缓存/fallback留时间）
         return;
       }
 
-      // ===== 最终失败：显示可恢复的错误界面（非硬拦截） =====
+      // ===== 最终失败：显示可恢复的错误界面 =====
+      showError();
+    }
+
+    function showError() {
       var el = document.createElement('div');
       el.id = 'gameLoadError';
       el.style.cssText = 'position:fixed;inset:0;background:#0a0c10;z-index:9999;display:flex;align-items:center;justify-content:center;font-family:-apple-system,"Segoe UI",sans-serif';
       el.innerHTML =
-        '<div style="background:#141820;border:1px solid #2a3040;border-radius:12px;padding:28px 36px;text-align:center;max-width:440px">' +
-        '<h3 style="color:#e6b960;margin:0 0 10px;font-size:17px">⚠ 游戏资源加载异常</h3>' +
-        '<p style="color:#9fb4cc;margin:0 0 14px;font-size:13px;line-height:1.7">以下模块未能正常加载：<br><b style="color:#f0c674;font-size:12px">' + MISSING.join('<br>') + '</b></p>' +
-        '<p style="color:#7a8a9a;margin:0 0 18px;font-size:12px">可能原因：网络波动 / 浏览器扩展拦截 / 服务暂时不可用。<br>请按下方按钮重试，或按 <b>F12</b> 打开控制台查看红色报错。</p>' +
-        '<div style="display:flex;gap:10px;justify-content:center">' +
-        '<button id="gleRetry" style="background:#d4a03c;color:#0a0c10;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer">🔄 立即重试</button>' +
-        '<button id="gleSkip" style="background:transparent;color:#9fb4cc;border:1px solid #3a4a5a;padding:10px20px;border-radius:6px;font-size:13px;cursor:pointer">跳过检测继续</button>' +
+        '<div style="background:#141820;border:1px solid #2a3040;border-radius:12px;padding:28px 36px;text-align:center;max-width:460px">' +
+        '<h3 style="color:#e6b960;margin:0 0 10px;font-size:17px">⚠ 游戏资源加载不完整</h3>' +
+        '<p style="color:#9fb4cc;margin:0 0 10px;font-size:13px;line-height:1.7">以下模块未能正常加载：<br><b style="color:#f0c674;font-size:12px">' + MISSING.join('<br>') + '</b></p>' +
+        '<p style="color:#7a8a9a;margin:0 0 14px;font-size:12px">常见原因：本地服务僵死 / 浏览器缓存旧版 / 杀毒扫描大文件。<br>请按 <b>F12</b> 看控制台红色报错。</p>' +
+        '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
+        '<button id="gleRetry" style="background:#d4a03c;color:#0a0c10;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer">🔄 刷新重试</button>' +
+        '<button id="gleForce" style="background:#2a3a4a;color:#e6b960;border:1px solid #3a5a6a;padding:10px 20px;border-radius:6px;font-size:13px;cursor:pointer">⚡ 强制进入游戏</button>' +
+        '<button id="gleSkip" style="background:transparent;color:#9fb4cc;border:1px solid #3a4a5a;padding:10px 20px;border-radius:6px;font-size:13px;cursor:pointer">跳过检测</button>' +
         '</div>' +
         '<p id="gleAuto" style="color:#5a6a7a;margin:14px 0 0;font-size:11px"></p>' +
         '</div>';
       document.body.appendChild(el);
 
-      // 手动重试
-      document.getElementById('gleRetry').onclick = function(){ location.reload(); };
-      // 跳过：移除遮罩让用户尝试操作（可能部分功能可用）
+      // 刷新：自动加时间戳，避免缓存旧版
+      document.getElementById('gleRetry').onclick = function(){ location.href = location.href.split('?')[0] + '?_t=' + Date.now(); };
+      // 强制进入：尝试用保底数据/空数据让游戏至少打开
+      document.getElementById('gleForce').onclick = function(){
+        FORCE_BOOT = true;
+        var e = document.getElementById('gameLoadError');
+        if(e) e.style.display='none';
+        if(typeof window.__DATA === 'undefined') window.__DATA = {meta:{total:0,source:'fallback'},operators:[]};
+        try { if(window.__RH && typeof window.__RH.reset === 'function') { window.__RH.reset(); console.log('[game-loader] 强制进入：reset() 已调用'); } }
+        catch(err){ console.error('[game-loader] 强制进入失败:', err); alert('强制进入也失败了：' + err.message); }
+      };
+      // 跳过：仅移除遮罩
       document.getElementById('gleSkip').onclick = function(){
         var e = document.getElementById('gameLoadError');
         if(e) { e.style.display='none'; console.warn('[game-loader] 用户选择跳过检测，游戏可能不完整'); }
       };
 
-      // 8 秒后自动重试（倒计时提示）
+      // 8 秒后自动重试
       var secs = 8;
       var timer = document.getElementById('gleAuto');
       var iv = setInterval(function(){
         secs--;
-        if(secs > 0){ timer.textContent = secs + ' 秒后自动重试…'; }
-        else{ clearInterval(iv); location.reload(); }
+        if(secs > 0){ timer.textContent = secs + ' 秒后自动刷新重试…'; }
+        else{ clearInterval(iv); location.href = location.href.split('?')[0] + '?_t=' + Date.now(); }
       },1000);
-      timer.textContent = secs + ' 秒后自动重试…';
+      timer.textContent = secs + ' 秒后自动刷新重试…';
     }
 
     // 延迟 300ms 开始首次检测（等所有 <script> 解析完）

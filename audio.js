@@ -108,11 +108,12 @@
   }
 
   // 阵营 → 签名音色家族（bonds['阵营'] 主题键 → combat/fx_<flavor>）。
-  // 36 阵营按主题合并为 15 个家族；施放技能时该签名音作为"主层"播放。
+  // data.json 共 35 阵营，按主题合并为 16 个家族；施放技能时该签名音作为"主层"播放。
+  // 卡兹戴尔(Sarkaz)独立 curse 家族：源石黑暗诅咒，区别于莱塔尼亚/使徒的 arcane 奥术。
   var FACTION_FLAVOR = {
     '拉特兰': 'bullet', '炎': 'fire', '维多利亚': 'steam',
-    '莱茵生命': 'tech', '哥伦比亚': 'tech', '叙拉古': 'revolver',
-    '莱塔尼亚': 'arcane', '使徒': 'arcane', '萨尔贡': 'sand', '东': 'sand', '米诺斯': 'sand',
+    '莱茵生命': 'tech', '哥伦比亚': 'tech', 'Ave Mujica': 'tech', '叙拉古': 'revolver',
+    '莱塔尼亚': 'arcane', '使徒': 'arcane', '卡兹戴尔': 'curse', '萨尔贡': 'sand', '东': 'sand', '米诺斯': 'sand',
     '龙门': 'mech', '喀兰贸易': 'mech', '鲤氏侦探事务所': 'mech', 'S.W.E.E.P.': 'mech',
     '企鹅物流': 'horn', '罗德岛': 'clinical', '巴别塔': 'clinical',
     '行动预备组A6': 'clinical', '行动组A4': 'clinical',

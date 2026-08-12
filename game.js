@@ -54,6 +54,7 @@
       '深海猎人':   { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20] },      // 猎杀者：攻击 + 生命
       '乌萨斯':     { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20] },     // 寒冬帝国：攻击 + 防御
       '伊比利亚':   { thr: [2, 3, 5], magicAmp: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20] },  // 深海外交：术法 + 生命
+      '卡兹戴尔':   { thr: [2, 3, 5], def: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20] },      // 萨卡兹故土：防御 + 生存（池=2，泥岩+赫德雷）
     },
   };
 
@@ -116,6 +117,7 @@
     '塔拉':     { tier: 1, attr: { aspd: 0.08 }, kw: null },                                                   // 战歌：攻速
     '使徒':     { tier: 1, attr: { hp: 0.10 }, kw: null },                                                     // 神恩：生命
     '鲤氏侦探事务所': { tier: 1, attr: { crit: 0.08 }, kw: null },                                             // 洞察：暴击
+    '卡兹戴尔':       { tier: 1, attr: { def: 0.10 }, kw: null },                                              // 源石壁垒：防御（池=2，阶一解锁；萨卡兹故土）
   };
 
   // P2-3b：单干员势力「独行被动」叙事文案（叙事设计师补写，纯原创 prose，非台词，可自由润色）
@@ -315,17 +317,25 @@
         });
       });
     }
-    // ② 行为型呼应 → SPECIAL 关键字（单位属性 kw 家族，+= 叠加，不与 specialKw 单槽冲突）
-    // 数值为保守占位 [PLACEHOLDER]，须经蒙特卡洛 + 试玩标定；SPECIAL_EFF 无条目的 pair 不生效。
+    // ② 行为型呼应 → SPECIAL 关键字（数值型 += 叠加 / aura 型追加进 specialKw 多槽）
+    // 数值为保守占位 [PLACEHOLDER]，须经蒙特卡洛 + 试玩标定；SPECIAL_EFF / SPECIAL_EFF_AURA 无条目不生效。
     const resoKw = {}; // name -> { kw, params, label }
-    if (typeof RESONANCE !== 'undefined' && RESONANCE.SPECIAL_EFF) {
+    if (typeof RESONANCE !== 'undefined') {
       const activeFactions = new Set(boardUnits.map(u => (u.bonds || {}).阵营).filter(Boolean));
+      const effEntries = Object.assign({}, RESONANCE.SPECIAL_EFF || {}, RESONANCE.SPECIAL_EFF_AURA || {});
       RESONANCE.compute(activeFactions, boardUnits).forEach(p => {
-        const se = RESONANCE.SPECIAL_EFF[p.a + '|' + p.b];
+        const se = effEntries[p.a + '|' + p.b];
         if (!se) return;
+        // aura 型：优先用 entry.params；否则镜像来源阵营 SPECIAL[src]（单一真相源，随 capstone 联动）
+        let params = se.params;
+        if (!params && se.src && typeof SPECIAL !== 'undefined' && SPECIAL[se.src]) params = SPECIAL[se.src].params || {};
+        params = params || {};
+        // 回声强度系数 scale（默认 1）：令跨阵营回声弱于原生 capstone（设计原则），0.6 为 MC 保守安全值
+        const auraScale = (se.scale != null) ? se.scale : 1;
+        if (auraScale !== 1) params = scaleAuraParams(se.kw, params, auraScale);
         boardUnits.forEach(u => {
           const f = (u.bonds || {}).阵营;
-          if (se.factions.indexOf(f) >= 0) resoKw[u.name] = { kw: se.kw, params: se.params, label: se.label };
+          if (se.factions.indexOf(f) >= 0) resoKw[u.name] = { kw: se.kw, params, label: se.label };
         });
       });
     }
@@ -343,6 +353,16 @@
       else if (k === 'crit') m.crit += val;
       else m[k] *= (1 + val);
     });
+  }
+
+  // 回声强度系数：仅缩放「幅度」类数值字段，不动时间/阈值类（dur/period/thresh 等）
+  // 覆盖当前与可预见的 aura kw 幅度字段（value/aspd/amp/frac/regen/dps/t2/t3/mult）。
+  function scaleAuraParams(kw, p, s) {
+    const o = Object.assign({}, p || {});
+    ['value', 'aspd', 'amp', 'frac', 'regen', 'dps', 't2', 't3', 'mult'].forEach(k => {
+      if (typeof o[k] === 'number') o[k] *= s;
+    });
+    return o;
   }
 
   function makeCombatUnit(op, star, side, mult, sig, special, resoKw) {
@@ -373,7 +393,7 @@
       pierce: 0, defShred: 0, trueDmg: 0, skillAmp: 1, lifesteal: 0, slow: 0,
       damageReduction: 0, counter: 0, critDmg: 0,
       rampHitPer: 0, rampHitCap: 0, rampHitAcc: 0,
-      summonBeast: 0, specialKw: null, specialParams: {}, castAspd: 1, castAmpMul: 1, castBuffUntil: 0,
+      summonBeast: 0, specialKw: [], specialParams: {}, castAspd: 1, castAmpMul: 1, castBuffUntil: 0,
     };
     // 合并签名关键字
     const skw = (sig && sig.kw) || {};
@@ -388,10 +408,10 @@
     if (skw.critDmg) u.critDmg = Math.max(u.critDmg, skw.critDmg);
     if (skw.rampHit) { u.rampHitPer = Math.max(u.rampHitPer, skw.rampHit.per); u.rampHitCap = Math.max(u.rampHitCap, skw.rampHit.cap); }
     if (skw.summonBeast) u.summonBeast = skw.summonBeast;
-    // 合并阵营特殊关键字
+    // 合并阵营特殊关键字（specialKw 多槽：写入数组，params 按 kw 索引；kw:null 阵营保持空数组）
     if (special && special.kw) {
       const p = special.params || {};
-      u.specialKw = special.kw; u.specialParams = p;
+      u.specialKw = [special.kw]; u.specialParams = { [special.kw]: p };
       if (special.kw === 'pierce') u.pierce = Math.max(u.pierce, p.value || 0);
       else if (special.kw === 'trueDmg') u.trueDmg = Math.max(u.trueDmg, p.value || 0);
       else if (special.kw === 'defShred') u.defShred = Math.max(u.defShred, p.value || 0);
@@ -400,10 +420,15 @@
       else if (special.kw === 'rampHit') { u.rampHitPer = Math.max(u.rampHitPer, p.per || 0); u.rampHitCap = Math.max(u.rampHitCap, p.cap || 0); }
       else if (special.kw === 'spRegenBuff') u.spRegen *= (1 + (p.value || 0));
     }
-    // ② 行为型呼应（SPECIAL 关键字，单位属性家族）—— += 叠加在阵营 special 之上，不与 specialKw 单槽冲突
+    // ② 行为型呼应：数值型 kw（pierce/trueDmg/damageReduction 等）以 += 叠加在阵营 special 之上；
+    //    aura 型 kw（guardAura/healAura/shieldPeriodic/castAmp/burnDoT/slowAura/execute/globalAspd/summonWolf）
+    //    追加进 u.specialKw 多槽（与阵营 special 共存），params 按 kw 存于 u.specialParams[kw]。
     if (resoKw && resoKw.kw) {
       const p = resoKw.params || {};
-      if (resoKw.kw === 'pierce') u.pierce += (p.value || 0);
+      const AURA_KW = { guardAura: 1, healAura: 1, shieldPeriodic: 1, castAmp: 1, burnDoT: 1, slowAura: 1, execute: 1, globalAspd: 1, summonWolf: 1 };
+      if (AURA_KW[resoKw.kw]) {
+        if (u.specialKw.indexOf(resoKw.kw) < 0) { u.specialKw.push(resoKw.kw); u.specialParams[resoKw.kw] = p; }
+      } else if (resoKw.kw === 'pierce') u.pierce += (p.value || 0);
       else if (resoKw.kw === 'defShred') u.defShred += (p.value || 0);
       else if (resoKw.kw === 'trueDmg') u.trueDmg += (p.value || 0);
       else if (resoKw.kw === 'critDmg') u.critDmg += (p.value || 0);
@@ -547,13 +572,13 @@
     const occ = new Map();
     all.forEach(u => occ.set(u.x + ',' + u.y, u));
     // light 版：团队级前置（全队攻速 / 敌方减速）
-    if (ally.some(u => u.specialKw === 'globalAspd')) {
+    if (ally.some(u => u.specialKw.includes('globalAspd'))) {
       const v = (SPECIAL['企鹅物流'] && SPECIAL['企鹅物流'].params.value) || 0.10;
       ally.forEach(u => { u.spd *= (1 + v); });
     }
-    const slowA = ally.find(u => u.specialKw === 'slowAura');
+    const slowA = ally.find(u => u.specialKw.includes('slowAura'));
     if (slowA) {
-      const v = (slowA.specialParams && slowA.specialParams.value) || 0.20;
+      const v = (slowA.specialParams && slowA.specialParams['slowAura'] && slowA.specialParams['slowAura'].value) || 0.20;
       enemy.forEach(u => { u.slowFactor = 1 - v; u.slowUntil = 1e9; });
     }
     const frames = [];
@@ -604,14 +629,14 @@
       // 暴击 + 暴伤
       if (src.crit && Math.random() < src.crit) finalDmg *= (1.6 + (src.critDmg || 0));
       // 处决（萨尔贡特殊）
-      if (src.specialKw === 'execute' && tgt.hp / tgt.maxHp < (src.specialParams.thresh || 0.3)) finalDmg *= (1 + (src.specialParams.mult || 0.5));
+      if (src.specialKw.includes('execute') && tgt.hp / tgt.maxHp < ((src.specialParams['execute'] || {}).thresh || 0.3)) finalDmg *= (1 + ((src.specialParams['execute'] || {}).mult || 0.5));
       // 受击减伤（泥岩 / 雷姆必拓 / 龙门协防）
       if (tgt.damageReduction) finalDmg *= (1 - tgt.damageReduction);
       // 龙门协防（guardAura）：受击方若有存活相邻友军（龙门）则额外减伤
       if (tgt.side) {
         for (const a of all) {
-          if (a.alive && a.side === tgt.side && a !== tgt && a.specialKw === 'guardAura' && cheb(a, tgt) <= 1) {
-            finalDmg *= (1 - (a.specialParams && a.specialParams.value ? a.specialParams.value : 0.10));
+          if (a.alive && a.side === tgt.side && a !== tgt && a.specialKw.includes('guardAura') && cheb(a, tgt) <= 1) {
+            finalDmg *= (1 - (a.specialParams && a.specialParams['guardAura'] && a.specialParams['guardAura'].value ? a.specialParams['guardAura'].value : 0.10));
             break;
           }
         }
@@ -634,9 +659,9 @@
       // 反伤（棘刺）
       if (tgt.counter && src !== tgt && src.alive) src.hp -= Math.max(1, Math.round(finalDmg * tgt.counter));
       // 灼烧（炎特殊）
-      if (src.specialKw === 'burnDoT' && tgt.alive) {
-        const dps = (tgt.burn ? tgt.burn.dps : 0) + (src.specialParams.dps || 0);
-        tgt.burn = { dps, until: t + (src.specialParams.dur || 3) };
+      if (src.specialKw.includes('burnDoT') && tgt.alive) {
+        const dps = (tgt.burn ? tgt.burn.dps : 0) + ((src.specialParams['burnDoT'] || {}).dps || 0);
+        tgt.burn = { dps, until: t + ((src.specialParams['burnDoT'] || {}).dur || 3) };
       }
       return finalDmg;
     }
@@ -694,8 +719,8 @@
         else line += '（无目标）';
       }
       // 咏唱（莱塔尼亚特殊）：施法后获得攻速 + 技能增幅 buff
-      if (u.specialKw === 'castAmp') {
-        const p = u.specialParams || {};
+      if (u.specialKw.includes('castAmp')) {
+        const p = (u.specialParams && u.specialParams['castAmp']) || {};
         u.castAmpMul = 1 + (p.amp || 0.15);
         u.castAspd = 1 + (p.aspd || 0.15);
         u.castBuffUntil = t + (p.dur || 3);
@@ -723,15 +748,15 @@
         }
       });
       // 急救协议（罗德岛特殊）：全队低于 70% 时回血
-      const healer = ally.find(u => u.alive && u.specialKw === 'healAura');
+      const healer = ally.find(u => u.alive && u.specialKw.includes('healAura'));
       if (healer) {
-        const r = (healer.specialParams && healer.specialParams.regen) || 0.03;
+        const r = (healer.specialParams && healer.specialParams['healAura'] && healer.specialParams['healAura'].regen) || 0.03;
         ally.forEach(a => { if (a.alive && a.hp / a.maxHp < 0.7) a.hp = Math.min(a.maxHp, a.hp + a.maxHp * r); });
       }
       // 霜护（谢拉格特殊）：每 period 秒全队获得周期护盾
-      const shielder = ally.find(u => u.alive && u.specialKw === 'shieldPeriodic');
-      if (shielder && t > 0 && Math.round(t) % (shielder.specialParams.period || 5) === 0) {
-        const frac = (shielder.specialParams.frac || 0.10);
+      const shielder = ally.find(u => u.alive && u.specialKw.includes('shieldPeriodic'));
+      if (shielder && t > 0 && Math.round(t) % ((shielder.specialParams['shieldPeriodic'] || {}).period || 5) === 0) {
+        const frac = ((shielder.specialParams['shieldPeriodic'] || {}).frac || 0.10);
         ally.forEach(a => { if (a.alive) a.shield += Math.round(a.maxHp * frac); });
       }
 
@@ -1020,6 +1045,11 @@
     return s + '。';
   }
 
+  // 职业 → 源石色 CSS 变量（三角符号化：卡面职业色三角徽标的颜色来源）
+  const ROLE_VAR = {
+    '先锋':'--c-vanguard','近卫':'--c-guard','重装':'--c-defender','狙击':'--c-sniper',
+    '术师':'--c-caster','医疗':'--c-medic','辅助':'--c-supporter','特种':'--c-specialist'
+  };
   function unitCard(u, where) {
     const op = u.op;
     const sel = G.selected === u.uid ? ' sel' : '';
@@ -1027,17 +1057,19 @@
     const role = op.bonds && op.bonds['职业'];
     const aff = op.bonds && op.bonds['阵营'];
     const skArch = op.skill ? op.skill.archLabel : '';
+    const rc = ROLE_VAR[role] || '--c-stone';
     return '<div class="ucard c' + cost + sel + '" data-uid="' + u.uid + '" data-where="' + where + '">' +
+      '<span class="role-tri" style="--rc:var(' + rc + ')" title="' + (role||'职业') + '"></span>' +
       '<img class="avatar" src="' + op.avatar + '" alt="" onerror="this.style.background=\'#222\'">' +
       '<div class="card-fade"></div>' +
       '<div class="card-tags">' +
-        (role ? '<span class="ctag"><span class="ctag-icon">⚔</span><span class="ctag-txt">' + role + '</span></span>' : '') +
+        (role ? '<span class="ctag"><span class="ctag-icon">▲</span><span class="ctag-txt">' + role + '</span></span>' : '') +
         (aff ? '<span class="ctag"><span class="ctag-icon">◎</span><span class="ctag-txt">' + aff + '</span></span>' : '') +
         (skArch ? '<span class="ctag ctag-sk"><span class="ctag-icon">✦</span><span class="ctag-txt">' + skArch + '</span></span>' : '') +
       '</div>' +
       '<div class="card-footer"><span class="cf-name">' + op.name + '</span>' +
-        '<span class="cf-cost"><span class="coin-icon">●</span>' + cost + '</span></div>' +
-      '<div class="cost-pip">' + '□'.repeat(cost) + '</div>' +
+        '<span class="cf-cost"><span class="coin-icon"></span>' + cost + '</span></div>' +
+      '<div class="cost-pip">' + Array(cost).fill('<i class="cp"></i>').join('') + '</div>' +
       (u.star > 1 ? '<span class="star">' + starStr(u.star) + '</span>' : '') +
     '</div>';
   }
@@ -1088,19 +1120,21 @@
       const role = op.bonds && op.bonds['职业'];
       const aff = op.bonds && op.bonds['阵营'];
       // 方舟风格卡片：大头像 + 底部信息栏 + 标签叠层
+      const rc = ROLE_VAR[role] || '--c-stone';
       return '<div class="ucard shop-card c' + cost + afford + '" data-shop="' + i + '">' +
+        '<span class="role-tri" style="--rc:var(' + rc + ')" title="' + (role||'职业') + '"></span>' +
         '<img class="avatar" src="' + op.avatar + '" alt="" onerror="this.style.background=\'#222\'">' +
         '<div class="card-fade"></div>' +
         '<div class="card-tags">' +
-          (role ? '<span class="ctag"><span class="ctag-icon">⚔</span><span class="ctag-txt">' + role + '</span></span>' : '') +
+          (role ? '<span class="ctag"><span class="ctag-icon">▲</span><span class="ctag-txt">' + role + '</span></span>' : '') +
           (aff ? '<span class="ctag"><span class="ctag-icon">◎</span><span class="ctag-txt">' + aff + '</span></span>' : '') +
           (op.skill ? '<span class="ctag ctag-sk"><span class="ctag-icon">✦</span><span class="ctag-txt">' + op.skill.archLabel + '</span></span>' : '') +
         '</div>' +
         '<div class="card-footer">' +
           '<span class="cf-name">' + op.name + '</span>' +
-          '<span class="cf-cost"><span class="coin-icon">●</span>' + cost + '</span>' +
+          '<span class="cf-cost"><span class="coin-icon"></span>' + cost + '</span>' +
         '</div>' +
-        '<div class="cost-pip">' + '□'.repeat(cost) + '</div>' +
+        '<div class="cost-pip">' + Array(cost).fill('<i class="cp"></i>').join('') + '</div>' +
       '</div>';
     }).join('');
     const capEl = $('shopCapHint');
@@ -1271,7 +1305,9 @@
         }
         html += '<h4>叙事</h4><div class="bm-tier">' + p.flavor + '</div>';
         const eff = (typeof RESONANCE !== 'undefined' && RESONANCE.EFF) ? RESONANCE.EFF[p.a + '|' + p.b] : null;
-        const seEff = (typeof RESONANCE !== 'undefined' && RESONANCE.SPECIAL_EFF) ? RESONANCE.SPECIAL_EFF[p.a + '|' + p.b] : null;
+        const seEff = (typeof RESONANCE !== 'undefined')
+          ? (RESONANCE.SPECIAL_EFF[p.a + '|' + p.b] || (RESONANCE.SPECIAL_EFF_AURA && RESONANCE.SPECIAL_EFF_AURA[p.a + '|' + p.b]) || null)
+          : null;
         const live = !!(eff || seEff);
         html += '<h4>' + (live ? '战斗加成/机制（已生效）' : '叙事构想（暂未接入）') + '</h4><div class="bm-tier">' + p.bonus + '</div>';
         if (eff) {
@@ -1280,7 +1316,9 @@
           html += '<div class="bm-thr" style="border-left:3px solid var(--info)">实际属性加成：' + parts.join('、') + '</div>';
         }
         if (seEff) {
-          const seParts = seEff.factions.map(f => f + ' 「' + seEff.label + '」' + describeSpecial({ kw: seEff.kw, params: seEff.params })).join('、');
+          // aura 型条目用 src 镜像 SPECIAL 参数（单一真相源），确保弹窗显示实际数值
+          const seParams = seEff.params || (seEff.src && typeof SPECIAL !== 'undefined' && SPECIAL[seEff.src] ? SPECIAL[seEff.src].params : {});
+          const seParts = seEff.factions.map(f => f + ' 「' + seEff.label + '」' + describeSpecial({ kw: seEff.kw, params: seParams })).join('、');
           html += '<div class="bm-thr" style="border-left:3px solid #4fd1c5">实际战斗机制：' + seParts + '</div>';
         }
         if (p.type === 'ecosystem' && p.third) html += '<div class="bm-thr">需三者同场：' + p.a + ' ⊕ ' + p.b + ' ⊕ ' + p.third + '</div>';
@@ -2525,7 +2563,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, applyBonds, computeBonds, makeSummonOp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam };
+  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, applyBonds, computeBonds, makeSummonOp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv };
 
   /* ---- 启动 ---- */
   buildNodes();

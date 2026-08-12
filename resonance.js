@@ -116,14 +116,15 @@ const RESONANCE = {
       bonus: '隐藏彩蛋：双方同场解锁"巨兽之佑"（burnDoT 点燃 + shieldPeriodic 护体），仅 capstone 触发。' },
 
     // —— E 组：父键状态修正 ——
-    // 注：阿戈尔在游戏 data.json 中已是真实阵营键（浊心斯卡蒂，池=1 单干员势力），
-    //     故深海猎人⊕阿戈尔不再是"缺口"，可直接落地为 origin 呼应（verified）。
+    // 注：阿戈尔、卡兹戴尔 现已在游戏 data.json 中成为真实阵营键（阿戈尔=浊心斯卡蒂 池=1；
+    //     卡兹戴尔=泥岩+赫德雷 池=2，二人均 origin=卡兹戴尔 的萨卡兹），故原"缺口"两条均已闭环，
+    //     落地为 origin 呼应（verified）。如未来再发现缺失父键，在此追加 missingParent/gap 条目。
     { a: '深海猎人', b: '阿戈尔', type: 'origin', confidence: 'verified',
       flavor: '深海猎人的剑指向阿戈尔的指令，水月也自那片深海。母海与离岸的刃——他们本就是同一片蓝的两面。',
       bonus: '阿戈尔（浊心斯卡蒂）在场时，深海猎人 units 获得"母海回响"：magicAmp 微增 + 对"海嗣"标签额外穿透（复用 pierce）。' },
-    { a: '使徒', b: '卡兹戴尔', type: 'missingParent', confidence: 'gap',
-      flavor: '使徒的闪灵、夜莺皆为萨卡兹，巴别塔亦由萨卡兹王特蕾西娅建立。萨卡兹之血暂无父键承载。',
-      bonus: '未来扩展萨卡兹内容时使徒可与之呼应；当前阶段叙事层标注，不强行加键。' }
+    { a: '使徒', b: '卡兹戴尔', type: 'origin', confidence: 'verified',
+      flavor: '使徒的闪灵、夜莺皆为萨卡兹，巴别塔亦由萨卡兹王特蕾西娅建立——使徒的血脉，本就来自卡兹戴尔。离开故土的萨卡兹，与留在故土的萨卡兹，终在棋盘上重逢。',
+      bonus: '使徒（hpBuff）与卡兹戴尔（defBuff）同场，双方获得"同源之血"加成（生命+防御，萨卡兹血脉相护）；卡兹戴尔 units 额外获得吸血（lifesteal），呼应"以血还血"。' }
   ],
 
   // ============ 真实战斗加成表（P1 落地用） ============
@@ -132,7 +133,8 @@ const RESONANCE = {
   //   1) 仅复用 BOND_KEYS 乘数类（atk/hp/def/aspd/crit/magicAmp/healAmp/spRegen）；
   //      行为型 kw（pierce/trueDmg/damageReduction 等）已迁至下方 SPECIAL_EFF（② 深接入 SPECIAL 关键字）。
   //   2) 数值为保守占位 [PLACEHOLDER]，须经蒙特卡洛 + 试玩标定后方可上调。
-  //   3) 乌萨斯⊕罗德岛（tension，刻意不协同）与 使徒⊕卡兹戴尔（gap，缺父键）不在此表 → 不生效，模态显示"暂未接入"。
+  //   3) 乌萨斯⊕罗德岛（tension，刻意不协同）不在此表 → 不生效，模态显示"暂未接入"。
+  //      （使徒⊕卡兹戴尔 原为 gap，已随卡兹戴尔补键闭环，现为 verified 真实加成。）
   EFF: {
     '炎|龙门':          { '炎': { def: 0.06 }, '龙门': { atk: 0.06 } },
     '维多利亚|塔拉':     { '维多利亚': { def: 0.05 }, '塔拉': { def: 0.05 } },
@@ -141,6 +143,7 @@ const RESONANCE = {
     '巴别塔|使徒':       { '罗德岛': { healAmp: 0.08 } }, // ecosystem，需 third=罗德岛 同场（compute 已校验）
     '伊比利亚|深海猎人':  { '伊比利亚': { magicAmp: 0.06 }, '深海猎人': { crit: 0.06 } },
     '使徒|卡西米尔':     { '使徒': { hp: 0.06 }, '卡西米尔': { crit: 0.06 } },
+    '使徒|卡兹戴尔':     { '使徒': { hp: 0.06 }, '卡兹戴尔': { def: 0.06 } }, // 同源之血：萨卡兹血脉相护
     '哥伦比亚|维多利亚':  { '哥伦比亚': { crit: 0.06 } },
     '莱茵生命|维多利亚':  { '维多利亚': { spRegen: 0.06 } },
     '莱茵生命|哥伦比亚':  { '哥伦比亚': { spRegen: 0.06 } },
@@ -151,7 +154,7 @@ const RESONANCE = {
     '鲤氏侦探事务所|龙门': { '鲤氏侦探事务所': { crit: 0.06 } },
     '炎|谢拉格':         { '炎': { atk: 0.06 }, '谢拉格': { def: 0.06 } },
     '深海猎人|阿戈尔':    { '阿戈尔': { magicAmp: 0.06 }, '深海猎人': { crit: 0.06 } }
-    // 乌萨斯|罗德岛（tension）、使徒|卡兹戴尔（gap）故意不在此表
+    // 乌萨斯|罗德岛（tension）故意不在此表
   },
 
   // ============ 行为型呼应（② 深接入 SPECIAL 关键字） ============
@@ -162,14 +165,31 @@ const RESONANCE = {
   //       而非被 Math.max 吞掉（如 深海猎人 阵营 pierce 0.25 > 呼应 0.12 时 Math.max 会让呼应归零）。
   // 数值 [PLACEHOLDER]，须经蒙特卡洛 + 试玩标定后方可上调；扩表即可加新呼应行为。
   // 红线：burnDoT/healAura/guardAura/shieldPeriodic/slowAura/execute/castAmp/summonWolf/globalAspd
-  //       属 specialKw 单槽型，与阵营 special 互斥，暂不支持呼应注入（维持叙事方向），
-  //       待 special 多槽化改造（让 u.specialKw 支持数组）后再开放。
-  // factions: 受该行为 kw 影响的阵营（须为 a/b 之一或两者）；label: 战斗机制命名。
+  //       aura 型（guardAura/healAura/shieldPeriodic/castAmp/burnDoT/slowAura/execute/globalAspd/summonWolf）
+  //       现已随 specialKw 多槽化改造（u.specialKw 改为数组）开放——呼应注入的 aura 与阵营 special 共存于同一单位。
+  // factions: 受该行为 kw 影响的阵营（须为 a/b 之一或两者）；label: 战斗机制命名；
+  // src: 参数镜像来源阵营（取 SPECIAL[src].params 作单一真相源，[PLACEHOLDER] 待标定）；
+  //      若不填 src 而填 params，则以 params 为准（便于单独调参）。
   SPECIAL_EFF: {
     '伊比利亚|深海猎人': { kw: 'pierce', params: { value: 0.12 }, factions: ['伊比利亚', '深海猎人'], label: '穿透潮汐' },
     '炎|谢拉格':         { kw: 'damageReduction', params: { value: 0.10 }, factions: ['炎', '谢拉格'], label: '巨兽之佑' },
     '使徒|卡西米尔':     { kw: 'trueDmg', params: { value: 0.10 }, factions: ['使徒'], label: '耀骑士归来' },
+    '使徒|卡兹戴尔':     { kw: 'lifesteal', params: { value: 0.10 }, factions: ['使徒', '卡兹戴尔'], label: '同源之血' },
     '维多利亚|雷姆必拓':  { kw: 'pierce', params: { value: 0.10 }, factions: ['雷姆必拓'], label: '开采铠甲下的矿脉' }
+  },
+
+  // ============ 行为型呼应 · aura 多槽型（specialKw 多槽化改造后开放） ============
+  // 接收方阵营自身已有/将有 faction specialKw，呼应再以独立槽位追加一个行为 kw（两者共存）。
+  // 参数优先用 entry.params；填入 src 则镜像 SPECIAL[src].params（单一真相源，随阵营 capstone 数值联动）。
+  // scale（默认 1）：回声强度系数。设计原则「跨阵营回声应弱于原生 capstone」——故默认 0.6，
+  //   令回声明确从属于原生机制又留有可感知空间；经蒙特卡洛标定（满强度 swing ≤3% win，已确认不超模），
+  //   0.6 为保守安全值，最终数值仍待试玩复核（改这一行即可整体/逐条微调）。
+  // 数值 [PLACEHOLDER]，须蒙特卡洛 + 试玩标定。
+  SPECIAL_EFF_AURA: {
+    '谢拉格|喀兰贸易':      { kw: 'shieldPeriodic', src: '谢拉格', factions: ['喀兰贸易'], scale: 0.6, label: '北境互助' },
+    '莱塔尼亚|叙拉古':      { kw: 'castAmp',       src: '莱塔尼亚', factions: ['叙拉古'], scale: 0.6, label: '同源咏唱' },
+    '鲤氏侦探事务所|龙门':   { kw: 'guardAura',     src: '龙门', factions: ['鲤氏侦探事务所'], scale: 0.6, label: '属地庇佑' },
+    '企鹅物流|龙门':         { kw: 'guardAura',     src: '龙门', factions: ['企鹅物流'], scale: 0.6, label: '主场物流网络' }
   },
 
   // ============ 计算入口 ============
