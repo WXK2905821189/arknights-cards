@@ -455,6 +455,14 @@
     return o;
   }
 
+  // 攻击射程（按职业，Chebyshev 距离）：近战贴脸 3x3，远程隔空输出。
+  // 覆盖 data.json 中统一的 range:1；未列出的职业回落 op.stats.range ?? 1（兼容且未来可单卡覆盖）。
+  // 数值为 [PLACEHOLDER]，须经 balance_sim.py 蒙特卡洛 + 试玩标定后替换。
+  const CLASS_RANGE = {
+    '先锋': 1, '近卫': 1, '重装': 1, '特种': 1,          // 近战：相邻 3x3
+    '狙击': 4, '术师': 3, '辅助': 2, '医疗': 2,           // 远程：隔空输出（狙击最长）
+  };
+
   function makeCombatUnit(op, star, side, mult, sig, special, resoKw) {
     const sm = STAR_MULT[star] || 1;
     const m = mult || DEF_MULT;
@@ -468,7 +476,7 @@
     const aspd = m.aspd || 1;
     const u = {
       op, name: op.name, cls: op.class, avatar: op.avatar, traits: op.traits || [],
-      dmgType: op.stats.dmgType, range: op.stats.range, cost: op.stats.cost, star,
+      dmgType: op.stats.dmgType, range: (CLASS_RANGE[op.class] != null ? CLASS_RANGE[op.class] : (op.stats.range || 1)), cost: op.stats.cost, star,
       maxHp: hp, hp, atk, baseAtk: atk,
       def: Math.round(op.stats.def * sm * (m.def || 1)),
       spd: op.stats.spd * aspd,
@@ -476,7 +484,7 @@
       next: 100 / (op.stats.spd * aspd), alive: true, stunUntil: 0, slowUntil: 0, slowFactor: 1,
       sp: Math.min(spMax, m.spInit || 0), spMax,
       spRegen: (sk ? sk.spRegen : 1) * (m.spRegen || 1),
-      skill: sk ? { name: sk.name, archetype: sk.archetype, effect: sk.effect } : null,
+      skill: sk ? { name: sk.name, archetype: sk.archetype, effect: sk.effect, range: sk.range } : null,
       shield: 0, burn: null,
       crit: m.crit || 0, magicAmp: m.magicAmp || 1, healAmp: m.healAmp || 1,
       // —— 行为关键字（签名 + 阵营特殊）——
@@ -881,8 +889,11 @@
       if (u.rampHitPer) u.rampHitAcc = Math.min(u.rampHitCap, u.rampHitAcc + u.rampHitPer);
       const ramp = 1 + (u.rampHitAcc || 0);
       const amp = (u.skillAmp || 1) * ramp;   // 技能增幅 × 暖机
+      // 技能独立射程：默认沿用施法者自身 range，支持单技能 skill.range 覆盖（干员技能单独做射程）
+      const skRange = (u.skill && u.skill.range != null) ? u.skill.range : u.range;
       if (arch === 'burst' || arch === 'lifesteal' || arch === 'execute') {
-        const { tgt } = nearestEnemy(u);
+        const ne = nearestEnemy(u);
+        const tgt = (ne.tgt && ne.d <= skRange) ? ne.tgt : null;
         if (tgt) {
           let m = eff.mult;
           if (arch === 'execute' && tgt.hp / tgt.maxHp < (eff.thresh || 0.35)) m *= 1.8;
@@ -892,20 +903,22 @@
         } else line += '（无目标）';
       } else if (arch === 'aoe') {
         let tot = 0;
-        foes.forEach(fo => { tot += dealDamage(u, fo, u.atk * eff.mult * amp); });
-        line += ' 范围打击 -' + tot;
+        foes.filter(fo => cheb(fo, u) <= skRange).forEach(fo => { tot += dealDamage(u, fo, u.atk * eff.mult * amp); });
+        line += (tot > 0 ? ' 范围打击 -' + tot : '（射程外）');
       } else if (arch === 'heal') {
-        const low = allies.filter(x => x.hp < x.maxHp).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+        const wounded = allies.some(x => x.hp < x.maxHp);
+        const low = allies.filter(x => x.hp < x.maxHp && cheb(x, u) <= skRange).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
         if (low) { const h = Math.round(u.atk * eff.mult * (u.healAmp || 1)); low.hp = Math.min(low.maxHp, low.hp + h); line += ' 治疗 ' + low.name + ' +' + h; }
-        else line += '（友军满血）';
+        else line += (wounded ? '（射程外）' : '（友军满血）');
       } else if (arch === 'shield') {
         const tgt = (eff.target === 'self') ? u
-          : (allies.filter(x => x !== u).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0] || u);
+          : (allies.filter(x => x !== u && cheb(x, u) <= skRange).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0] || u);
         const s = Math.round(u.atk * (eff.mult || 1)); tgt.shield += s; line += ' 为 ' + tgt.name + ' 提供护盾 ' + s;
       } else if (arch === 'stun') {
-        const { tgt } = nearestEnemy(u);
+        const ne = nearestEnemy(u);
+        const tgt = (ne.tgt && ne.d <= skRange) ? ne.tgt : null;
         const dur = (eff.dur || 1.2);
-        if (tgt) { tgt.stunUntil = t + dur; line += ' 眩晕 ' + tgt.name + ' ' + dur.toFixed(1) + 's'; } else line += '（无目标）';
+        if (tgt) { tgt.stunUntil = t + dur; line += ' 眩晕 ' + tgt.name + ' ' + dur.toFixed(1) + 's'; } else line += '（射程外）';
       } else if (arch === 'buff') {
         const ba = (eff.atk || 0.3);
         allies.forEach(a => { a.atk = Math.min(Math.round(a.baseAtk * 2.5), Math.round(a.atk * (1 + ba))); });
@@ -915,14 +928,16 @@
         foes.forEach(f => { f.def = Math.round(f.def * (1 - bd)); });
         line += ' 敌军防御-' + Math.round(bd * 100) + '%';
       } else if (arch === 'dot') {
-        const { tgt } = nearestEnemy(u);
-        if (tgt) { const d = dealDamage(u, tgt, u.atk * (eff.mult || 1) * amp); line += ' 侵蚀 ' + tgt.name + ' -' + d; } else line += '（无目标）';
+        const ne = nearestEnemy(u);
+        const tgt = (ne.tgt && ne.d <= skRange) ? ne.tgt : null;
+        if (tgt) { const d = dealDamage(u, tgt, u.atk * (eff.mult || 1) * amp); line += ' 侵蚀 ' + tgt.name + ' -' + d; } else line += '（射程外）';
       } else if (arch === 'summon') {
         const s = Math.round(u.atk * (eff.mult || 1)); u.shield += s; line += ' 召唤援军（护盾+' + s + '）';
       } else {
-        const { tgt } = nearestEnemy(u);
+        const ne = nearestEnemy(u);
+        const tgt = (ne.tgt && ne.d <= skRange) ? ne.tgt : null;
         if (tgt) { const d = dealDamage(u, tgt, u.atk * (eff.mult || 2) * amp); line += ' → ' + tgt.name + ' -' + d; }
-        else line += '（无目标）';
+        else line += '（射程外）';
       }
       // v2.1：令签名召唤岁兽——技能施放时强化场上岁兽；若无则兜底召唤一只（战斗召唤）
       // 对称修正：召唤物归属「施法者所在方」(u.side)，推入对应数组，避免真镜像中对 ally 单边偏置
@@ -1393,6 +1408,30 @@
     return null;
   }
 
+  // 棋盘射程高亮：选中（或悬停）单位时，按 cheb(自身格, 目标格) <= range 高亮其射程覆盖格（含敌方半场）。
+  let _hoverSlot = null;
+  function highlightRange() {
+    const b = $('board'); if (!b) return;
+    const cells = b.querySelectorAll('.board-cell');
+    let active = _hoverSlot;
+    if (active == null && G.selected != null) {
+      const s = slotOf(G.selected);
+      if (s != null && G.board[s]) active = s;
+    }
+    cells.forEach(c => c.classList.remove('in-range'));
+    if (active == null || !G.board[active]) return;
+    const op = G.board[active].op;
+    const rng = CLASS_RANGE[op.class] != null ? CLASS_RANGE[op.class] : (op.stats.range || 1);
+    const p = slotToXY(active);
+    cells.forEach(c => {
+      const i = +c.dataset.slot;
+      if (i === active) return;                 // 不标自身格
+      const q = slotToXY(i);
+      const d = Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y));
+      if (d <= rng) c.classList.add('in-range');
+    });
+  }
+
   function renderBoard() {
     const b = $('board');
     let html = '';
@@ -1414,6 +1453,13 @@
     $('bench').innerHTML = benchHtml;
     $('benchCap').textContent = G.bench.length + '/' + BENCH_CAP;
     benchWarn();
+    // 射程高亮：#board 元素本身不被重建，一次性绑定 hover 委托即可
+    if (!b._rb) {
+      b._rb = true;
+      b.addEventListener('mouseover', e => { const c = e.target.closest && e.target.closest('.board-cell'); if (!c) return; const i = +c.dataset.slot; if (G.board[i]) { _hoverSlot = i; highlightRange(); } });
+      b.addEventListener('mouseout', e => { const c = e.target.closest && e.target.closest('.board-cell'); if (!c) return; _hoverSlot = null; highlightRange(); });
+    }
+    highlightRange();
   }
 
   function benchWarn() {
@@ -1721,10 +1767,11 @@
     $('ubAvatar').src = op.avatar;
     $('ubName').textContent = op.name;
     $('ubStar').textContent = starStr(u.star);
+    const _rng = CLASS_RANGE[op.class] != null ? CLASS_RANGE[op.class] : (st.range != null ? st.range : 1);
     $('ubStats').innerHTML =
       '费 ' + st.cost + '　HP ' + Math.round(st.hp * sm) +
       '　ATK ' + Math.round(st.atk * sm) + '　DEF ' + Math.round((st.def || 0) * sm) +
-      '<br>攻速 ' + (st.spd != null ? st.spd : '-') + '　射程 ' + (st.range != null ? st.range : '-') + '　' + (op.role || '-');
+      '<br>攻速 ' + (st.spd != null ? st.spd : '-') + '　射程 ' + _rng + '　' + (op.role || '-');
     const bd = $('ubBonds');
     if (bd) {
       const tags = bondTagsFull(op);
