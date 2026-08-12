@@ -2151,7 +2151,7 @@
     setTimeout(() => {
       const es = $('envScreen');
       if (es && !es.classList.contains('hidden')) {
-        const ec = $$('#envChoices .env-card');
+        const ec = document.querySelectorAll('#envChoices .env-card');
         if (!ec || ec.length === 0) {
           console.warn('[reset] 环境卡片未渲染，自动重试 renderEnv()');
           try { renderEnv(); } catch(e2) { console.error('[reset] 重试也失败:', e2); }
