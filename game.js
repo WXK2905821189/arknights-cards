@@ -44,12 +44,14 @@
     // 阈值统一 [2,3,5]（阶1/2/3）。注意：阵营羁绊与职业羁绊对同一干员【叠加】生效。
     '阵营': {
       '__default__': { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20] },   // 长尾小势力兜底：通用攻/血
-      '罗德岛':     { thr: [2, 3, 5], healAmp: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20] }, // 医疗理念：治疗量 + 生存（已含精英干员）
-      '炎':         { thr: [2, 3, 5], hp: [0.05, 0.10, 0.15], def: [0.03, 0.06, 0.09] },     // 岁兽/炎国：生命 + 防御（已含炎-岁/炎-龙门）— 二次削弱（原 100% 超模）
-      '维多利亚':   { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20] },    // 骑士王国：攻防兼备
-      '莱茵生命':   { thr: [2, 3, 5], magicAmp: [0.08, 0.16, 0.26], spInit: [3, 6, 10] },    // 科研机构：术法 + 起手技力
-      '叙拉古':     { thr: [2, 3, 5], crit: [0.06, 0.12, 0.20], aspd: [0.06, 0.12, 0.20] },  // 黑帮：暴击 + 攻速
-      '拉特兰':     { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], crit: [0.10, 0.20, 0.32] },    // 枪之城：攻击 + 暴击（暴击档位上调）
+      // —— 阵营多阶（2026-08-12）：仅 Epic(pool≥9)/Large(7≤pool≤8) 拉长 thr 与属性数组；前 3 阶数值不变，零回归 ——
+      // 顶点阶受部署上限 9 约束：Epic=[2,3,5,7,9]（满盘单阵营 mono），Large=[2,3,5,7]（≥7 人触发深度阶）。
+      '罗德岛':     { thr: [2, 3, 5, 7, 9], healAmp: [0.08, 0.16, 0.26, 0.34, 0.42], hp: [0.06, 0.12, 0.20, 0.26, 0.32] }, // 医疗理念：治疗量 + 生存（已含精英干员）
+      '炎':         { thr: [2, 3, 5, 7, 9], hp: [0.05, 0.10, 0.15, 0.20, 0.25], def: [0.03, 0.06, 0.09, 0.12, 0.15] },     // 岁兽/炎国：生命 + 防御（已含炎-岁/炎-龙门）— 二次削弱（原 100% 超模）
+      '维多利亚':   { thr: [2, 3, 5, 7], atk: [0.08, 0.16, 0.26, 0.34], def: [0.06, 0.12, 0.20, 0.26] }, // 骑士王国：攻防兼备（深度阶 +攻防）
+      '莱茵生命':   { thr: [2, 3, 5, 7], magicAmp: [0.08, 0.16, 0.26, 0.34], spInit: [3, 6, 10, 14] }, // 科研机构：术法 + 起手技力（深度阶 +术法/技力）
+      '叙拉古':     { thr: [2, 3, 5, 7], crit: [0.06, 0.12, 0.20, 0.26], aspd: [0.06, 0.12, 0.20, 0.26] }, // 黑帮：暴击 + 攻速（深度阶 +暴击/攻速）
+      '拉特兰':     { thr: [2, 3, 5, 7], atk: [0.08, 0.16, 0.26, 0.34], crit: [0.10, 0.20, 0.32, 0.42] }, // 枪之城：攻击 + 暴击（深度阶 +攻击/暴击）
       '莱塔尼亚':   { thr: [2, 3, 5], magicAmp: [0.08, 0.16, 0.26], spInit: [3, 6, 10] },    // 源石技艺帝国：术法 + 起手技力
       '萨尔贡':     { thr: [2, 3, 5], atk: [0.10, 0.20, 0.32], hp: [0.06, 0.12, 0.20] },      // 荒野战士：攻击 + 生命（攻击档位上调）
       '龙门':       { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20] },     // 近卫局：攻击 + 防御（已含龙门近卫局）
@@ -96,12 +98,36 @@
   //   池≥5→阶三、池3~4→阶二、池2→阶一（见特殊羁绊机制设计.md 数据事实）。
   const SPECIAL = {
     // —— 池≥5 → 阶三 capstone ——
-    '罗德岛':   { tier: 3, kw: 'healAura',        params: { regen: 0.03 } },                                  // 急救协议：低血回血
-    '炎':       { tier: 3, kw: 'burnDoT',         params: { dps: 0.025, dur: 3 } },                           // 炽魂：灼烧（削弱 dps）
-    '维多利亚': { tier: 3, kw: 'pierce',          params: { value: 0.15 } },                                  // 破阵：破甲
-    '莱茵生命': { tier: 3, kw: 'spRegenBuff',     params: { value: 0.30 } },                                  // 源石技艺增幅
-    '叙拉古':   { tier: 2, kw: 'summonWolf',      params: { t2: 1, t3: 2 } },                                 // 养狼（阶段3）
-    '拉特兰':   { tier: 2, kw: 'critDmg',         params: { value: 1.00 } },                                  // 弹幕覆盖：暴伤（阶二解锁 + 数值上调）
+    // —— 阵营多阶：deep 深度阶（仅 Epic/Large；Standard 无 deep → 行为零回归）——
+    // 结构：deep:{ [tierN]: { label, attr?, kws:[{kw,params},...] } }。computeBonds 仅在存在 deep[tierN] 时注入
+    //   （Epic tierN=4↔7人 / 5↔9人；Large tierN=4↔7人；Standard 无 deep → 永不注入 → 字节级零回归）。
+    // 与基础 SPECIAL.kw 同名 → 覆盖参数（进化）；异名 → 追加 capstone 行为。数值全 [PLACEHOLDER]。
+    '罗德岛':   { tier: 3, kw: 'healAura',        params: { regen: 0.03 },
+                  deep: { 4: { label: '战地医疗网', kws: [{ kw: 'healAura', params: { regen: 0.045 } }] },
+                          5: { label: '不抛下任何人', kws: [{ kw: 'triage', params: { revivePct: 0.30, charges: 1 } }] } } }, // 急救协议：低血回血 → 深度进化治疗 / 阵亡复活
+    '炎':       { tier: 3, kw: 'burnDoT',         params: { dps: 0.025, dur: 3 },
+                  deep: { 4: { label: '炽魂蔓延', kws: [{ kw: 'burnDoT', params: { dps: 0.040, dur: 4, spread: true } }] },
+                          5: { label: '岁兽觉醒', kws: [{ kw: 'infernoRally', params: { value: 0.15 } }] } } }, // 炽魂：灼烧 → 溅射 / 攻强光环
+    '维多利亚': { tier: 3, kw: 'pierce',          params: { value: 0.15 },
+                  deep: { 4: { label: '方阵穿透 + 骑士旗帜', attr: { atk: 0.05 }, kws: [
+                    { kw: 'pierce', params: { value: 0.28 } },                 // 进化：破甲强化且普攻生效
+                    { kw: 'knightBanner', params: { base: 0.08, per: 0.02 } } // capstone：全队攻光环·随人数缩放
+                  ] } } },                                                                          // 破阵：破甲（Large 单深度阶，capstone 并入 7）
+    '莱茵生命': { tier: 3, kw: 'spRegenBuff',     params: { value: 0.30 },
+                  deep: { 4: { label: '源石技艺链接 + 过载协议', kws: [
+                    { kw: 'castAmp', params: { aspd: 0.20, amp: 0.22, dur: 3 } }, // 进化：咏唱强化
+                    { kw: 'overload', params: { value: 0.30, period: 6, dur: 3 } } // capstone：周期法强爆发
+                  ] } } },                                                                          // 源石技艺增幅
+    '叙拉古':   { tier: 2, kw: 'summonWolf',      params: { t2: 1, t3: 2 },
+                  deep: { 4: { label: '狼群扩张 + 教父', attr: { crit: 0.05 }, kws: [
+                    { kw: 'summonWolf', params: { t2: 1, t3: 2, t4: 3 } },      // 进化：7 人出 3 狼
+                    { kw: 'capo', params: { aspd: 0.20 } }                      // capstone：狼群攻速光环
+                  ] } } },                                                                          // 养狼（阶段3）
+    '拉特兰':   { tier: 2, kw: 'critDmg',         params: { value: 1.00 },
+                  deep: { 4: { label: '标记射击 + 弹幕风暴', kws: [
+                    { kw: 'critDmg', params: { value: 1.40 } },                 // 进化：暴伤强化 + 技能必暴
+                    { kw: 'barrage', params: { hits: 3, spread: 0.6 } }         // capstone：多段普攻
+                  ] } } },                                                                          // 弹幕覆盖：暴伤（阶二解锁 + 数值上调）
     '莱塔尼亚': { tier: 3, kw: 'castAmp',         params: { aspd: 0.15, amp: 0.15, dur: 3 } },                // 咏唱：施法后强化
     '萨尔贡':   { tier: 2, kw: 'execute',         params: { thresh: 0.30, mult: 0.80 } },                     // 蛮力：处决（阶二解锁 + 数值上调）
     '龙门':     { tier: 3, kw: 'guardAura',       params: { value: 0.10 } },                                  // 协防：相邻减伤
@@ -321,10 +347,32 @@
                 });
                 Object.assign(bonus, sp.attr);
               }
-              boardUnits.forEach(u => {
-                if (u.bonds[ax] === v) special[u.name] = { kw: sp.kw || null, params: sp.params || {} };
+              // 深度阶（阵营多阶）：堆叠注入所有 deep[tierN']（tierN'<=tierN），与基础 kw 同名→覆盖参数（进化），异名→追加 capstone 行为
+              const dpKeys = sp.deep ? Object.keys(sp.deep).map(Number).filter(k => k <= tierN).sort((a, b) => a - b) : [];
+              dpKeys.forEach(dk => {
+                const dp = sp.deep[dk];
+                if (dp.attr) {
+                  boardUnits.forEach(u => {
+                    if (u.bonds[ax] === v) applyMult(mult[u.name], dp.attr);
+                  });
+                  Object.assign(bonus, dp.attr);
+                }
               });
-              active.push({ axis: '特殊', value: v, count: n, tier: tierN, bonus: sp.attr ? Object.assign({}, sp.attr) : {}, kw: sp.kw || null });
+              boardUnits.forEach(u => {
+                if (u.bonds[ax] !== v) return;
+                const entry = { kw: sp.kw || null, params: sp.params || {}, kws: [] };
+                dpKeys.forEach(dk => {
+                  const dp = sp.deep[dk];
+                  if (!dp.kws) return;
+                  dp.kws.forEach(e => {
+                    if (e.kw === entry.kw) entry.params = e.params || {};            // 进化：覆盖基础参数
+                    else entry.kws.push({ kw: e.kw, params: e.params || {} });       // capstone：新增行为
+                  });
+                });
+                special[u.name] = entry;
+              });
+              const deepLabel = dpKeys.length ? dpKeys.map(k => sp.deep[k].label).join(' + ') : null;
+              active.push({ axis: '特殊', value: v, count: n, tier: tierN, bonus: sp.attr ? Object.assign({}, sp.attr) : {}, kw: sp.kw || null, deep: deepLabel });
             }
           }
         });
@@ -436,6 +484,7 @@
       damageReduction: 0, counter: 0, critDmg: 0,
       rampHitPer: 0, rampHitCap: 0, rampHitAcc: 0,
       summonBeast: 0, specialKw: [], specialParams: {}, castAspd: 1, castAmpMul: 1, castBuffUntil: 0,
+      reviveCharges: 0, revivePct: 0,
     };
     // 合并签名关键字
     const skw = (sig && sig.kw) || {};
@@ -461,6 +510,24 @@
       else if (special.kw === 'damageReduction') u.damageReduction = Math.max(u.damageReduction, p.value || 0);
       else if (special.kw === 'rampHit') { u.rampHitPer = Math.max(u.rampHitPer, p.per || 0); u.rampHitCap = Math.max(u.rampHitCap, p.cap || 0); }
       else if (special.kw === 'spRegenBuff') u.spRegen *= (1 + (p.value || 0));
+    }
+    // 阵营多阶：深度阶 kws[]（与基础 kw 同名已在上面覆盖参数；此处处理异名 capstone 行为 + healAura/burnDoT 进化已在上面）
+    if (special && special.kws && special.kws.length) {
+      special.kws.forEach(e => {
+        const KW = e.kw, p = e.params || {};
+        if (u.specialKw.indexOf(KW) < 0) u.specialKw.push(KW);
+        u.specialParams[KW] = p;
+        if (KW === 'pierce') u.pierce = Math.max(u.pierce, p.value || 0);
+        else if (KW === 'trueDmg') u.trueDmg = Math.max(u.trueDmg, p.value || 0);
+        else if (KW === 'defShred') u.defShred = Math.max(u.defShred, p.value || 0);
+        else if (KW === 'critDmg') u.critDmg = Math.max(u.critDmg, p.value || 0);
+        else if (KW === 'damageReduction') u.damageReduction = Math.max(u.damageReduction, p.value || 0);
+        else if (KW === 'rampHit') { u.rampHitPer = Math.max(u.rampHitPer, p.per || 0); u.rampHitCap = Math.max(u.rampHitCap, p.cap || 0); }
+        else if (KW === 'spRegenBuff') u.spRegen *= (1 + (p.value || 0));
+        else if (KW === 'castAmp') { u.castAmpMul = 1 + (p.amp || 0.15); u.castAspd = 1 + (p.aspd || 0.15); u.castBuffUntil = Math.max(u.castBuffUntil, 1e9); }
+        else if (KW === 'triage') { u.reviveCharges = (p.charges || 1); u.revivePct = (p.revivePct || 0.30); }
+        // infernoRally / knightBanner / overload / capo / barrage 在 step/onFight 专门消费
+      });
     }
     // ② 行为型呼应：数值型 kw（pierce/trueDmg/damageReduction 等）以 += 叠加在阵营 special 之上；
     //    aura 型 kw（guardAura/healAura/shieldPeriodic/castAmp/burnDoT/slowAura/execute/globalAspd/summonWolf）
@@ -660,7 +727,7 @@
     enemy.forEach((u, i) => { u.uid = 'e' + i; u.x = enemyPos[i].x; u.y = enemyPos[i].y; u.cd = 0; u.stunUntil = 0; });
     // 对称先手：随机决定先手方，并按 (先手, 后手) 逐索引交错排列，
     // 消除「ally 每 tick 恒定先动」带来的系统性偏置（原为 ally.concat(enemy)）。
-    const firstSide = Math.random() < 0.5 ? 'ally' : 'enemy';
+    const firstSide = (typeof global !== 'undefined' && global.__forceFirst) ? global.__forceFirst : (Math.random() < 0.5 ? 'ally' : 'enemy'); // __forceFirst 调试钩子
     const ord = firstSide === 'ally' ? [ally, enemy] : [enemy, ally];
     const all = [];
     const _maxLen = Math.max(ally.length, enemy.length);
@@ -681,11 +748,30 @@
         const v = (slowA.specialParams && slowA.specialParams['slowAura'] && slowA.specialParams['slowAura'].value) || 0.20;
         foes.forEach(u => { u.slowFactor = 1 - v; u.slowUntil = 1e9; });
       }
+      // 阵营多阶 · 深度阶光环（战斗开局一次性施加，双向对称）
+      const inferno = _sx.find(u => u.specialKw.includes('infernoRally'));
+      if (inferno) { // 炎[9] 岁兽觉醒：炎单位攻强（呼应"炎含炎-岁"）
+        const v = (inferno.specialParams['infernoRally'] || {}).value || 0.15;
+        _sx.forEach(u => { if ((u.op.bonds || {}).阵营 === '炎') { u.atk = Math.round(u.atk * (1 + v)); u.baseAtk = u.atk; } });
+      }
+      const banner = _sx.find(u => u.specialKw.includes('knightBanner'));
+      if (banner) { // 维多利亚[9→Large 并入 7] 骑士旗帜：全队攻光环，随维多利亚上场数缩放
+        const p = banner.specialParams['knightBanner'] || {};
+        const cnt = _sx.filter(u => (u.op.bonds || {}).阵营 === '维多利亚').length;
+        const v = (p.base || 0.08) + (p.per || 0.02) * cnt;
+        _sx.forEach(u => { u.atk = Math.round(u.atk * (1 + v)); u.baseAtk = u.atk; });
+      }
+      const capo = _sx.find(u => u.specialKw.includes('capo'));
+      if (capo) { // 叙拉古[9→Large 并入 7] 教父：狼群攻速光环
+        const v = (capo.specialParams['capo'] || {}).aspd || 0.20;
+        _sx.forEach(u => { if (u.isSummon && u.summonType === 'wolf') { u.spd *= (1 + v); } });
+      }
     }
     const frames = [];
     const logBuf = [];
     const castsThisSnap = [];
     let t = 0;
+    let tickIdx = Math.random() < 0.5 ? 0 : 1; // 行动顺序计数器（初始奇偶随机）：每 tick 交替先手方，抵消先手滚雪球偏置；初始随机使决定性技能齐放先手方随机化
     let suddenDeath = false; // 猝死阶段：禁用续航、无视护盾、伤害翻倍，强制终结僵局
     // P2-4：战斗统计（复盘用）——双方累计伤害与阵亡数
     const stats = { allyDmg: 0, enemyDmg: 0, allyDeaths: 0, enemyDeaths: 0, summonKills: 0 };
@@ -745,7 +831,7 @@
       }
       finalDmg = Math.max(1, Math.round(finalDmg));
       let dealtTotal = finalDmg;            // 含护盾吸收的总输出（用于对称裁定）
-      if (suddenDeath) { finalDmg *= 2; dealtTotal = finalDmg; } // 猝死阶段伤害翻倍，加速终结
+      if (suddenDeath) { const _sdMult = 2 + Math.floor((t - MAX_T) / 3) * 2; finalDmg *= _sdMult; dealtTotal = finalDmg; } // 猝死阶段伤害随时间递增（每3s +2x），强制终结坦克僵局，避免落入超时偏置分支
       // 护盾吸收（猝死阶段无视护盾，避免僵局）
       if (tgt.shield > 0 && !suddenDeath) {
         const absorb = Math.min(tgt.shield, finalDmg);
@@ -753,7 +839,14 @@
       }
       tgt.hp -= finalDmg;
       if (src && src.side === 'ally') stats.allyDmg += dealtTotal; else if (src) stats.enemyDmg += dealtTotal;
-      if (tgt.hp <= 0) { tgt.alive = false; occ.delete(tgt.x + ',' + tgt.y); if (tgt.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; if (src && src.isSummon) stats.summonKills++; }
+      if (tgt.hp <= 0) {
+        if (tgt.reviveCharges > 0 && !suddenDeath) { // 罗德岛[9→深度阶] 不抛下任何人：阵亡复活一次
+          tgt.reviveCharges--; tgt.hp = Math.max(1, Math.round(tgt.maxHp * (tgt.revivePct || 0.30))); if (tgt.burn) tgt.burn = null;
+          logBuf.push({ k: 'revive', line: tgt.name + ' 复活！(' + tgt.hp + ' HP)', side: tgt.side });
+        } else {
+          tgt.alive = false; occ.delete(tgt.x + ',' + tgt.y); if (tgt.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; if (src && src.isSummon) stats.summonKills++;
+        }
+      }
       // 命中破甲（薇薇安娜 / 伊比利亚）
       if (src.defShred && tgt.alive) tgt.def = Math.max(0, tgt.def * (1 - src.defShred));
       // 命中减速（水月）
@@ -764,8 +857,17 @@
       if (tgt.counter && src !== tgt && src.alive) src.hp -= Math.max(1, Math.round(finalDmg * tgt.counter));
       // 灼烧（炎特殊）
       if (src.specialKw.includes('burnDoT') && tgt.alive) {
-        const dps = (tgt.burn ? tgt.burn.dps : 0) + ((src.specialParams['burnDoT'] || {}).dps || 0);
-        tgt.burn = { dps, until: t + ((src.specialParams['burnDoT'] || {}).dur || 3) };
+        const bp = src.specialParams['burnDoT'] || {};
+        const dps = (tgt.burn ? tgt.burn.dps : 0) + (bp.dps || 0);
+        tgt.burn = { dps, until: t + (bp.dur || 3) };
+        if (bp.spread) { // 炎[7→深度阶] 炽魂蔓延：溅射相邻敌人（半伤）
+          all.forEach(o => {
+            if (o.alive && o.side !== src.side && cheb(o, tgt) <= 1) {
+              const od = (o.burn ? o.burn.dps : 0) + (bp.dps || 0) * 0.5;
+              o.burn = { dps: od, until: t + (bp.dur || 3) };
+            }
+          });
+        }
       }
       return finalDmg;
     }
@@ -823,23 +925,26 @@
         else line += '（无目标）';
       }
       // v2.1：令签名召唤岁兽——技能施放时强化场上岁兽；若无则兜底召唤一只（战斗召唤）
+      // 对称修正：召唤物归属「施法者所在方」(u.side)，推入对应数组，避免真镜像中对 ally 单边偏置
       if (u.summonBeast) {
-        const beasts = ally.filter(x => x.alive && x.isSummon && x.summonType === 'beast');
+        const _myArr = (u.side === 'ally') ? ally : enemy;
+        const _uidPrefix = (u.side === 'ally') ? 'a' : 'e';
+        const beasts = _myArr.filter(x => x.alive && x.isSummon && x.summonType === 'beast');
         if (beasts.length) {
           beasts.forEach(b => { b.atk = Math.round(b.atk * 1.15); b.maxHp = Math.round(b.maxHp * 1.10); b.hp = b.maxHp; }); // [PLACEHOLDER] 强化数值
           line += ' 岁兽强化（攻+15%/血+10%）';
         } else {
           const lvl = (typeof G !== 'undefined' && G.summonState && G.summonState.beast) ? G.summonState.beast.level : 1;
-          const nb = makeCombatSummon('beast', lvl, 'ally', u.uid);
+          const nb = makeCombatSummon('beast', lvl, u.side, u.uid);
           let cell = null;
           const adj = [{ x: u.x + 1, y: u.y }, { x: u.x - 1, y: u.y }, { x: u.x, y: u.y + 1 }, { x: u.x, y: u.y - 1 }].filter(p => p.x >= 0 && p.x < FIELD_W && p.y >= 0 && p.y < FIELD_H);
           for (const a of adj) { if (!occ.has(a.x + ',' + a.y)) { cell = a; break; } }
           if (!cell) { for (let x = 0; x < FIELD_W && !cell; x++) for (let y = 0; y < FIELD_H && !cell; y++) { if (!occ.has(x + ',' + y)) cell = { x, y }; } }
           if (cell) {
             // uid 必须全局唯一：死亡单位仍留在 ally 数组内，'a'+ally.length 会撞已有 uid（令多次施法尤甚），故取当前最大数值 uid+1
-            const maxUid = ally.reduce((m, x) => { const n = parseInt((x.uid || 'a0').slice(1), 10); return isNaN(n) ? m : Math.max(m, n); }, -1);
-            nb.x = cell.x; nb.y = cell.y; nb.uid = 'a' + (maxUid + 1);
-            all.push(nb); ally.push(nb); occ.set(cell.x + ',' + cell.y, nb); line += ' 召唤岁兽！';
+            const maxUid = _myArr.reduce((m, x) => { const n = parseInt((x.uid || _uidPrefix + '0').slice(1), 10); return isNaN(n) ? m : Math.max(m, n); }, -1);
+            nb.x = cell.x; nb.y = cell.y; nb.uid = _uidPrefix + (maxUid + 1);
+            all.push(nb); _myArr.push(nb); occ.set(cell.x + ',' + cell.y, nb); line += ' 召唤岁兽！';
           }
         }
       }
@@ -870,7 +975,11 @@
           const d = Math.round(u.maxHp * u.burn.dps * DT);
           u.hp -= d;
           if (u.side === 'ally') stats.enemyDmg += d; else stats.allyDmg += d;
-          if (u.hp <= 0) { u.alive = false; occ.delete(u.x + ',' + u.y); if (u.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; }
+          if (u.hp <= 0) {
+            if (u.reviveCharges > 0 && !suddenDeath) { // 灼烧致死也可触发复活
+              u.reviveCharges--; u.hp = Math.max(1, Math.round(u.maxHp * (u.revivePct || 0.30))); if (u.burn) u.burn = null;
+            } else { u.alive = false; occ.delete(u.x + ',' + u.y); if (u.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; }
+          }
         }
       });
       // 急救协议（罗德岛特殊）/ 霜护（谢拉格特殊）——双向对称：双方各自阵营机制作用于己方
@@ -878,8 +987,16 @@
         for (const _sx of [ally, enemy]) {
           const healer = _sx.find(u => u.alive && u.specialKw.includes('healAura'));
           if (healer) {
-            const r = (healer.specialParams && healer.specialParams['healAura'] && healer.specialParams['healAura'].regen) || 0.03;
+            // 取该侧 healAura 持有者中最高的 regen（深度阶 0.045 覆盖基础 0.03，进化生效）
+            let r = 0;
+            _sx.forEach(u => { if (u.alive && u.specialKw.includes('healAura')) { const rr = (u.specialParams['healAura'] || {}).regen || 0.03; if (rr > r) r = rr; } });
             _sx.forEach(a => { if (a.alive && a.hp / a.maxHp < 0.7) a.hp = Math.min(a.maxHp, a.hp + a.maxHp * r); });
+          }
+          // 阵营多阶 · 莱茵[9→Large 并入 7] 过载协议：周期法强爆发（窗口内 castAmpMul 提升）
+          const over = _sx.find(u => u.alive && u.specialKw.includes('overload'));
+          if (over && t > 0 && Math.round(t) % ((over.specialParams['overload'] || {}).period || 6) === 0) {
+            const p = over.specialParams['overload'] || {};
+            _sx.forEach(a => { if (a.alive) { a.castAmpMul = 1 + (p.value || 0.30); a.castBuffUntil = t + (p.dur || 3); } });
           }
           const shielder = _sx.find(u => u.alive && u.specialKw.includes('shieldPeriodic'));
           if (shielder && t > 0 && Math.round(t) % ((shielder.specialParams['shieldPeriodic'] || {}).period || 5) === 0) {
@@ -889,7 +1006,16 @@
         }
       }
 
-      for (const u of all) {
+      // 每 tick 交替先手方（按 tickIdx 奇偶翻转交错顺序），使先手优势在数百个 tick 内自行抵消，
+      // 消除「固定先手方每 tick 恒定先动」导致的胜负被先手决定的滚雪球偏置。
+      const _startAlly = (tickIdx % 2 === 0);
+      const _ord = _startAlly ? [ally, enemy] : [enemy, ally];
+      const _order = [];
+      const _maxLen2 = Math.max(ally.length, enemy.length);
+      for (let _k = 0; _k < _maxLen2; _k++) {
+        for (const _s of _ord) { if (_k < _s.length) _order.push(_s[_k]); }
+      }
+      for (const u of _order) {
         if (!u.alive) continue;
         if (u.cd > 0) { u.cd -= DT; continue; }
         if (u.stunUntil > t) { u.cd = 0.1; continue; }
@@ -945,14 +1071,24 @@
           // 暖机（rampHit）：每次攻击累积攻击加成
           if (u.rampHitPer) u.rampHitAcc = Math.min(u.rampHitCap, u.rampHitAcc + u.rampHitPer);
           const ramp = 1 + (u.rampHitAcc || 0);
-          let raw = u.atk * ramp;
-          if (u.traits.indexOf('爆发') >= 0) raw *= 1.4;
-          const dmg = dealDamage(u, tgt, raw);
-          let line = u.name + ' → ' + tgt.name + ' -' + dmg;
-          if (u.traits.indexOf('控场') >= 0 && Math.random() < 0.3) { tgt.stunUntil = t + 1.2; line += ' (眩晕)'; }
-          if (!tgt.alive) line += ' ☠';
-          logBuf.push({ k: 'hit', line, dmgType: u.dmgType, side: u.side });
-          u.cd = ATK(u);
+          if (u.specialKw.includes('barrage')) { // 拉特兰[9→Large 并入 7] 弹幕风暴：多段普攻（每段分伤，命中至多 hits 个敌人）
+            const bp = u.specialParams['barrage'] || {};
+            const hits = bp.hits || 1, frac = (bp.spread != null) ? bp.spread : 1;
+            const foes = all.filter(o => o.alive && o.side !== u.side).sort((a, b) => cheb(u, a) - cheb(u, b)).slice(0, hits);
+            let line = u.name + ' 弹幕风暴';
+            foes.forEach(fo => { const dmg = dealDamage(u, fo, u.atk * ramp * frac); line += ' → ' + fo.name + ' -' + dmg; if (!fo.alive) line += ' ☠'; });
+            logBuf.push({ k: 'hit', line, dmgType: u.dmgType, side: u.side });
+            u.cd = ATK(u);
+          } else {
+            let raw = u.atk * ramp;
+            if (u.traits.indexOf('爆发') >= 0) raw *= 1.4;
+            const dmg = dealDamage(u, tgt, raw);
+            let line = u.name + ' → ' + tgt.name + ' -' + dmg;
+            if (u.traits.indexOf('控场') >= 0 && Math.random() < 0.3) { tgt.stunUntil = t + 1.2; line += ' (眩晕)'; }
+            if (!tgt.alive) line += ' ☠';
+            logBuf.push({ k: 'hit', line, dmgType: u.dmgType, side: u.side });
+            u.cd = ATK(u);
+          }
         } else {
           const dx = Math.sign(tgt.x - u.x), dy = Math.sign(tgt.y - u.y);
           let moved = false;
@@ -978,7 +1114,7 @@
       if (t >= MAX_T && !suddenDeath) {
         suddenDeath = true; // 进入猝死：禁用续航、无视护盾、伤害翻倍，强制打破僵局
       }
-      step(); t += DT;
+      step(); t += DT; tickIdx++;
       if (!ally.some(u => u.alive) || !enemy.some(u => u.alive)) break;
       if (t >= nextSample) { snap(); nextSample += SAMPLE_DT; }
     }
@@ -997,7 +1133,9 @@
       else {
         const aHp = ally.reduce((s, u) => s + Math.max(0, u.hp), 0);
         const eHp = enemy.reduce((s, u) => s + Math.max(0, u.hp), 0);
-        winner = aHp >= eHp ? 'ally' : 'enemy';
+        if (aHp > eHp) winner = 'ally';
+        else if (eHp > aHp) winner = 'enemy';
+        else winner = Math.random() < 0.5 ? 'ally' : 'enemy'; // 完全镜像真平局（aHp==eHp）：公平掷骰，去 ally 偏置（原 >= 恒判 ally）
       }
     }
     frames.push({ sys: true, line: winner === 'ally' ? '★ 我方胜利！' : '✗ 敌方胜利…' });
@@ -1030,14 +1168,6 @@
     grantSummonExp, summonLevelFromExp, SPECIAL, SIGNATURE, DIFFICULTY,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  // 惰性 getter 挂载（访问时解析，绕开 TDZ；此处必执行）：策略节点重构测试用
-  Object.defineProperties(api, {
-    G: { get: () => G },
-    STRATEGY_POOL: { get: () => STRATEGY_POOL },
-    STRATEGY_BY_ID: { get: () => STRATEGY_BY_ID },
-    aggregateStrategies: { get: () => aggregateStrategies },
-    pickDiverseStrategies: { get: () => pickDiverseStrategies },
-  });
   // 游戏状态对象：提到控制器之外，保证 Node 测试路径下也已初始化（引擎函数 applyBonds/generateEnemyTeam 依赖 G）
   let uidc = 1;
   G = {
@@ -1432,7 +1562,10 @@
       pierce: '穿透（无视部分防御）', burnDoT: '灼烧（持续伤害）', slowAura: '减速光环', healAura: '治疗光环',
       castAmp: '咏唱强化（施法后增益）', execute: '处决（残血额外伤害）', critDmg: '暴击伤害提升', summonWolf: '养狼（召唤作战单位）',
       spRegenBuff: '源石技艺增幅', counter: '反击', lifesteal: '吸血', rampHit: '渐增打击', guardAura: '近卫光环',
-      shieldPeriodic: '周期护盾', defShred: '破甲', globalAspd: '全队攻速', trueDmg: '真实伤害', slow: '减速', damageReduction: '减伤'
+      shieldPeriodic: '周期护盾', defShred: '破甲', globalAspd: '全队攻速', trueDmg: '真实伤害', slow: '减速', damageReduction: '减伤',
+      // —— 阵营多阶深度阶（2026-08-12）——
+      triage: '不抛下任何人（阵亡复活一次）', infernoRally: '岁兽觉醒（炎攻强光环）', knightBanner: '骑士旗帜（全队攻光环·随人数缩放）',
+      overload: '过载协议（周期法强爆发）', capo: '教父（狼群攻速光环）', barrage: '弹幕风暴（多段普攻）'
     };
     const kw = sp.kw, p = sp.params || {};
     let s = names[kw] || kw || '—';
@@ -1495,6 +1628,18 @@
       if (sp) {
         html += '<div class="bm-thr">阵营特殊机制，' + sp.tier + '阶解锁</div>';
         html += '<h4>机制说明</h4><div class="bm-tier">' + describeSpecial(sp) + '</div>';
+        if (sp.deep) { // 阵营多阶：深度阶（多阶进化）清单，按当前 tier 标注已解锁 / 待解锁
+          html += '<h4>深度阶（多阶进化）</h4><div class="bm-tier">';
+          Object.keys(sp.deep).map(Number).sort((a, b) => a - b).forEach(dk => {
+            const dp = sp.deep[dk];
+            const unlocked = tier >= dk;
+            const kwDesc = (dp.kws || []).map(e => describeSpecial({ kw: e.kw, params: e.params })).join('；');
+            html += '<div style="' + (unlocked ? 'color:#e8b84b;font-weight:600' : 'opacity:.45') + '">' +
+              (unlocked ? '★ ' : '☆ ') + dp.label + '（' + dk + '阶' + (unlocked ? '·已解锁' : '·待解锁') + '）' +
+              (kwDesc ? '：' + kwDesc : '') + '</div>';
+          });
+          html += '</div>';
+        }
       }
     } else if (axis === '签名') {
       const sd = (typeof SIGNATURE_DESC !== 'undefined') && SIGNATURE_DESC[value];
@@ -1939,11 +2084,14 @@
     const summonPlan = [];
     const placedSummons = []; // 用于音频/复盘
     if (xilaTier >= 2) {
-      const n = xilaTier >= 3 ? 2 : 1;
+      // xilaTier 即 tierN：3-4 人→tierN2(1狼) / 5-6 人→tierN3(2狼) / 7 人→tierN4(深度阶 3狼)
+      const n = xilaTier >= 4 ? 3 : (xilaTier >= 3 ? 2 : 1);
+      const deepWolf = xilaTier >= 4; // 叙拉古深度阶：狼继承叙拉古暴击
       const sIdx = allyList.findIndex(u => u.op.bonds && u.op.bonds['阵营'] === '叙拉古');
       for (let i = 0; i < n; i++) {
         const u = makeCombatSummon('wolf', ss.wolf.level, 'ally', sIdx >= 0 ? 'a' + sIdx : null);
         applyFeedBuff(u, ss);
+        if (deepWolf) u.crit = Math.min(1, (u.crit || 0) + 0.05); // [PLACEHOLDER] 狼继承暴击
         summonPlan.push({ unit: u, summonerPos: sIdx >= 0 ? allyPos[sIdx] : null });
         placedSummons.push(u);
       }
@@ -1970,7 +2118,7 @@
         placedSummons.forEach(u => {
           const isWolf = u.summonType === 'wolf';
           AUDIO.play('summon/spawn', { kind: isWolf ? 'wolf' : 'beast' });
-          if (isWolf) AUDIO.play('wolf/howl', { form: xilaTier >= 3 ? 'king' : 'adult' });
+          if (isWolf) AUDIO.play('wolf/howl', { form: xilaTier >= 4 ? 'king' : 'adult' });
         });
       }
     }
@@ -2919,7 +3067,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot };
+  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, BONDS, SPECIAL };
 
   /* ---- 启动 ---- */
   buildNodes();
