@@ -696,12 +696,14 @@
   }
 
   // 按职业基线默认站位：我方前排在 x=3，敌方前排在 x=4
+  // 行优先铺位：先把前列整行填满再退到后列 — 避免少量单位全堆在前列单列、底部行被裁切。
+  // 例：6 个 ally 在 4×6 → (3,0)(2,0)(1,0)(0,0)(3,1)(2,1)，均匀铺开。
   function autoPositions(units, side) {
     const cells = [];
     if (side === 'ally') {
-      for (let x = GRID_COLS - 1; x >= 0; x--) for (let y = 0; y < GRID_ROWS; y++) cells.push([x, y]);
+      for (let y = 0; y < GRID_ROWS; y++) for (let x = GRID_COLS - 1; x >= 0; x--) cells.push([x, y]);
     } else {
-      for (let x = 0; x < GRID_COLS; x++) for (let y = 0; y < GRID_ROWS; y++) cells.push([GRID_COLS + x, y]);
+      for (let y = 0; y < GRID_ROWS; y++) for (let x = 0; x < GRID_COLS; x++) cells.push([GRID_COLS + x, y]);
     }
     return units.map((u, i) => {
       const c = cells[i % cells.length];
@@ -2045,6 +2047,7 @@
     if (node.type === 'reward') { grantReward(node); return; }
     if (node.type === 'strategy') { showStrategyScreen(node); return; }
     if (node.type === 'encounter') { showEncounterScreen(node); return; }
+    if (node.type === 'market') { showMarketScreen(node); return; }
     if (node.type === 'fork') { showForkScreen(node); return; }
     enterShopRound(node);
   }
@@ -2138,6 +2141,78 @@
       enterShopRound(node); // 策略节点同时进入一回合（普通战斗）
     });
     $('strategyScreen').classList.remove('hidden');
+    if (window.AUDIO) AUDIO.setMusic('exploration');
+  }
+
+  // —— 市场节点（每阶段 1 次）：10 干员 + 5 装备 任选购买，补强后开战 ——
+  function showMarketScreen(node) {
+    // 生成补给池（干员：按当前商店档位 10 名；装备：全类型 5 件，稀有度随等级解锁）
+    if (!G._marketUnits || !G._marketUnits.length) {
+      G._marketUnits = shuffle(DATA.operators.filter(o => o.stats.cost <= maxShopCost(G.level))).slice(0, 10);
+    }
+    if (!G._marketEquips || !G._marketEquips.length) {
+      const mr = maxEquipRarity(G.level);
+      let pool = EQUIP_POOL.filter(e => e.rarity <= mr);
+      if (pool.length < 5) pool = EQUIP_POOL.slice(); // 低等级白装不足 5 件时放宽到全池
+      G._marketEquips = shuffle(pool).slice(0, 5);
+    }
+    const wrap = $('marketUnits');
+    wrap.innerHTML = G._marketUnits.map((op, i) => {
+      if (!op) return '<div class="slot empty"></div>';
+      const afford = G.gold >= effCost(op) ? '' : ' locked';
+      const role = op.bonds && op.bonds['职业'];
+      const aff = op.bonds && op.bonds['阵营'];
+      return '<div class="ucard shop-card c' + op.stats.cost + afford + '" data-mk-unit="' + i + '">' +
+        '<img class="avatar" src="' + op.avatar + '" alt="" onerror="this.style.background=\'#222\'">' +
+        '<div class="card-fade"></div>' +
+        '<div class="card-tags">' +
+          (role ? '<span class="ctag"><span class="ctag-icon">⚔</span><span class="ctag-txt">' + role + '</span></span>' : '') +
+          (aff ? '<span class="ctag"><span class="ctag-icon">◎</span><span class="ctag-txt">' + aff + '</span></span>' : '') +
+        '</div>' +
+        '<div class="card-footer"><span class="cf-name">' + op.name + '</span><span class="cf-cost">' + op.stats.cost + '</span></div>' +
+      '</div>';
+    }).join('');
+    const ew = $('marketEquips');
+    ew.innerHTML = G._marketEquips.map((e, i) => {
+      const afford = G.gold >= e.cost ? '' : ' locked';
+      return '<div class="equip-card rarity' + e.rarity + ' mk-eq' + afford + '" data-mk-eq="' + i + '">' +
+        '<span class="eq-rarity">' + RARITY_LABEL[e.rarity] + '</span>' +
+        '<span class="eq-name">' + (e.name || e.id) + '</span>' +
+        '<span class="eq-desc">' + e.desc + '</span>' +
+        '<span class="eq-cost">' + e.cost + '💰</span>' +
+      '</div>';
+    }).join('');
+    // 购买事件
+    wrap.querySelectorAll('[data-mk-unit]').forEach(c => c.onclick = () => {
+      const i = parseInt(c.dataset.mkUnit, 10);
+      const op = G._marketUnits[i];
+      if (!op) return;
+      const cost = effCost(op);
+      if (G.gold < cost) { flash('金币不足'); return; }
+      if (G.bench.length >= BENCH_CAP) { flash('备战席已满'); return; }
+      G.gold -= cost; G._marketUnits[i] = null;
+      G.bench.push({ uid: uidc++, op, star: 1 });
+      if (window.SFX) SFX.play('buy');
+      tryCombine();
+      renderTop(); showMarketScreen(node);
+    });
+    ew.querySelectorAll('[data-mk-eq]').forEach(c => c.onclick = () => {
+      const i = parseInt(c.dataset.mkEq, 10);
+      const e = G._marketEquips[i];
+      if (!e) return;
+      if (G.gold < e.cost) { flash('金币不足'); return; }
+      G.gold -= e.cost; G._marketEquips.splice(i, 1);
+      G.equipState.bag.push(e.id);
+      if (window.SFX) SFX.play('buy');
+      renderTop(); showMarketScreen(node);
+    });
+    $('btnMarketDone').onclick = () => {
+      if (window.SFX) SFX.play('select');
+      $('marketScreen').classList.add('hidden');
+      G._marketUnits = null; G._marketEquips = null; // 一次性补给，清空防重复
+      enterShopRound(node); // 进入本节点战斗回合
+    };
+    $('marketScreen').classList.remove('hidden');
     if (window.AUDIO) AUDIO.setMusic('exploration');
   }
 
@@ -2742,9 +2817,16 @@
       }
       return { type: t };
     };
-    const phase1 = withForks(['reward', 'reward', 'battle', 'strategy', 'battle', 'battle', 'encounter', 'reward', 'battle']).map(mk);
-    const phase2 = withForks(['battle', 'strategy', 'battle', 'battle', 'battle', 'battle', 'encounter', 'reward', 'battle']).map(mk);
-    const phase3 = withForks(['battle', 'strategy', 'battle', 'battle', 'battle', 'battle', 'encounter', 'reward', 'boss']).map(mk);
+    // P2-1+：每阶段插入 1 个市场节点（market：10 干员 + 5 装备 补强）——替换每阶段中段第 4 个 battle
+    function withMarket(arr) {
+      const battles = [];
+      arr.forEach((t, i) => { if (t === 'battle') battles.push(i); });
+      if (battles.length >= 1) arr[battles[Math.floor(battles.length / 2)]] = 'market';
+      return arr;
+    }
+    const phase1 = withMarket(withForks(['reward', 'reward', 'battle', 'strategy', 'battle', 'battle', 'encounter', 'reward', 'battle'])).map(mk);
+    const phase2 = withMarket(withForks(['battle', 'strategy', 'battle', 'battle', 'battle', 'battle', 'encounter', 'reward', 'battle'])).map(mk);
+    const phase3 = withMarket(withForks(['battle', 'strategy', 'battle', 'battle', 'battle', 'battle', 'encounter', 'reward', 'boss'])).map(mk);
     const all = phase1.concat(phase2).concat(phase3);
     all.forEach((n, i) => { n.phase = (i < 9 ? 1 : i < 18 ? 2 : 3); });
     G.nodes = all;
@@ -3199,7 +3281,7 @@
   /* ---- 存档系统（本地进度续档） ---- */
   const SAVE_KEY = 'rh_chess_save';
   const NODE_ICON = { reward: '🎁', battle: '⚔', elite: '★', boss: '👑', strategy: '💡', encounter: '⚡', fork: '🔀' };
-  const NODE_LABEL = { reward: '补给节点', battle: '普通战', elite: '精英战', boss: 'BOSS 战', strategy: '策略节点', encounter: '遭遇节点', fork: '抉择点' };
+  const NODE_LABEL = { reward: '补给节点', battle: '普通战', elite: '精英战', boss: 'BOSS 战', strategy: '策略节点', encounter: '遭遇节点', market: '补给市场', fork: '抉择点' };
   // P2-1：分叉节点各选项的说明
   const FORK_DESC = {
     battle: '常规作战，击败敌方编队换取金币与经验。',
@@ -3369,7 +3451,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel };
+  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen };
 
   /* ---- 启动 ---- */
   buildNodes();

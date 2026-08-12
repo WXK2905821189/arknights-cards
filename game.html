@@ -137,6 +137,21 @@
       </div>
     </section>
 
+    <!-- 市场节点（每阶段 1 次：10 干员 + 5 装备 补强） -->
+    <section id="marketScreen" class="overlay hidden">
+      <div class="panel" role="dialog" aria-modal="true">
+        <h2>⚒ 补给市场</h2>
+        <p class="hint">大型补给站：10 名干员 + 5 件装备任选购买，补强阵容后开战。装备进入背包，可点背包再点干员穿戴。</p>
+        <div class="mk-sec"><span class="mk-sec-label">干员补给（10 选买）</span></div>
+        <div id="marketUnits" class="mk-units"></div>
+        <div class="mk-sec"><span class="mk-sec-label">装备补给（5 选买）</span></div>
+        <div id="marketEquips" class="mk-equips"></div>
+        <div class="mk-foot">
+          <button id="btnMarketDone" class="btn primary">出发开战 →</button>
+        </div>
+      </div>
+    </section>
+
     <!-- 分叉节点（路径抉择 · P2-1） -->
     <section id="forkScreen" class="overlay hidden">
       <div class="panel" role="dialog" aria-modal="true">

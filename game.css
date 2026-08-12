@@ -386,18 +386,19 @@ a{color:var(--gold-strong);text-decoration:none}
 .equip-card.rarity2{border-color:rgba(180,130,240,.5)}
 .equip-card.rarity3{border-color:rgba(232,184,75,.55)}
 .equip-msg{font-size:12px;color:var(--success);margin-top:6px;min-height:14px}
-/* 干员卡装备角标 */
-.eq-badges{position:absolute;right:3px;top:3px;display:flex;flex-direction:column;gap:2px;z-index:3}
+/* 干员卡装备角标（v2.1+ 强化：非空槽显眼色块，空槽半透明虚线可见） */
+.eq-badges{position:absolute;right:2px;top:2px;display:flex;flex-direction:column;gap:2px;z-index:3}
 .eq-slot{
-  width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;
-  font-size:11px;background:#0c0f14;border:1px solid var(--line);color:var(--text-2);cursor:pointer;
+  width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;background:rgba(8,11,16,.88);border:1.5px solid var(--line);
+  color:var(--text);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.6);
 }
-.eq-slot.empty{border-style:dashed;color:transparent}
-.eq-slot.rarity0{color:#dfe6ee;border-color:rgba(140,160,180,.4)}
-.eq-slot.rarity1{color:#5ac8e0;border-color:rgba(90,200,224,.45)}
-.eq-slot.rarity2{color:#b482f0;border-color:rgba(180,130,240,.5)}
-.eq-slot.rarity3{color:#e8b84b;border-color:rgba(232,184,75,.55)}
-.eq-slot:hover{border-color:var(--gold-strong)}
+.eq-slot.empty{border-style:dashed;color:rgba(159,180,204,.55);font-size:13px}
+.eq-slot.rarity0{color:#e8eef5;border-color:#8ca0b4;background:rgba(70,85,105,.9)}
+.eq-slot.rarity1{color:#7fdff0;border-color:#2fa8c9;background:rgba(20,80,110,.9)}
+.eq-slot.rarity2{color:#d0a5ff;border-color:#8b5cf6;background:rgba(70,40,130,.9)}
+.eq-slot.rarity3{color:#ffd76a;border-color:#e8a33d;background:rgba(130,80,20,.9)}
+.eq-slot:hover{border-color:#fff;transform:scale(1.15)}
 
 /* ============ v2.1 战斗内召唤物等级角标 ============ */
 .bf-unit{position:relative}
