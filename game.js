@@ -221,8 +221,8 @@
     9: [0.08, 0.16, 0.32, 0.30, 0.14],
   };
 
-  // 战场：我方左 4 列 / 敌方右 4 列，共 8×4
-  const GRID_COLS = 4, GRID_ROWS = 4, FIELD_W = 8, FIELD_H = 4;
+  // 战场：我方左 4 列 / 敌方右 4 列，半场 4×8；整体 8×8（与部署区一一对应）
+  const GRID_COLS = 4, GRID_ROWS = 8, FIELD_W = 8, FIELD_H = 8;
   const CELL = 64;            // 战斗网格像素
   const DT = 0.1, SAMPLE_DT = 0.6, MAX_T = 60;
 
@@ -502,10 +502,10 @@
     });
   }
 
-  // 部署格序号 -> 战斗坐标：棋盘 4×4，第 0 行最前（x=3，紧邻敌方 x=4），逐行向后
+  // 部署格序号 -> 战斗坐标：8×8 部署区，格 (col,row) 直接对应战斗坐标 (x,y)，左右半场一一对应
   function slotToXY(i) {
-    const r = Math.floor(i / 4), c = i % 4;
-    return { x: 3 - r, y: c };
+    const col = i % 8, row = Math.floor(i / 8);
+    return { x: col, y: row };
   }
 
   // 按职业基线默认站位：我方前排在 x=3，敌方前排在 x=4
@@ -1071,12 +1071,11 @@
     return Math.max(1, c);
   }
 
-  // 统一棋盘 4×4：左半 8 格供我方部署（全部可放），右半 8 格为敌方站位预览
+  // 统一棋盘 8×8：左半 32 格（列 0-3）供我方部署（全部可放），右半 32 格（列 4-7）为敌方站位预览
   // 人口限制的是"场上角色总数"，而非解锁格子数
-  const MAX_BOARD_SLOTS = 16;
-  const LEFT_SLOTS = [0, 1, 4, 5, 8, 9, 12, 13];
-  function boardCap() { return Math.min(LEFT_SLOTS.length, G.level + (G.boardBonus || 0)); }
-  function isLeftSlot(i) { return LEFT_SLOTS.indexOf(i) >= 0; }
+  const MAX_BOARD_SLOTS = 64;
+  function boardCap() { return Math.min(MAX_BOARD_SLOTS, G.level + (G.boardBonus || 0)); }
+  function isLeftSlot(i) { return (i % 8) < 4; }
   function boardCount() { return Object.keys(G.board).length; }
 
   function rnd(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
@@ -1147,7 +1146,7 @@
 
   function firstFreeSlot() {
     if (boardCount() >= boardCap()) return null;
-    for (let i = 0; i < LEFT_SLOTS.length; i++) { const s = LEFT_SLOTS[i]; if (!G.board[s]) return s; }
+    for (let i = 0; i < 64; i++) { if (isLeftSlot(i) && !G.board[i]) return i; }
     return null;
   }
   function slotOf(uid) {
@@ -1158,11 +1157,11 @@
   function renderBoard() {
     const b = $('board');
     let html = '';
-    // 固定渲染 4×4=16 格：左半 8 格全部为我方部署位，右半 8 格为敌方站位预览底格
-    for (let i = 0; i < 16; i++) {
-      const col = i % 4;
+    // 固定渲染 8×8=64 格：左半 32 格（列 0-3）全部为我方部署位，右半 32 格（列 4-7）为敌方站位预览底格
+    for (let i = 0; i < 64; i++) {
+      const col = i % 8;
       const u = G.board[i];
-      if (col >= 2) {
+      if (col >= 4) {
         html += '<div class="board-cell enemy-zone" data-slot="' + i + '" tabindex="-1" aria-disabled="true"></div>';
       } else if (u) {
         html += '<div class="board-cell filled" data-slot="' + i + '" tabindex="0">' + unitCard(u, 'board') + '</div>';
@@ -2211,23 +2210,21 @@
     if (overlay) {
       overlay.innerHTML = '';
       const enemies = team;
-      const eps = autoPositions(enemies, 'enemy');
-      // 取一个敌方底格作为尺寸基准（含 gap），让 preview 头像填满格子
-      const refCell = document.querySelector('.board-cell.enemy-zone');
-      const refRect = refCell ? refCell.getBoundingClientRect() : { width: 92, height: 106 };
-      const gap = 8;
+      const eps = autoPositions(enemies, 'enemy'); // 敌方坐标 x∈[4,7]（右半4列）, y∈[0,7]
       enemies.forEach((t, i) => {
         const p = eps[i]; if (!p) return;
-        // 战场 x∈[4,7] 映射到棋盘右半 2 列（col 0/1），y∈[0,3] 映射到行 0-3
-        const col = (p.x - GRID_COLS) % 2;
+        // 战场坐标 -> 部署区右半局部坐标：localCol = x-4 ∈[0,3], row = y ∈[0,7]
+        const localCol = p.x - GRID_COLS;
         const row = p.y;
-        if (row < 0 || row >= GRID_ROWS) return;
+        if (localCol < 0 || localCol >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
         const c = document.createElement('div');
         c.className = 'eo-chip';
-        c.style.width = refRect.width + 'px';
-        c.style.height = refRect.height + 'px';
-        c.style.left = (col * (refRect.width + gap)) + 'px';
-        c.style.top = (row * (refRect.height + gap)) + 'px';
+        // 百分比定位：overlay 严格覆盖部署区右半（4 列 × 8 行），与战斗坐标一一对应，头像填满格子
+        c.style.left = ((localCol + 0.5) / GRID_COLS * 100) + '%';
+        c.style.top = ((row + 0.5) / GRID_ROWS * 100) + '%';
+        c.style.width = (100 / GRID_COLS) + '%';
+        c.style.height = (100 / GRID_ROWS) + '%';
+        c.style.transform = 'translate(-50%,-50%)';
         c.innerHTML = '<img src="' + t.op.avatar + '" alt="" onerror="this.style.background=\'#222\'">';
         c.title = t.op.name + (t.star > 1 ? '★' + t.star : '');
         overlay.appendChild(c);
