@@ -192,6 +192,16 @@
     if (name === 'combat/death') {
       return { key: params.side === 'ally' ? 'combat/death_ally' : 'combat/death_enemy', bus: 'sfx', pri: 2 };
     }
+    // —— v2.1 召唤物 / 养狼 音效（音频工程师交付）——
+    if (name === 'wolf/howl') {
+      // 三形态叫声：狼崽(pup) / 成年狼(adult) / 狼王(king)，由养狼成长阶段决定。
+      var form = params.form === 'pup' ? 'pup' : (params.form === 'king' ? 'king' : 'adult');
+      return { key: 'wolf/howl_' + form, bus: 'sfx', pri: 2 };
+    }
+    if (name === 'summon/spawn' || name === 'summon/death' || name === 'summon/enhance' ||
+        name === 'wolf/levelup' || name === 'wolf/feed') {
+      return { key: name, bus: 'sfx', pri: 2 };
+    }
     if (name === 'result/win')  return { key: 'result/win',  bus: 'music', pri: 0 };
     if (name === 'result/lose') return { key: 'result/lose', bus: 'music', pri: 0 };
     if (name === 'result/boss') return { key: 'result/boss', bus: 'music', pri: 0 };

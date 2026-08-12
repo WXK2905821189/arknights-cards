@@ -159,23 +159,53 @@
     return m;
   })();
 
-  // —— light 版召唤物定义（叙拉古养狼 / 令岁兽）——
-  // 数值固定、按阶位微调，无独立经验条（完整喂养成长系统记未来 TODO）。
-  function makeSummonOp(kind, tier) {
-    const k = tier >= 3 ? 1.25 : 1.0;
-    if (kind === 'wolf') {
-      return {
-        name: '狼', en: 'Wolf', class: '召唤物', subclass: '叙拉古眷属', rarity: 3, cost: 0,
-        stats: { atk: Math.round(130 * k), hp: Math.round(640 * k), def: 45, spd: 110, dmgType: 'phys', range: 1 },
-        skill: null, traits: [], bonds: { 职业: '召唤物', 阵营: '—' }, avatar: 'assets/wolf.png',
-      };
-    }
-    // 岁兽（令签名）
-    return {
-      name: '岁兽', en: 'Beast', class: '召唤物', subclass: '令之眷属', rarity: 3, cost: 0,
-      stats: { atk: Math.round(210 * k), hp: Math.round(1700 * k), def: 90, spd: 95, dmgType: 'phys', range: 1 },
-      skill: null, traits: [], bonds: { 职业: '召唤物', 阵营: '—' }, avatar: 'assets/beast.png',
+  // ============ 真实召唤物（v2.1 · summon archetype）============
+  // 狼（叙拉古养狼）/ 岁兽（令签名）转为可独立攻防、占格、死亡的战斗单位。
+  // 数值 [PLACEHOLDER]：基础值沿用 light 版初值，每级成长 ×1.25（标定可调）；等级/经验为局内（本 run）状态，不写 Meta。
+  const SUMMON_TEMPLATES = {
+    wolf:  { name: '狼', en: 'Wolf', sub: '叙拉古眷属', avatar: 'assets/wolf.png',
+             atk: 130, hp: 640, def: 45, spd: 110, dmgType: 'phys', range: 1, growth: 1.25 },
+    beast: { name: '岁兽', en: 'Beast', sub: '令之眷属', avatar: 'assets/beast.png',
+             atk: 210, hp: 1700, def: 90, spd: 95, dmgType: 'phys', range: 1, growth: 1.25 },
+  };
+  // 成长阈值（累计 EXP）：level1→40→100→180→280（上限 5 级），沿用设计稿 §5 初值 [PLACEHOLDER]
+  const SUMMON_LEVEL_EXP = [0, 40, 100, 180, 280];
+  const SUMMON_MAX_LEVEL = SUMMON_LEVEL_EXP.length; // 5
+  function summonLevelFromExp(exp) {
+    let lv = 1;
+    for (let i = 0; i < SUMMON_LEVEL_EXP.length; i++) { if (exp >= SUMMON_LEVEL_EXP[i]) lv = i + 1; else break; }
+    return Math.min(lv, SUMMON_MAX_LEVEL);
+  }
+  // 构造一个真实召唤物战斗单位（继承 CombatUnit 结构，附加 isSummon 元信息）
+  function makeCombatSummon(kind, level, side, summonerId) {
+    const tmpl = SUMMON_TEMPLATES[kind];
+    if (!tmpl) return null;
+    const g = Math.pow(tmpl.growth, Math.max(0, level - 1));
+    const op = {
+      name: tmpl.name, en: tmpl.en, class: '召唤物', subclass: tmpl.sub, rarity: 3, cost: 0,
+      stats: {
+        atk: Math.round(tmpl.atk * g), hp: Math.round(tmpl.hp * g), def: Math.round(tmpl.def * g),
+        spd: tmpl.spd, dmgType: tmpl.dmgType, range: tmpl.range,
+      },
+      skill: null, traits: [], bonds: { 职业: '召唤物', 阵营: '—' }, avatar: tmpl.avatar,
     };
+    // 召唤物不按星级缩放（沿用 light 版固定基础值 × 等级成长，避免 STAR_MULT 放大破坏平衡），故 star 传 1
+    const u = makeCombatUnit(op, 1, side, DEF_MULT, { attr: {}, kw: {} }, null, null);
+    u.isSummon = true;
+    u.summonerId = summonerId || null;
+    u.summonType = kind;
+    u.level = level || 1;
+    u.exp = 0;
+    u.maxExp = SUMMON_LEVEL_EXP[Math.min(u.level, SUMMON_MAX_LEVEL) - 1];
+    u.evolves = false;
+    u.killExp = 5; // 击杀贡献 EXP [PLACEHOLDER]
+    return u;
+  }
+  // 战前口粮临时加成（下一场战斗生效，战后清空）
+  function applyFeedBuff(u, ss) {
+    if (!ss) return;
+    if (ss.feedAtk) { u.atk = Math.round(u.atk * (1 + ss.feedAtk)); u.baseAtk = u.atk; }
+    if (ss.feedHp) { u.maxHp = Math.round(u.maxHp * (1 + ss.feedHp)); u.hp = u.maxHp; }
   }
 
   // 商店刷新概率表（按玩家等级 1..9）
@@ -492,6 +522,30 @@
     });
   }
 
+  // v2.1 召唤物站位：优先放在召唤者（干员）相邻空闲格；无空闲相邻格则退化到最近空闲格。
+  // plan: [{ unit, summonerPos }]；返回 { allyList, allyPos }（已并入召唤物）。
+  function placeAdjacentSummons(allyList, allyPos, plan) {
+    const occupied = new Set(allyPos.map(p => p.x + ',' + p.y));
+    const allCells = [];
+    for (let x = 0; x < FIELD_W; x++) for (let y = 0; y < FIELD_H; y++) allCells.push({ x, y });
+    const freeCells = () => allCells.filter(p => !occupied.has(p.x + ',' + p.y));
+    const adjOf = c => [
+      { x: c.x + 1, y: c.y }, { x: c.x - 1, y: c.y }, { x: c.x, y: c.y + 1 }, { x: c.x, y: c.y - 1 },
+    ].filter(p => p.x >= 0 && p.x < FIELD_W && p.y >= 0 && p.y < FIELD_H);
+    const outList = allyList.slice(), outPos = allyPos.slice();
+    plan.forEach(s => {
+      let cell = null;
+      if (s.summonerPos) {
+        for (const a of adjOf(s.summonerPos)) { if (!occupied.has(a.x + ',' + a.y)) { cell = a; break; } }
+      }
+      if (!cell) { const f = freeCells(); if (f.length) cell = f[0]; }
+      if (!cell) return; // 极端满场：放弃该召唤
+      occupied.add(cell.x + ',' + cell.y);
+      outList.push(s.unit); outPos.push(cell);
+    });
+    return { allyList: outList, allyPos: outPos };
+  }
+
   function rollCost(level) {
     const odds = ODDS[Math.max(1, Math.min(9, level))];
     const r = Math.random();
@@ -586,7 +640,7 @@
     const castsThisSnap = [];
     let t = 0;
     // P2-4：战斗统计（复盘用）——双方累计伤害与阵亡数
-    const stats = { allyDmg: 0, enemyDmg: 0, allyDeaths: 0, enemyDeaths: 0 };
+    const stats = { allyDmg: 0, enemyDmg: 0, allyDeaths: 0, enemyDeaths: 0, summonKills: 0 };
     // 行动间隔：受减速(slowFactor)与施法加速(castAspd)影响
     const ATK = u => {
       const slowF = (u.slowFactor && t < u.slowUntil) ? u.slowFactor : 1;
@@ -649,7 +703,7 @@
       }
       tgt.hp -= finalDmg;
       if (src && src.side === 'ally') stats.allyDmg += finalDmg; else if (src) stats.enemyDmg += finalDmg;
-      if (tgt.hp <= 0) { tgt.alive = false; occ.delete(tgt.x + ',' + tgt.y); if (tgt.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; }
+      if (tgt.hp <= 0) { tgt.alive = false; occ.delete(tgt.x + ',' + tgt.y); if (tgt.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; if (src && src.isSummon) stats.summonKills++; }
       // 命中破甲（薇薇安娜 / 伊比利亚）
       if (src.defShred && tgt.alive) tgt.def = Math.max(0, tgt.def * (1 - src.defShred));
       // 命中减速（水月）
@@ -717,6 +771,27 @@
         const { tgt } = nearestEnemy(u);
         if (tgt) { const d = dealDamage(u, tgt, u.atk * (eff.mult || 2) * amp); line += ' → ' + tgt.name + ' -' + d; }
         else line += '（无目标）';
+      }
+      // v2.1：令签名召唤岁兽——技能施放时强化场上岁兽；若无则兜底召唤一只（战斗召唤）
+      if (u.summonBeast) {
+        const beasts = ally.filter(x => x.alive && x.isSummon && x.summonType === 'beast');
+        if (beasts.length) {
+          beasts.forEach(b => { b.atk = Math.round(b.atk * 1.15); b.maxHp = Math.round(b.maxHp * 1.10); b.hp = b.maxHp; }); // [PLACEHOLDER] 强化数值
+          line += ' 岁兽强化（攻+15%/血+10%）';
+        } else {
+          const lvl = (typeof G !== 'undefined' && G.summonState && G.summonState.beast) ? G.summonState.beast.level : 1;
+          const nb = makeCombatSummon('beast', lvl, 'ally', u.uid);
+          let cell = null;
+          const adj = [{ x: u.x + 1, y: u.y }, { x: u.x - 1, y: u.y }, { x: u.x, y: u.y + 1 }, { x: u.x, y: u.y - 1 }].filter(p => p.x >= 0 && p.x < FIELD_W && p.y >= 0 && p.y < FIELD_H);
+          for (const a of adj) { if (!occ.has(a.x + ',' + a.y)) { cell = a; break; } }
+          if (!cell) { for (let x = 0; x < FIELD_W && !cell; x++) for (let y = 0; y < FIELD_H && !cell; y++) { if (!occ.has(x + ',' + y)) cell = { x, y }; } }
+          if (cell) {
+            // uid 必须全局唯一：死亡单位仍留在 ally 数组内，'a'+ally.length 会撞已有 uid（令多次施法尤甚），故取当前最大数值 uid+1
+            const maxUid = ally.reduce((m, x) => { const n = parseInt((x.uid || 'a0').slice(1), 10); return isNaN(n) ? m : Math.max(m, n); }, -1);
+            nb.x = cell.x; nb.y = cell.y; nb.uid = 'a' + (maxUid + 1);
+            all.push(nb); ally.push(nb); occ.set(cell.x + ',' + cell.y, nb); line += ' 召唤岁兽！';
+          }
+        }
       }
       // 咏唱（莱塔尼亚特殊）：施法后获得攻速 + 技能增幅 buff
       if (u.specialKw.includes('castAmp')) {
@@ -887,7 +962,8 @@
   const api = {
     computeBonds, makeCombatUnit, applyBonds, pickShop, generateEnemyTeam,
     simulateBattle, simulateBattleGrid, autoPositions, slotToXY, ODDS, BONDS, STAR_MULT,
-    GRID_COLS, GRID_ROWS, FIELD_W, FIELD_H, makeSummonOp, SPECIAL, SIGNATURE, DIFFICULTY,
+    GRID_COLS, GRID_ROWS, FIELD_W, FIELD_H, makeCombatSummon, placeAdjacentSummons,
+    grantSummonExp, summonLevelFromExp, SPECIAL, SIGNATURE, DIFFICULTY,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   // 游戏状态对象：提到控制器之外，保证 Node 测试路径下也已初始化（引擎函数 applyBonds/generateEnemyTeam 依赖 G）
@@ -995,10 +1071,11 @@
     return Math.max(1, c);
   }
 
-  // 部署板硬上限（3 列 × 4 行）；同时作为 boardCap 的安全钳制，杜绝溢出隐形单位
+  // 统一棋盘 4×4：左半 8 格供我方部署，右半 8 格为敌方站位预览
   const MAX_BOARD_SLOTS = 16;
-  // 上场人口上限 = 等级 + 环境/策略扩编加成（钳制在 MAX_BOARD_SLOTS 内）
-  function boardCap() { return Math.min(MAX_BOARD_SLOTS, G.level + (G.boardBonus || 0)); }
+  const LEFT_SLOTS = [0, 1, 4, 5, 8, 9, 12, 13];
+  function boardCap() { return Math.min(LEFT_SLOTS.length, G.level + (G.boardBonus || 0)); }
+  function isLeftUnlocked(i) { const n = LEFT_SLOTS.indexOf(i); return n >= 0 && n < boardCap(); }
 
   function rnd(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
   function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -1045,11 +1122,6 @@
     return s + '。';
   }
 
-  // 职业 → 源石色 CSS 变量（三角符号化：卡面职业色三角徽标的颜色来源）
-  const ROLE_VAR = {
-    '先锋':'--c-vanguard','近卫':'--c-guard','重装':'--c-defender','狙击':'--c-sniper',
-    '术师':'--c-caster','医疗':'--c-medic','辅助':'--c-supporter','特种':'--c-specialist'
-  };
   function unitCard(u, where) {
     const op = u.op;
     const sel = G.selected === u.uid ? ' sel' : '';
@@ -1057,25 +1129,23 @@
     const role = op.bonds && op.bonds['职业'];
     const aff = op.bonds && op.bonds['阵营'];
     const skArch = op.skill ? op.skill.archLabel : '';
-    const rc = ROLE_VAR[role] || '--c-stone';
     return '<div class="ucard c' + cost + sel + '" data-uid="' + u.uid + '" data-where="' + where + '">' +
-      '<span class="role-tri" style="--rc:var(' + rc + ')" title="' + (role||'职业') + '"></span>' +
       '<img class="avatar" src="' + op.avatar + '" alt="" onerror="this.style.background=\'#222\'">' +
       '<div class="card-fade"></div>' +
       '<div class="card-tags">' +
-        (role ? '<span class="ctag"><span class="ctag-icon">▲</span><span class="ctag-txt">' + role + '</span></span>' : '') +
+        (role ? '<span class="ctag"><span class="ctag-icon">⚔</span><span class="ctag-txt">' + role + '</span></span>' : '') +
         (aff ? '<span class="ctag"><span class="ctag-icon">◎</span><span class="ctag-txt">' + aff + '</span></span>' : '') +
         (skArch ? '<span class="ctag ctag-sk"><span class="ctag-icon">✦</span><span class="ctag-txt">' + skArch + '</span></span>' : '') +
       '</div>' +
       '<div class="card-footer"><span class="cf-name">' + op.name + '</span>' +
-        '<span class="cf-cost"><span class="coin-icon"></span>' + cost + '</span></div>' +
-      '<div class="cost-pip">' + Array(cost).fill('<i class="cp"></i>').join('') + '</div>' +
+        '<span class="cf-cost">' + cost + '</span></div>' +
       (u.star > 1 ? '<span class="star">' + starStr(u.star) + '</span>' : '') +
     '</div>';
   }
 
   function firstFreeSlot() {
-    for (let i = 0; i < boardCap(); i++) if (!G.board[i]) return i;
+    const cap = boardCap();
+    for (let n = 0; n < cap; n++) { const i = LEFT_SLOTS[n]; if (!G.board[i]) return i; }
     return null;
   }
   function slotOf(uid) {
@@ -1086,13 +1156,20 @@
   function renderBoard() {
     const b = $('board');
     let html = '';
-    // 固定渲染 4×4=16 格：已部署 / 已解锁空格 / 未解锁格（locked），确保玩家始终看到完整战场
+    // 固定渲染 4×4=16 格：左半 8 格为我方部署（按人口解锁），右半 8 格为敌方站位预览底格
     const cap = boardCap();
     for (let i = 0; i < 16; i++) {
+      const col = i % 4;
       const u = G.board[i];
-      if (u) html += '<div class="board-cell filled" data-slot="' + i + '" tabindex="0">' + unitCard(u, 'board') + '</div>';
-      else if (i < cap) html += '<div class="board-cell" data-slot="' + i + '" tabindex="0"></div>';
-      else html += '<div class="board-cell locked" data-slot="' + i + '" tabindex="-1" aria-disabled="true"></div>';
+      if (col >= 2) {
+        html += '<div class="board-cell enemy-zone" data-slot="' + i + '" tabindex="-1" aria-disabled="true"></div>';
+      } else if (u) {
+        html += '<div class="board-cell filled" data-slot="' + i + '" tabindex="0">' + unitCard(u, 'board') + '</div>';
+      } else if (isLeftUnlocked(i)) {
+        html += '<div class="board-cell" data-slot="' + i + '" tabindex="0"></div>';
+      } else {
+        html += '<div class="board-cell locked" data-slot="' + i + '" tabindex="-1" aria-disabled="true"></div>';
+      }
     }
     b.innerHTML = html;
     $('boardCap').textContent = Object.keys(G.board).length + '/' + boardCap();
@@ -1120,25 +1197,67 @@
       const role = op.bonds && op.bonds['职业'];
       const aff = op.bonds && op.bonds['阵营'];
       // 方舟风格卡片：大头像 + 底部信息栏 + 标签叠层
-      const rc = ROLE_VAR[role] || '--c-stone';
       return '<div class="ucard shop-card c' + cost + afford + '" data-shop="' + i + '">' +
-        '<span class="role-tri" style="--rc:var(' + rc + ')" title="' + (role||'职业') + '"></span>' +
         '<img class="avatar" src="' + op.avatar + '" alt="" onerror="this.style.background=\'#222\'">' +
         '<div class="card-fade"></div>' +
         '<div class="card-tags">' +
-          (role ? '<span class="ctag"><span class="ctag-icon">▲</span><span class="ctag-txt">' + role + '</span></span>' : '') +
+          (role ? '<span class="ctag"><span class="ctag-icon">⚔</span><span class="ctag-txt">' + role + '</span></span>' : '') +
           (aff ? '<span class="ctag"><span class="ctag-icon">◎</span><span class="ctag-txt">' + aff + '</span></span>' : '') +
           (op.skill ? '<span class="ctag ctag-sk"><span class="ctag-icon">✦</span><span class="ctag-txt">' + op.skill.archLabel + '</span></span>' : '') +
         '</div>' +
         '<div class="card-footer">' +
           '<span class="cf-name">' + op.name + '</span>' +
-          '<span class="cf-cost"><span class="coin-icon"></span>' + cost + '</span>' +
+          '<span class="cf-cost">' + cost + '</span>' +
         '</div>' +
-        '<div class="cost-pip">' + Array(cost).fill('<i class="cp"></i>').join('') + '</div>' +
       '</div>';
     }).join('');
     const capEl = $('shopCapHint');
     if (capEl) capEl.textContent = 'Lv.' + G.level + ' · 商店最高 ' + maxShopCost(G.level) + ' 费';
+    renderFeedPanel();
+  }
+
+  // v2.1 养狼：商店喂养面板（仅当作战区有叙拉古干员时显示）
+  function renderFeedPanel() {
+    const panel = $('feedPanel'); if (!panel) return;
+    const hasXila = Object.values(G.board).some(u => u.op.bonds && u.op.bonds['阵营'] === '叙拉古');
+    if (!hasXila) { panel.classList.add('hidden'); return; }
+    panel.classList.remove('hidden');
+    const ss = G.summonState || { wolf: { level: 1, exp: 0 } };
+    const lv = ss.wolf.level, exp = ss.wolf.exp;
+    const lo = SUMMON_LEVEL_EXP[Math.min(lv, SUMMON_MAX_LEVEL) - 1];
+    const hi = (lv >= SUMMON_MAX_LEVEL) ? lo : SUMMON_LEVEL_EXP[lv];
+    const span = Math.max(1, hi - lo);
+    const cur = Math.max(0, exp - lo);
+    const pct = Math.min(100, Math.round(cur / span * 100));
+    const lvEl = $('feedLv'); if (lvEl) lvEl.textContent = 'Lv.' + lv + (lv >= SUMMON_MAX_LEVEL ? '（满）' : '');
+    const fill = $('feedExpFill'); if (fill) fill.style.width = pct + '%';
+    const txt = $('feedExpTxt'); if (txt) txt.textContent = (lv >= SUMMON_MAX_LEVEL) ? 'MAX' : (cur + ' / ' + span);
+    const meatBtn = $('btnFeedMeat'); if (meatBtn) meatBtn.disabled = G.gold < 3;
+    const rationBtn = $('btnFeedRation'); if (rationBtn) rationBtn.disabled = G.gold < 5;
+    const msg = $('feedMsg'); if (msg) msg.textContent = '';
+  }
+
+  // v2.1 养狼：商店购买喂养（生肉 +EXP / 战前口粮 临时加成下一场）
+  function buyFeed(kind) {
+    if (!G.summonState) G.summonState = { wolf: { level: 1, exp: 0 }, beast: { level: 1, exp: 0 }, feedAtk: 0, feedHp: 0 };
+    const ss = G.summonState;
+    if (kind === 'meat') {
+      if (G.gold < 3) return;
+      G.gold -= 3;
+      ss.wolf.exp += 30; // [PLACEHOLDER] 生肉 EXP
+      ss.wolf.level = summonLevelFromExp(ss.wolf.exp);
+      ss.beast.exp += Math.floor(30 * 0.6); // 岁兽同步 60%
+      ss.beast.level = summonLevelFromExp(ss.beast.exp);
+      if (window.AUDIO) AUDIO.play('wolf/feed');
+    } else if (kind === 'ration') {
+      if (G.gold < 5) return;
+      G.gold -= 5;
+      ss.feedAtk = (ss.feedAtk || 0) + 0.10; // [PLACEHOLDER] 战前口粮 攻+10%
+      ss.feedHp = (ss.feedHp || 0) + 0.10;  // [PLACEHOLDER] 血+10%
+      if (window.AUDIO) AUDIO.play('wolf/feed');
+    }
+    if (typeof renderTop === 'function') renderTop();
+    renderShop(); renderFeedPanel();
   }
 
   function renderBonds() {
@@ -1658,38 +1777,91 @@
     const node = G.nodes[G.nodeIdx];
     const enemyBase = G.currentEnemy || generateEnemyTeam(G.level, G.nodeIdx, node.type === 'boss', null, diffCfg());
 
-    const allyList = [];
-    const allyPos = [];
+    let allyList = [];
+    let allyPos = [];
     // 遍历所有已部署格（不再写死 9），确保扩编后的第 10+ 个单位也会参战
     Object.keys(G.board).forEach(k => {
       const i = parseInt(k, 10);
       if (G.board[i]) { allyList.push({ op: G.board[i].op, star: G.board[i].star }); allyPos.push(slotToXY(i)); }
     });
-    // —— light 版召唤（叙拉古养狼 / 令岁兽）：开战前生成，并入阵列 ——
+    // —— v2.1 真实召唤物（叙拉古养狼 / 令岁兽）：按局内等级生成，相邻格站位 ——
     const probe = computeBonds(allyList.map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star })));
     const xila = probe.active.find(b => b.axis === '特殊' && b.value === '叙拉古');
     const xilaTier = xila ? xila.tier : 0;
-    const lingCount = allyList.filter(u => u.op.name === '令').length;
-    const summonUnits = [];
-    if (xilaTier >= 2) { const n = xilaTier >= 3 ? 2 : 1; for (let i = 0; i < n; i++) summonUnits.push({ op: makeSummonOp('wolf', xilaTier), star: 3 }); }
-    if (lingCount > 0) { for (let i = 0; i < lingCount; i++) summonUnits.push({ op: makeSummonOp('beast', 3), star: 3 }); }
-    if (summonUnits.length) {
-      const occupied = new Set(allyPos.map(p => p.x + ',' + p.y));
-      const allCells = [];
-      for (let x = GRID_COLS - 1; x >= 0; x--) for (let y = 0; y < GRID_ROWS; y++) allCells.push({ x, y });
-      const cand = allCells.filter(p => !occupied.has(p.x + ',' + p.y)).slice(0, summonUnits.length);
-      summonUnits.forEach((s, i) => { if (cand[i]) { allyList.push(s); allyPos.push(cand[i]); } });
+    const xilaCount = allyList.filter(u => u.op.bonds && u.op.bonds['阵营'] === '叙拉古').length;
+    const lingIdx = allyList.findIndex(u => u.op.name === '令');
+    const ss = G.summonState || { wolf: { level: 1, exp: 0 }, beast: { level: 1, exp: 0 }, feedAtk: 0, feedHp: 0 };
+    const summonPlan = [];
+    const placedSummons = []; // 用于音频/复盘
+    if (xilaTier >= 2) {
+      const n = xilaTier >= 3 ? 2 : 1;
+      const sIdx = allyList.findIndex(u => u.op.bonds && u.op.bonds['阵营'] === '叙拉古');
+      for (let i = 0; i < n; i++) {
+        const u = makeCombatSummon('wolf', ss.wolf.level, 'ally', sIdx >= 0 ? 'a' + sIdx : null);
+        applyFeedBuff(u, ss);
+        summonPlan.push({ unit: u, summonerPos: sIdx >= 0 ? allyPos[sIdx] : null });
+        placedSummons.push(u);
+      }
     }
-    const allyUnits = applyBonds(allyList.map(u => ({ op: u.op, star: u.star })), 'ally');
+    if (lingIdx >= 0) {
+      const u = makeCombatSummon('beast', ss.beast.level, 'ally', 'a' + lingIdx);
+      applyFeedBuff(u, ss);
+      summonPlan.push({ unit: u, summonerPos: allyPos[lingIdx] });
+      placedSummons.push(u);
+    }
+    if (summonPlan.length) {
+      const placed = placeAdjacentSummons(allyList, allyPos, summonPlan);
+      allyList = placed.allyList; allyPos = placed.allyPos;
+      // v2.1 音频：召唤降临 + 狼形态叫声（tier3=狼王，否则成年狼）；克制环已取消
+      if (!G._audioSkip && window.AUDIO) {
+        placedSummons.forEach(u => {
+          const isWolf = u.summonType === 'wolf';
+          AUDIO.play('summon/spawn', { kind: isWolf ? 'wolf' : 'beast' });
+          if (isWolf) AUDIO.play('wolf/howl', { form: xilaTier >= 3 ? 'king' : 'adult' });
+        });
+      }
+    }
+    // v2.1 关键修正：召唤物已是完整 CombatUnit（带 isSummon / level / summonType / 局内成长属性），
+    // 必须绕过 applyBonds —— applyBonds 会经 makeCombatUnit 重建单位，导致 (1) isSummon 标识丢失（召唤物退化为普通单位）、
+    // (2) 等级成长属性（growth^(level-1)）被清零、(3) 召唤物的 bonds（职业:召唤物 / 阵营:—）进入 computeBonds 污染羁绊计数。
+    // 因此先把召唤物从 allyList 中剥离，仅对常规干员套用羁绊，再把召唤物原样接回（保持与 allyPos 索引对齐：常规在前、召唤在后）。
+    const regEntries = [], summonUnits = [];
+    allyList.forEach(u => { if (u.isSummon) summonUnits.push(u); else regEntries.push(u); });
+    const allyUnits = applyBonds(regEntries.map(u => ({ op: u.op, star: u.star })), 'ally');
     const enemyUnits = applyBonds(enemyBase.map(t => ({ op: t.op, star: t.star, buff: t.buff })), 'enemy');
-    // 关键：给单位分配 uid，与 simulateBattleGrid 内部的 uid 命名一致（aN / eN）
-    allyUnits.forEach((u, i) => { u.uid = 'a' + i; });
-    enemyUnits.forEach((u, i) => { u.uid = 'e' + i; });
+    // uid 由 simulateBattleGrid 统一重排（ally:a0.. / enemy:e0..），这里按顺序拼接即可。
+    const allyAll = allyUnits.concat(summonUnits);
     const enemyPos = autoPositions(enemyUnits, 'enemy');
 
-    const res = simulateBattleGrid(allyUnits, enemyUnits, allyPos, enemyPos);
+    const res = simulateBattleGrid(allyAll, enemyUnits, allyPos, enemyPos);
     G.battleRes = res;
+    // —— v2.1 养狼：战斗后 EXP 结算（仅本 run，不写 Meta）——
+    const lvlUp = grantSummonExp(xilaCount, xilaTier, res, ss);
+    G._summonLevelUp = lvlUp; // 供复盘/recap 提示（升级：下一场以新等级重生）
+    ss.feedAtk = 0; ss.feedHp = 0; // 清空一次性战前口粮
     showBattle(res, allyUnits, enemyUnits);
+  }
+
+  // v2.1 养狼：战斗后 EXP 累积与升级（state 为 G.summonState，仅本 run 有效）
+  // 狼 EXP = 叙拉古干员数 × 羁绊阶 × 10 + 击杀贡献（每只召唤物击杀 ×5）；岁兽约为狼的 60% 速度。
+  function grantSummonExp(xilaCount, xilaTier, res, ss) {
+    const killExp = (res && res.stats && res.stats.summonKills) ? res.stats.summonKills * 5 : 0;
+    const wolfGain = xilaCount > 0 ? (xilaCount * xilaTier * 10 + killExp) : 0; // [PLACEHOLDER] 公式
+    const beastGain = Math.floor(wolfGain * 0.6); // 岁兽约 60% 狼速度 [PLACEHOLDER]
+    const ups = [];
+    if (wolfGain > 0 && ss.wolf) {
+      const before = ss.wolf.level;
+      ss.wolf.exp += wolfGain;
+      ss.wolf.level = summonLevelFromExp(ss.wolf.exp);
+      if (ss.wolf.level > before) ups.push({ type: 'wolf', from: before, to: ss.wolf.level, exp: ss.wolf.exp });
+    }
+    if (beastGain > 0 && ss.beast) {
+      const before = ss.beast.level;
+      ss.beast.exp += beastGain;
+      ss.beast.level = summonLevelFromExp(ss.beast.exp);
+      if (ss.beast.level > before) ups.push({ type: 'beast', from: before, to: ss.beast.level, exp: ss.beast.exp });
+    }
+    return ups;
   }
 
   function showBattle(res, allyUnits, enemyUnits) {
@@ -1736,6 +1908,7 @@
         el.className = 'bf-unit ' + (u.side === 'ally' ? 'ally' : 'enemy');
         el.dataset.uid = u.uid;
         el.dataset.side = u.side;
+        el.dataset.summon = (u.op && u.op.class === '召唤物') ? '1' : '';  // v2.1：召唤物标记（死亡时播专属音）
         el.style.background = u.side === 'ally' ? 'rgba(64,180,220,0.12)' : 'rgba(220,80,80,0.12)';
         el.innerHTML =
           '<img class="av" src="' + u.avatar + '" onerror="this.style.background=\'#222\'">' +
@@ -1789,7 +1962,11 @@
     if (!s.alive) {
       if (el.dataset.alive !== 'dead') {
         el.dataset.alive = 'dead';
-        if (!G._audioSkip && window.AUDIO) AUDIO.play('combat/death', { side: el.dataset.side });
+        if (!G._audioSkip && window.AUDIO) {
+          // v2.1：召唤物死亡播专属"兽落"音，普通单位播通用 combat/death
+          if (el.dataset.summon === '1') AUDIO.play('summon/death', { side: el.dataset.side });
+          else AUDIO.play('combat/death', { side: el.dataset.side });
+        }
       }
     } else {
       el.dataset.alive = 'alive';
@@ -1834,6 +2011,8 @@
             if (cn >= 2) return;
             const side = (c.uid && c.uid.charAt(0) === 'a') ? 'ally' : 'enemy';
             AUDIO.play('combat/skill', { arch: c.arch, side: side, faction: c.fac });
+            // v2.1：令的召唤/强化技能（arch=summon）额外叠"赋能"音（强化岁兽）
+            if (c.arch === 'summon') AUDIO.play('summon/enhance', { side: side });
             cn++;
           });
         }
@@ -1857,6 +2036,8 @@
     const node = G.nodes[G.nodeIdx];
     // P2-4：复盘数据（胜利/失败都展示，失败额外给死因提示）
     const recap = buildRecap(res);
+    // v2.1 养狼：召唤物升级时播专属升级音（W2 音频契约兑现）
+    if (G._summonLevelUp && G._summonLevelUp.length && !G._audioSkip && window.AUDIO) AUDIO.play('wolf/levelup');
     if (window.AUDIO) {
       if (res.winner === 'ally') AUDIO.setMusic(node.type === 'boss' ? 'boss' : 'victory');
       else AUDIO.setMusic('defeat');
@@ -1929,8 +2110,15 @@
     if (st.allyDeaths > 0 && st.allyDmg < st.enemyDmg * 0.85) cause = '（关键死因：输出不足，建议补强后排/法伤）';
     else if (st.allyDeaths >= Math.ceil(board.length * 0.6)) cause = '（关键死因：前排承伤不足，建议补重装/减伤）';
     else if (st.allyDmg >= st.enemyDmg && res.winner === 'enemy') cause = '（关键死因：被处决/真伤穿透，建议分散站位）';
+    // v2.1 养狼：战斗后升级提示（仅本 run；G._summonLevelUp 由 onFight→grantSummonExp 计算）
+    let sumLine = '';
+    const lu = G._summonLevelUp;
+    if (lu && lu.length) {
+      const parts = lu.map(u => (u.type === 'wolf' ? '🐺狼' : '🐾岁兽') + ' Lv.' + u.from + '→' + u.to);
+      sumLine = ' · 召唤物升级：' + parts.join('、');
+    }
     return '复盘 → 阵容羁绊 ' + realBonds + ' 组 · 平均 ' + avgStar + '★ · 输出 ' + st.allyDmg + ' / 承伤 ' + st.enemyDmg +
-      ' · 我方阵亡 ' + st.allyDeaths + ' / 敌方 ' + st.enemyDeaths + (res.winner === 'enemy' ? cause : '');
+      ' · 我方阵亡 ' + st.allyDeaths + ' / 敌方 ' + st.enemyDeaths + (res.winner === 'enemy' ? cause : '') + sumLine;
   }
 
   function showResult(title, body, btn, cb, recap) {
@@ -2132,6 +2320,9 @@
     G.winStreak = 0; G.lossStreak = 0;
     G.bench = []; G.board = {}; G.shop = [null, null, null, null, null];
     G.nodeIdx = 0; G.env = null; G.selected = null; G.difficulty = 2;
+    // v2.1 养狼：局内（本 run）召唤物状态——开局初始化，局结束重置，不写 Meta（cross-run）
+    G.summonState = { wolf: { level: 1, exp: 0 }, beast: { level: 1, exp: 0 }, feedAtk: 0, feedHp: 0 };
+    G._summonLevelUp = null;
     buildNodes();
     $('resultScreen').classList.add('hidden');
     $('battleScreen').classList.add('hidden');
@@ -2180,7 +2371,7 @@
     const el = elementAt(x, y);
     if (!el) return;
     const cell = el.closest('.board-cell');
-    if (cell && !cell.classList.contains('locked')) { cell.classList.add('drop-hover'); return; }
+    if (cell && !cell.classList.contains('locked') && !cell.classList.contains('enemy-zone')) { cell.classList.add('drop-hover'); return; }
     const bench = el.closest('#bench');
     if (bench) { bench.classList.add('drop-hover'); return; }
     const sz = el.closest('#sellZone');
@@ -2267,7 +2458,7 @@
   }
 
   function dropOnCell(d, idx) {
-    if (idx >= boardCap()) { flash('人口不足（Lv.' + boardCap() + '），升人口解锁更多格子'); return; }
+    if (!isLeftUnlocked(idx)) { flash('人口不足（' + boardCap() + '/' + LEFT_SLOTS.length + '），升人口解锁更多格子'); return; }
     const occU = G.board[idx];
     const boardCount = Object.keys(G.board).length;
 
@@ -2337,7 +2528,7 @@
       if (G.selected != null) {
         const u = findUnit(G.selected);
         const cell = e.target.closest('.board-cell');
-        if (cell && !cell.classList.contains('locked')) {
+        if (cell && !cell.classList.contains('locked') && !cell.classList.contains('enemy-zone')) {
           if (u) { const from = G.bench.some(x => x.uid === u.uid) ? 'bench' : 'board';
             dropOnCell({ from, uid: u.uid, unit: u, op: u.op, shopIdx: null }, parseInt(cell.dataset.slot, 10)); }
           G.selected = null; renderAll(); return;
@@ -2356,7 +2547,7 @@
       if (e.key === 'Escape' && G.selected != null) { selectUnit(G.selected); return; }
       if ((e.key === 'Enter' || e.key === ' ') && G.selected != null) {
         const cell = e.target.closest && e.target.closest('.board-cell');
-        if (cell && !cell.classList.contains('locked')) {
+        if (cell && !cell.classList.contains('locked') && !cell.classList.contains('enemy-zone')) {
           e.preventDefault();
           const u = findUnit(G.selected);
           if (u) { const from = G.bench.some(x => x.uid === u.uid) ? 'bench' : 'board';
@@ -2374,6 +2565,8 @@
     };
     $('btnRefresh').onclick = refresh;
     $('btnExp').onclick = buyExp;
+    if ($('btnFeedMeat')) $('btnFeedMeat').onclick = () => buyFeed('meat');
+    if ($('btnFeedRation')) $('btnFeedRation').onclick = () => buyFeed('ration');
     $('btnFight').onclick = onFight;
     $('btnSkip').onclick = () => { if (G._skip) G._skip(); };
     $('ubSell').onclick = sell;
@@ -2563,7 +2756,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, applyBonds, computeBonds, makeSummonOp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv };
+  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv };
 
   /* ---- 启动 ---- */
   buildNodes();

@@ -61,7 +61,7 @@
     <section id="arena" class="arena hidden">
       <div class="arena-main">
           <div class="board-wrap">
-            <div class="board-label">战斗部署区 · 把卡牌拖入左侧蓝色格子上场（人口 <span id="boardCap"></span>，右侧红色为敌方站位预览，灰色🔒为未解锁格）</div>
+            <div class="board-label">战斗部署区 · 把卡牌拖入左侧格子上场（人口 <span id="boardCap"></span>，右侧为敌方站位预览，灰色🔒为未解锁格）</div>
             <div class="board-battle">
               <div id="board" class="board-grid"></div>
               <div id="enemyOverlay" class="enemy-overlay" aria-hidden="true"></div>
@@ -94,6 +94,15 @@
               <span class="cl c1">白·1费</span><span class="cl c2">绿·2费</span><span class="cl c3">蓝·3费</span><span class="cl c4">紫·4费</span><span class="cl c5">金·5费</span>
             </div>
             <div id="shopCards" class="shop-cards"></div>
+            <div id="feedPanel" class="feed-panel hidden">
+              <div class="feed-head">🐺 养狼 · 局内成长 <span id="feedLv" class="feed-lv"></span></div>
+              <div id="feedExpBar" class="feed-expbar"><div id="feedExpFill" class="feed-expfill"></div><span id="feedExpTxt" class="feed-exptxt"></span></div>
+              <div class="feed-actions">
+                <button id="btnFeedMeat" class="btn small" type="button">生肉 +30EXP (3💰)</button>
+                <button id="btnFeedRation" class="btn small" type="button">战前口粮 (5💰)</button>
+              </div>
+              <div id="feedMsg" class="feed-msg"></div>
+            </div>
           </div>
 
           <div class="action-bar">

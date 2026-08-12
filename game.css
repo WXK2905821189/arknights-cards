@@ -66,6 +66,8 @@ a{color:var(--gold-strong);text-decoration:none}
 .board-cell.filled{border-style:solid;border-color:var(--line);background:var(--panel-2)}
 .board-cell.locked{border-style:dashed;border-color:#1b2029;background:#0a0d12;opacity:.7;cursor:not-allowed}
 .board-cell.locked::after{content:"🔒";font-size:18px;opacity:.45}
+.board-cell.enemy-zone{background:rgba(220,80,80,.04);border:1px dashed rgba(220,80,80,.18);pointer-events:none}
+.board-cell.enemy-zone::after{content:none}
 .board-cell.drop-hover{border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,184,75,.45) inset;background:#1a1f29}
 .board-cell:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-color:var(--gold)}
 .bench-warn{background:#2a1414;border:1px solid #5a2a2a;color:#f0a0a0;font-size:12px;padding:6px 10px;border-radius:8px;margin:4px 0}
@@ -99,26 +101,10 @@ a{color:var(--gold-strong);text-decoration:none}
   padding:0 6px;z-index:3;pointer-events:none}
 .ucard .cf-name,.shop-card .cf-name{font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62px}
 .ucard .cf-cost,.shop-card .cf-cost{font-size:12px;font-weight:800;color:#ffd700;text-shadow:0 0 6px rgba(255,200,0,.4),0 1px 2px rgba(0,0,0,.9);display:flex;align-items:center;gap:2px}
-/* footer 费用：源石三角（费色由 --cc 提供） */
-.ucard .coin-icon,.shop-card .coin-icon{width:9px;height:9px;flex-shrink:0;background:var(--cc);clip-path:polygon(50% 0,100% 100%,0 100%);display:inline-block;filter:drop-shadow(0 0 3px rgba(0,0,0,.5))}
-/* 右上角费用指示器：源石三角阵列（数量=费用，费色由 --cc 提供） */
-.ucard .cost-pip,.shop-card .cost-pip{position:absolute;top:4px;right:4px;display:flex;gap:2px;z-index:3;pointer-events:none}
-.ucard .cost-pip .cp,.shop-card .cost-pip .cp{width:7px;height:7px;background:var(--cc);clip-path:polygon(50% 0,100% 100%,0 100%);display:block;filter:drop-shadow(0 0 2px rgba(0,0,0,.6))}
-/* 左上角职业色三角徽标（源石几何，role→--rc 由 game.js 注入） */
-.ucard .role-tri,.shop-card .role-tri{position:absolute;top:3px;left:3px;width:12px;height:12px;z-index:3;
-  background:var(--rc,var(--c-stone));clip-path:polygon(50% 0,100% 100%,0 100%);
-  filter:drop-shadow(0 0 3px rgba(0,0,0,.55));pointer-events:none}
-/* 升级星标（棋盘 / 备战席）：右移避让职业三角 */
-.ucard .star{position:absolute;top:3px;left:18px;font-size:10px;color:var(--gold-strong);text-shadow:0 0 2px #000;z-index:3}
+/* 升级星标（棋盘 / 备战席） */
+.ucard .star{position:absolute;top:3px;left:3px;font-size:10px;color:var(--gold-strong);text-shadow:0 0 2px #000;z-index:3}
 .ucard.sold{opacity:.35;filter:grayscale(1)}
 .ucard.locked{opacity:.5;cursor:not-allowed}
-
-/* 源石三角：费色变量（cost-pip / cf-cost 复用，单一事实源来自 tokens.css --cost-N） */
-.ucard.c1,.shop-card.c1{--cc:var(--cost-1)}
-.ucard.c2,.shop-card.c2{--cc:var(--cost-2)}
-.ucard.c3,.shop-card.c3{--cc:var(--cost-3)}
-.ucard.c4,.shop-card.c4{--cc:var(--cost-4)}
-.ucard.c5,.shop-card.c5{--cc:var(--cost-5)}
 
 /* 费用边框 + 底栏配色（白1 绿2 蓝3 紫4 金5） */
 .ucard.c1,.shop-card.c1{border-color:#9aa7b8}.ucard.c2,.shop-card.c2{border-color:#22c55e}
