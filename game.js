@@ -151,6 +151,37 @@
     '卡兹戴尔':       { tier: 1, attr: { def: 0.10 }, kw: null },                                              // 源石壁垒：防御（池=2，阶一解锁；萨卡兹故土）
   };
 
+  // ③b 装备系统（v2 · 2026-08-12 用户拍板）：无限制 / 纯属性或纯机制 / 阵营铭刻（装备后视为该阵营，羁绊计数叠加）
+  //  type: 'attr' 纯属性（fold 进 makeCombatUnit mult，走 MAX_ATK_MULT/MAX_HP_MULT 软上限）
+  //       'mech' 单一机制 kw（独立命名空间 u.equipKw，复用现有字段 counter/revive/lifesteal/pierce）
+  //       'engraving' 阵营铭刻（computeBonds 阵营计数叠加 countAsFaction，不替换原阵营）
+  //  用户拍板：不做合成 / 无同名限制 / 无全局限量 / 无穿戴等级闸 / 无职业绑定。数值全 [PLACEHOLDER]。
+  const EQUIP_POOL = [
+    // —— 属性装（attr）——
+    { id: 'e_blade',   name: '制式单刃', icon: '🗡', type: 'attr', cat4: 'weapon', rarity: 0, cost: 3, attr: { atk: 0.15 },  desc: '攻击 +15%', flavor: '罗德岛工坊批量维护的制式近战刃，朴素趁手，是近卫干员出任务前最常顺手抓起的那一把。' },        // [PLACEHOLDER]
+    { id: 'e_plate',   name: '城防护板', icon: '🛡', type: 'attr', cat4: 'armor',  rarity: 0, cost: 3, attr: { hp: 0.20 },   desc: '生命 +20%', flavor: '拆解自龙门城防模块的标准合金护板，厚重而可靠，足以替使用者挡下多数流弹与冲击。' },        // [PLACEHOLDER]
+    { id: 'e_swift',   name: '轻量突击组件', icon: '⚡', type: 'attr', cat4: 'weapon', rarity: 1, cost: 5, attr: { aspd: 0.20 }, desc: '攻速 +20%', flavor: '哥伦比亚量产的外骨骼加速器，轻巧地扣在腕部，让持握者的出手快上半拍。' },        // [PLACEHOLDER]
+    { id: 'e_cuirass', name: '动力装甲板', icon: '🪖', type: 'attr', cat4: 'armor',  rarity: 1, cost: 5, attr: { def: 0.25 },  desc: '防御 +25%', flavor: '承自乌萨斯重工业化武思路的动力骨架装甲，靠液压硬扛每一次重击。' },        // [PLACEHOLDER]
+    { id: 'e_serum',   name: '战术兴奋剂', icon: '💉', type: 'attr', cat4: 'device', rarity: 2, cost: 8, attr: { crit: 0.15 }, desc: '暴击率 +15%', flavor: '封装在便携针管里的神经兴奋剂，临战一针，让反应与出手更加凌厉。' },      // [PLACEHOLDER]
+    // —— 机制装（mech）——
+    { id: 'e_thorn',   name: '荆棘护甲', icon: '🌵', type: 'mech', cat4: 'armor',  rarity: 0, cost: 3, kw: 'counter',     params: { pct: 0.15 },    desc: '受击反弹 15% 伤害', flavor: '表面布满倒刺的改装护甲，攻击者每一次挥击，都会被原样奉还一部分。' },          // 复用 counter
+    { id: 'e_fang',    name: '噬血利齿', icon: '🩸', type: 'mech', cat4: 'weapon', rarity: 1, cost: 5, kw: 'lifesteal',   params: { pct: 0.25 },    desc: '攻击吸血 25%', flavor: '刃口刻着源石回路的奇巧兵装，每一次撕裂伤口，都从对手的血液中汲取力量。' },              // 复用 lifesteal
+    { id: 'e_regen',   name: '再生力场', icon: '♻️', type: 'mech', cat4: 'armor',  rarity: 1, cost: 5, kw: 'regenShield', params: { period: 5, frac: 0.08 }, desc: '每 5s 生成 8% 生命护盾', flavor: '取自莱塔尼亚源石稳定技术的小型力场发生器，每隔数秒便在体表凝出一层薄盾。' },
+    { id: 'e_quick',   name: '疾袭协议', icon: '⏱', type: 'mech', cat4: 'device', rarity: 2, cost: 8, kw: 'quickStart',  params: { aspd: 0.35 },   desc: '战斗前 2s 攻速 +35%', flavor: '战斗初始强制超频的启动协议，让装备者在开局的几秒内快得几乎看不清身影。' },
+    { id: 'e_piercer', name: '穿甲弩头', icon: '🏹', type: 'mech', cat4: 'weapon', rarity: 2, cost: 8, kw: 'pierce',      params: { value: 0.15 },  desc: '攻击无视 15% 防御', flavor: '维多利亚军械匠打磨的特种弩头，专门咬穿重甲与源石护壁的薄弱处。' },        // 复用 pierce
+    { id: 'e_warfare', name: '战意核心', icon: '🔥', type: 'mech', cat4: 'weapon', rarity: 2, cost: 8, kw: 'berzerk',     params: { thresh: 0.30, atkPct: 0.20, leech: 0.10 }, desc: '血量低于 30% 时伤害 +20% 并吸血 10%', flavor: '萨卡兹佣兵间流传的源石核心，越是濒死，越是点燃使用者骨子里的凶性。' },
+    { id: 'e_barrage', name: '弹幕装置', icon: '💥', type: 'mech', cat4: 'device', rarity: 3, cost: 12, kw: 'splash',     params: { pct: 0.40 },    desc: '普攻对相邻敌人溅射 40% 伤害', flavor: '龙门近卫局制式的散射挂件，一次挥击便将冲击甩向周围所有敌人。' },
+    { id: 'e_phantom', name: '幽影协议', icon: '👻', type: 'mech', cat4: 'device', rarity: 3, cost: 12, kw: 'revive',     params: { pct: 0.30 },    desc: '死亡后以 30% 血量复活一次', flavor: '深海猎人带来的濒死重构技术，让躯体在彻底碎裂前，于阴影里重新拼合一次。' },  // 复用 revive（双复活上限 1）
+    // —— 阵营铭刻（engraving · 对应 6 个多阶阵营，帮凑深度阶）——
+    { id: 'e_m_rhodes',   name: '罗德岛徽记', icon: '✚', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '罗德岛',   desc: '视为罗德岛（阵营羁绊计数）', flavor: '刻着罗德岛徽记的身份铭刻。戴上它，你便被视为这艘船的一员——为了同一个方向而战。' },
+    { id: 'e_m_yen',      name: '炎国龙纹', icon: '🐉', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '炎',       desc: '视为炎（阵营羁绊计数）', flavor: '绘着炎国古龙纹样的铭刻。龙脉的余温仍在金属里流动，将佩戴者认作炎土的子民。' },
+    { id: 'e_m_victoria', name: '维多利亚勋纹', icon: '⚔', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '维多利亚', desc: '视为维多利亚（阵营羁绊计数）', flavor: '维多利亚王家授勋式的微型纹章，凭它，骑士王国的荣光承认你为一同冲锋的同伴。' },
+    { id: 'e_m_rhine',    name: '莱茵生命铭牌', icon: '🧪', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '莱茵生命', desc: '视为莱茵生命（阵营羁绊计数）', flavor: '莱茵生命研发现场的员工铭牌，藏着这家哥伦比亚巨企对“生命”二字近乎偏执的执念。' },
+    { id: 'e_m_siracusa', name: '叙拉古家徽', icon: '💼', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '叙拉古',   desc: '视为叙拉古（阵营羁绊计数）', flavor: '十二家族中某一支的微型家徽。在叙拉古，血统与忠诚写在族谱上——而族谱，承认你。' },
+    { id: 'e_m_laterano', name: '拉特兰圣铳', icon: '🔫', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '拉特兰',   desc: '视为拉特兰（阵营羁绊计数）', flavor: '拉特兰教廷制式的微型圣铳铭刻。在这座以“铳”为信仰的城市，持铳者便被视作信众的一员。' },
+  ];
+  const EQUIP_BY_ID = {}; EQUIP_POOL.forEach(e => EQUIP_BY_ID[e.id] = e);
+
   // P2-3b：单干员势力「独行被动」叙事文案（叙事设计师补写，纯原创 prose，非台词，可自由润色）
   // 与上节阵营 t1/t2/t3 同一笔调：写"为什么这个势力只能独行"，不冒充原台词。
   const SOLO_FLAVOR = {
@@ -252,8 +283,8 @@
     9: [0.08, 0.16, 0.32, 0.30, 0.14],
   };
 
-  // 战场：我方左 4 列 / 敌方右 4 列，半场 4×8；整体 8×8（与部署区一一对应）
-  const GRID_COLS = 4, GRID_ROWS = 8, FIELD_W = 8, FIELD_H = 8;
+  // 战场：我方左 4 列 / 敌方右 4 列，半场 4×6；整体 8×6（与部署区一一对应）
+  const GRID_COLS = 4, GRID_ROWS = 6, FIELD_W = 8, FIELD_H = 6;
   const CELL = 64;            // 战斗网格像素
   const DT = 0.1, SAMPLE_DT = 0.6, MAX_T = 60;
 
@@ -271,6 +302,17 @@
         const v = u.bonds[ax];
         (seen[ax][v] = seen[ax][v] || new Set()).add(u.name);
       });
+      // 装备·阵营铭刻（v2）：装备后视为该阵营（羁绊计数叠加，不替换原阵营）。
+      // 实现决策：seen 按 u.name 去重 → 外援穿铭刻 +1（帮凑深度阶）；本阵营干员穿同名铭刻不额外 +1（防计数失控）。
+      // 仅当 boardUnits 带 uid 且 G.equipState 存在时生效（Node 单测/无装备场景自动跳过）。
+      if (u.uid && typeof G !== 'undefined' && G && G.equipState) {
+        (G.equipState.slots[u.uid] || []).forEach(eqId => {
+          const eq = EQUIP_BY_ID[eqId];
+          if (eq && eq.type === 'engraving' && eq.countAsFaction) {
+            (seen['阵营'][eq.countAsFaction] = seen['阵营'][eq.countAsFaction] || new Set()).add(u.name);
+          }
+        });
+      }
     });
     const active = [];
     const potential = [];
@@ -463,7 +505,7 @@
     '狙击': 4, '术师': 3, '辅助': 2, '医疗': 2,           // 远程：隔空输出（狙击最长）
   };
 
-  function makeCombatUnit(op, star, side, mult, sig, special, resoKw) {
+  function makeCombatUnit(op, star, side, mult, sig, special, resoKw, equip) {
     const sm = STAR_MULT[star] || 1;
     const m = mult || DEF_MULT;
     // P1-1：攻击/生命 乘数软上限（详见 MAX_ATK_MULT / MAX_HP_MULT 注释），压制乘区爆炸
@@ -557,11 +599,37 @@
       else if (resoKw.kw === 'slow') u.slow += (p.value || 0);
       else if (resoKw.kw === 'counter') u.counter += (p.value || 0);
     }
+    // ③ 装备（v2）：独立命名空间 u.equipKw + u.equipParams（不复用 specialKw，避免与阵营/签名/呼应 kw 冲突）。
+    //    attr 装 fold 进属性（受 MAX_ATK_MULT/MAX_HP_MULT 软上限）；mech 装复用现有字段或新 kw；engraving 不进战斗（computeBonds 层消费）。
+    if (equip && equip.length) {
+      u.equipKw = []; u.equipParams = {};
+      equip.forEach(eq => {
+        const p = eq.params || {};
+        if (eq.type === 'attr') {
+          if (eq.attr.atk) u.atk = Math.min(Math.round(u.baseAtk * MAX_ATK_MULT), Math.round(u.atk * (1 + eq.attr.atk)));
+          if (eq.attr.hp) { u.maxHp = Math.min(Math.round(u.maxHp * MAX_HP_MULT), Math.round(u.maxHp * (1 + eq.attr.hp))); u.hp = u.maxHp; }
+          if (eq.attr.aspd) u.spd *= (1 + eq.attr.aspd);
+          if (eq.attr.def) u.def = Math.round(u.def * (1 + eq.attr.def));
+          if (eq.attr.crit) u.crit += eq.attr.crit;
+        } else if (eq.type === 'mech') {
+          if (u.equipKw.indexOf(eq.kw) < 0) u.equipKw.push(eq.kw);
+          u.equipParams[eq.kw] = p;
+          if (eq.kw === 'counter') u.counter += (p.pct || 0);        // 复用反伤字段
+          else if (eq.kw === 'revive') { u.reviveCharges = Math.min(1, u.reviveCharges + 1); u.revivePct = Math.max(u.revivePct, p.pct || 0.30); } // 双复活上限 1
+          else if (eq.kw === 'lifesteal') u.lifesteal += (p.pct || 0); // 复用吸血字段
+          else if (eq.kw === 'pierce') u.pierce = Math.max(u.pierce, p.value || 0); // 复用破甲字段
+          else if (eq.kw === 'regenShield') u.regenShield = { period: p.period || 5, frac: p.frac || 0.08 };
+          else if (eq.kw === 'quickStart') u.quickF = 1 + (p.aspd || 0.35); // 走 ATK() 通道
+          else if (eq.kw === 'splash') u.splash = p.pct || 0.40;
+          else if (eq.kw === 'berzerk') u.berzerk = { thresh: p.thresh || 0.30, atkPct: p.atkPct || 0.20, leech: p.leech || 0.10 };
+        }
+      });
+    }
     return u;
   }
 
   function applyBonds(units, side, positions) {
-    const { mult, sig, special, resoKw } = computeBonds(units.map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star })));
+    const { mult, sig, special, resoKw } = computeBonds(units.map(u => ({ uid: u.uid, name: u.op.name, bonds: u.op.bonds, star: u.star })));
     // P0-1：接通策略节点的全局战斗增益（锋锐/坚壁 等 stat 卡）。
     // 仅作用于我方（side==='ally'），敌方一律不享受，避免污染难度平衡。
     const se = aggregateStrategies();
@@ -609,11 +677,19 @@
           }
         }
       }
-      return makeCombatUnit(u.op, u.star, side, m, sig[u.op.name] || { attr: {}, kw: {} }, special[u.op.name] || null, resoKw ? resoKw[u.op.name] : null);
+      return makeCombatUnit(u.op, u.star, side, m, sig[u.op.name] || { attr: {}, kw: {} }, special[u.op.name] || null, resoKw ? resoKw[u.op.name] : null, equipFor(u.uid));
     });
   }
 
-  // 部署格序号 -> 战斗坐标：8×8 部署区，格 (col,row) 直接对应战斗坐标 (x,y)，左右半场一一对应
+  // v2 装备：按干员 uid 取已穿戴装备条目（G.equipState.slots[uid] → EQUIP_POOL 条目数组）
+  function equipFor(uid) {
+    try {
+      if (!uid || typeof G === 'undefined' || !G || !G.equipState || !G.equipState.slots) return [];
+      return (G.equipState.slots[uid] || []).filter(Boolean).map(eqId => EQUIP_BY_ID[eqId]).filter(Boolean);
+    } catch (e) { return []; }
+  }
+
+  // 部署格序号 -> 战斗坐标：8×6 部署区，格 (col,row) 直接对应战斗坐标 (x,y)，左右半场一一对应
   function slotToXY(i) {
     const col = i % 8, row = Math.floor(i / 8);
     return { x: col, y: row };
@@ -787,7 +863,8 @@
     const ATK = u => {
       const slowF = (u.slowFactor && t < u.slowUntil) ? u.slowFactor : 1;
       const castF = (u.castAspd && t < u.castBuffUntil) ? u.castAspd : 1;
-      return 100 / (u.spd * slowF * castF);
+      const quickF = (u.quickF && t < 2) ? u.quickF : 1; // v2 装备·行动记录：战斗前 2s 攻速
+      return 100 / (u.spd * slowF * castF * quickF);
     };
     const MOVE = 0.45;
 
@@ -824,6 +901,11 @@
       let finalDmg = mitigated + truePart;
       // 暴击 + 暴伤
       if (src.crit && Math.random() < src.crit) finalDmg *= (1.6 + (src.critDmg || 0));
+      // v2 装备·战意核心（berzerk）：血量低于阈值时增伤 + 吸血（动态判定，非一次性）
+      if (src.berzerk && src.hp / src.maxHp < src.berzerk.thresh) {
+        finalDmg *= (1 + src.berzerk.atkPct);
+        if (src.alive) src.hp = Math.min(src.maxHp, src.hp + Math.round(finalDmg * src.berzerk.leech));
+      }
       // 处决（萨尔贡特殊）
       if (src.specialKw.includes('execute') && tgt.hp / tgt.maxHp < ((src.specialParams['execute'] || {}).thresh || 0.3)) finalDmg *= (1 + ((src.specialParams['execute'] || {}).mult || 0.5));
       // 受击减伤（泥岩 / 雷姆必拓 / 龙门协防）
@@ -1018,6 +1100,12 @@
             const frac = ((shielder.specialParams['shieldPeriodic'] || {}).frac || 0.10);
             _sx.forEach(a => { if (a.alive) a.shield += Math.round(a.maxHp * frac); });
           }
+          // v2 装备·再生装甲（regenShield）：仅持有者自身周期回盾（独立 kw，区别于谢拉格全队光环）
+          _sx.forEach(a => {
+            if (a.alive && a.regenShield && t > 0 && Math.round(t) % a.regenShield.period === 0) {
+              a.shield += Math.round(a.maxHp * a.regenShield.frac);
+            }
+          });
         }
       }
 
@@ -1092,6 +1180,18 @@
             const foes = all.filter(o => o.alive && o.side !== u.side).sort((a, b) => cheb(u, a) - cheb(u, b)).slice(0, hits);
             let line = u.name + ' 弹幕风暴';
             foes.forEach(fo => { const dmg = dealDamage(u, fo, u.atk * ramp * frac); line += ' → ' + fo.name + ' -' + dmg; if (!fo.alive) line += ' ☠'; });
+            logBuf.push({ k: 'hit', line, dmgType: u.dmgType, side: u.side });
+            u.cd = ATK(u);
+          } else if (u.splash) { // v2 装备·弹幕装置（splash）：普攻对目标相邻敌人溅射
+            const dmg = dealDamage(u, tgt, u.atk * ramp);
+            let line = u.name + ' → ' + tgt.name + ' -' + dmg;
+            if (!tgt.alive) line += ' ☠';
+            all.forEach(o => {
+              if (o.alive && o.side !== u.side && o !== tgt && cheb(o, tgt) <= 1) {
+                const sd = dealDamage(u, o, u.atk * u.splash);
+                line += ' (溅射 ' + o.name + ' -' + sd + ')';
+              }
+            });
             logBuf.push({ k: 'hit', line, dmgType: u.dmgType, side: u.side });
             u.cd = ATK(u);
           } else {
@@ -1192,6 +1292,8 @@
     nodes: [], nodeIdx: 0, env: null, selected: null, difficulty: 2,
     strategies: [], stratCount: 0, freeRerollLeft: 0, encounterDiff: null, boardBonus: 0,
     phase: 'env', battleRes: null, frameTimer: null, _bfEls: {},
+    // v2 装备：背包 + 干员槽位（仅本场，不写 Meta）
+    equipState: { bag: [], slots: {} },
   };
 
   if (typeof document === 'undefined') return; // 浏览器之外不初始化控制器
@@ -1325,9 +1427,9 @@
     return Math.max(1, c);
   }
 
-  // 统一棋盘 8×8：左半 32 格（列 0-3）供我方部署（全部可放），右半 32 格（列 4-7）为敌方站位预览
+  // 统一棋盘 8×6：左半 24 格（列 0-3）供我方部署（全部可放），右半 24 格（列 4-7）为敌方站位预览
   // 人口限制的是"场上角色总数"，而非解锁格子数
-  const MAX_BOARD_SLOTS = 64;
+  const MAX_BOARD_SLOTS = 48;
   function boardCap() { return Math.min(MAX_BOARD_SLOTS, G.level + (G.boardBonus || 0)); }
   function isLeftSlot(i) { return (i % 8) < 4; }
   function boardCount() { return Object.keys(G.board).length; }
@@ -1384,6 +1486,21 @@
     const role = op.bonds && op.bonds['职业'];
     const aff = op.bonds && op.bonds['阵营'];
     const skArch = op.skill ? op.skill.archLabel : '';
+    // v2 装备角标：该干员 2 槽装备（背包待穿时显示空槽提示）
+    let eqBadges = '';
+    try {
+      const slots = (G.equipState && G.equipState.slots && G.equipState.slots[u.uid]) || [];
+      if (slots.length || G._eqPending != null) {
+        eqBadges = '<span class="eq-badges">' +
+          [0, 1].map(i => {
+            const eqId = slots[i];
+            const e = eqId ? EQUIP_BY_ID[eqId] : null;
+            return '<span class="eq-slot' + (e ? ' rarity' + e.rarity : ' empty') + '" data-eq-unequip="' + u.uid + '" data-eq-slot="' + i + '" title="' + (e ? (e.name || e.id) + '：' + e.desc + '（点击卸下）' : '空槽（点背包装备后点干员穿戴）') + '">' +
+              (e ? (e.icon || (e.type === 'engraving' ? '◎' : e.type === 'attr' ? '⬆' : '✦')) : '+') +
+            '</span>';
+          }).join('') + '</span>';
+      }
+    } catch (err) {}
     return '<div class="ucard c' + cost + sel + '" data-uid="' + u.uid + '" data-where="' + where + '">' +
       '<img class="avatar" src="' + op.avatar + '" alt="" onerror="this.style.background=\'#222\'">' +
       '<div class="card-fade"></div>' +
@@ -1395,12 +1512,13 @@
       '<div class="card-footer"><span class="cf-name">' + op.name + '</span>' +
         '<span class="cf-cost">' + cost + '</span></div>' +
       (u.star > 1 ? '<span class="star">' + starStr(u.star) + '</span>' : '') +
+      eqBadges +
     '</div>';
   }
 
   function firstFreeSlot() {
     if (boardCount() >= boardCap()) return null;
-    for (let i = 0; i < 64; i++) { if (isLeftSlot(i) && !G.board[i]) return i; }
+    for (let i = 0; i < 48; i++) { if (isLeftSlot(i) && !G.board[i]) return i; }
     return null;
   }
   function slotOf(uid) {
@@ -1435,8 +1553,8 @@
   function renderBoard() {
     const b = $('board');
     let html = '';
-    // 固定渲染 8×8=64 格：左半 32 格（列 0-3）全部为我方部署位，右半 32 格（列 4-7）为敌方站位预览底格
-    for (let i = 0; i < 64; i++) {
+    // 固定渲染 8×6=48 格：左半 24 格（列 0-3）全部为我方部署位，右半 24 格（列 4-7）为敌方站位预览底格
+    for (let i = 0; i < 48; i++) {
       const col = i % 8;
       const u = G.board[i];
       if (col >= 4) {
@@ -1497,6 +1615,83 @@
     const capEl = $('shopCapHint');
     if (capEl) capEl.textContent = 'Lv.' + G.level + ' · 商店最高 ' + maxShopCost(G.level) + ' 费';
     renderFeedPanel();
+    renderEquipPanel();
+  }
+
+  // v2 装备：商店装备行（刷新 1 件可购）+ 背包行 + 穿戴交互
+  const RARITY_LABEL = ['白', '蓝', '紫', '橙'];
+  function maxEquipRarity(level) { return level >= 8 ? 3 : level >= 7 ? 2 : level >= 5 ? 1 : 0; } // [PLACEHOLDER] 等级解锁
+  function rollEquipShop() {
+    if (Math.random() < 0.4) { // [PLACEHOLDER] 40% 概率刷 1 件
+      const mr = maxEquipRarity(G.level);
+      const pool = EQUIP_POOL.filter(e => e.rarity <= mr);
+      if (pool.length) G._equipShop = pool[Math.floor(Math.random() * pool.length)].id;
+      else G._equipShop = null;
+    } else G._equipShop = null;
+  }
+  function renderEquipPanel() {
+    const panel = $('equipPanel'); if (!panel) return;
+    panel.classList.remove('hidden');
+    const shopRow = $('equipShopRow'), bagRow = $('equipBagRow'), msg = $('equipMsg');
+    if (msg) msg.textContent = '';
+    // 商店可购行
+    const es = G._equipShop ? EQUIP_BY_ID[G._equipShop] : null;
+    shopRow.innerHTML = es
+      ? '<div class="equip-card rarity' + es.rarity + (G.gold >= es.cost ? '' : ' locked') + '" data-eq-shop="' + es.id + '" title="' + (es.flavor || '') + '">' +
+          '<span class="eq-rarity">' + RARITY_LABEL[es.rarity] + '</span>' +
+          '<span class="eq-icon">' + (es.icon || '⚒') + '</span>' +
+          '<span class="eq-name">' + (es.name || es.id) + '</span>' +
+          '<span class="eq-desc">' + es.desc + '</span>' +
+          '<span class="eq-cost">' + es.cost + '💰</span>' +
+        '</div>'
+      : '<span class="hint">本回合无装备出售</span>';
+    // 背包行（可点击 → 标记待穿，再点干员）
+    const bag = G.equipState && G.equipState.bag || [];
+    bagRow.innerHTML = bag.length
+      ? bag.map((eqId, i) => {
+          const e = EQUIP_BY_ID[eqId];
+          return '<div class="equip-card rarity' + e.rarity + (G._eqPending === i ? ' pending' : '') + '" data-eq-bag="' + i + '" title="' + (e.flavor || '点击选中，再点场上/备战席干员穿戴') + '">' +
+            '<span class="eq-rarity">' + RARITY_LABEL[e.rarity] + '</span>' +
+            '<span class="eq-icon">' + (e.icon || '⚒') + '</span>' +
+            '<span class="eq-name">' + (e.name || e.id) + '</span>' +
+            '<span class="eq-desc">' + e.desc + '</span>' +
+            '<span class="eq-sell" data-eq-sell="' + i + '">卖 ' + Math.round(e.cost * 0.6) + '💰</span>' +
+          '</div>';
+        }).join('')
+      : '<span class="hint">背包为空</span>';
+  }
+  function buyEquip(eqId) {
+    const e = EQUIP_BY_ID[eqId]; if (!e) return;
+    if (G.gold < e.cost) { flash('金币不足'); return; }
+    G.gold -= e.cost; G._equipShop = null;
+    G.equipState.bag.push(eqId);
+    if (window.SFX) SFX.play('buy');
+    renderAll(); saveGame();
+  }
+  function equipToUnit(uid, eqId) {
+    if (!G.equipState.slots[uid]) G.equipState.slots[uid] = [null, null];
+    const idx = G.equipState.slots[uid].indexOf(null);
+    if (idx < 0) { flash('该干员 2 槽已满，先卸下一件'); return; }
+    G.equipState.slots[uid][idx] = eqId;
+    G.equipState.bag.splice(G._eqPending, 1);
+    G._eqPending = null;
+    if (window.SFX) SFX.play('select');
+    renderAll(); saveGame();
+  }
+  function unequip(uid, idx) {
+    const eqId = G.equipState.slots[uid][idx];
+    if (!eqId) return;
+    G.equipState.bag.push(eqId);
+    G.equipState.slots[uid][idx] = null;
+    renderAll(); saveGame();
+  }
+  function sellEquip(bagIdx) {
+    const e = EQUIP_BY_ID[G.equipState.bag[bagIdx]];
+    if (!e) return;
+    G.gold += Math.round(e.cost * 0.6); // [PLACEHOLDER] 出售回收 60%
+    G.equipState.bag.splice(bagIdx, 1);
+    if (window.SFX) SFX.play('sell');
+    renderAll(); saveGame();
   }
 
   // v2.1 养狼：商店喂养面板（仅当作战区有叙拉古干员时显示）
@@ -1880,6 +2075,7 @@
     G.exp += 2 + (ef.expBonus || 0) + se.expPerRound;
     levelUp();
     rollShop();
+    rollEquipShop(); // v2 装备：40% 概率刷 1 件
     renderAll();
     $('phaseHint').textContent = '阶段 ' + (node.phase || 1) + '/3 · 第 ' + round + ' 回合 · 运营你的棋库，拖拽部署后开战';
     $('btnFight').classList.remove('hidden');
@@ -2025,11 +2221,22 @@
         if (arr.length >= 3) {
           const three = arr.slice(0, 3);
           const onBoard = three.filter(u => slotOf(u.uid) != null);
+          // v2 装备：三合一后新单位继承第一件（arr[0]）的 2 槽装备，其余两件的装备回背包
+          let inheritEq = [];
+          if (G.equipState && G.equipState.slots) {
+            inheritEq = (G.equipState.slots[three[0].uid] || []).filter(Boolean);
+            [three[1], three[2]].forEach(u => {
+              (G.equipState.slots[u.uid] || []).forEach(eqId => { if (eqId) G.equipState.bag.push(eqId); });
+              delete G.equipState.slots[u.uid];
+            });
+            delete G.equipState.slots[three[0].uid];
+          }
           three.forEach(u => {
             G.bench = G.bench.filter(x => x.uid !== u.uid);
             for (const kk in G.board) if (G.board[kk].uid === u.uid) delete G.board[kk];
           });
           const up = { uid: uidc++, op: arr[0].op, star: star + 1 };
+          if (G.equipState) G.equipState.slots[up.uid] = inheritEq; // 装备继承（新 uid）
           if (onBoard.length >= 2) { const c = firstFreeSlot(); if (c != null) G.board[c] = up; else G.bench.push(up); }
           else G.bench.push(up);
           changed = true;
@@ -2069,6 +2276,11 @@
     const mult = 1 + (se.sellValuePct || 0) + (ef.sellValuePct || 0);
     const refund = Math.round(effCost(u.op) * (u.star === 1 ? 1 : u.star === 2 ? 3 : 9) * mult);
     G.gold += refund;
+    // v2 装备：出售干员时已穿装备自动回背包（不随干员销毁）
+    if (G.equipState && G.equipState.slots && G.equipState.slots[uid]) {
+      (G.equipState.slots[uid] || []).forEach(eqId => { if (eqId) G.equipState.bag.push(eqId); });
+      delete G.equipState.slots[uid];
+    }
     G.bench = G.bench.filter(x => x.uid !== uid);
     for (const k in G.board) if (G.board[k].uid === uid) delete G.board[k];
     if (G.selected === uid) G.selected = null;
@@ -2119,10 +2331,10 @@
     // 遍历所有已部署格（不再写死 9），确保扩编后的第 10+ 个单位也会参战
     Object.keys(G.board).forEach(k => {
       const i = parseInt(k, 10);
-      if (G.board[i]) { allyList.push({ op: G.board[i].op, star: G.board[i].star }); allyPos.push(slotToXY(i)); }
+      if (G.board[i]) { allyList.push({ uid: G.board[i].uid, op: G.board[i].op, star: G.board[i].star }); allyPos.push(slotToXY(i)); }
     });
     // —— v2.1 真实召唤物（叙拉古养狼 / 令岁兽）：按局内等级生成，相邻格站位 ——
-    const probe = computeBonds(allyList.map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star })));
+    const probe = computeBonds(allyList.map(u => ({ uid: u.uid, name: u.op.name, bonds: u.op.bonds, star: u.star })));
     const xila = probe.active.find(b => b.axis === '特殊' && b.value === '叙拉古');
     const xilaTier = xila ? xila.tier : 0;
     const xilaCount = allyList.filter(u => u.op.bonds && u.op.bonds['阵营'] === '叙拉古').length;
@@ -2175,7 +2387,7 @@
     // 因此先把召唤物从 allyList 中剥离，仅对常规干员套用羁绊，再把召唤物原样接回（保持与 allyPos 索引对齐：常规在前、召唤在后）。
     const regEntries = [], summonUnits = [];
     allyList.forEach(u => { if (u.isSummon) summonUnits.push(u); else regEntries.push(u); });
-    const allyUnits = applyBonds(regEntries.map(u => ({ op: u.op, star: u.star })), 'ally', allyPos);
+    const allyUnits = applyBonds(regEntries.map(u => ({ uid: u.uid, op: u.op, star: u.star })), 'ally', allyPos);
     const enemyUnits = applyBonds(enemyBase.map(t => ({ op: t.op, star: t.star, buff: t.buff })), 'enemy');
     // uid 由 simulateBattleGrid 统一重排（ally:a0.. / enemy:e0..），这里按顺序拼接即可。
     const allyAll = allyUnits.concat(summonUnits);
@@ -2411,6 +2623,18 @@
         return;
       }
       let body = '本节点告捷，连胜 ' + G.winStreak + '。';
+      // v2 装备：胜利掉落（20% 白~蓝）/ 无伤胜利保底（100% 白~蓝）[PLACEHOLDER]
+      try {
+        const mr = Math.min(1, maxEquipRarity(G.level));
+        const dropPool = EQUIP_POOL.filter(e => e.type !== 'engraving' && e.rarity <= mr);
+        const flawless = !(res.stats && res.stats.allyDeaths > 0);
+        const chance = flawless ? 1 : 0.2;
+        if (dropPool.length && Math.random() < chance) {
+          const eq = dropPool[Math.floor(Math.random() * dropPool.length)];
+          G.equipState.bag.push(eq.id);
+          body += (flawless ? ' 无伤胜利，缴获装备「' + (eq.name || eq.id) + '」！' : ' 缴获装备「' + (eq.name || eq.id) + '」。');
+        }
+      } catch (e) { /* 掉落失败不阻塞结算 */ }
       // 精英节点额外奖励（按全局难度倍率）
       if (node.type === 'elite') { G.gold += Math.round(6 * rm); G.exp += Math.round(4 * rm); levelUp(); body += ' 精英奖励 +' + Math.round(6 * rm) + '💰 +' + Math.round(4 * rm) + 'exp。'; }
       // 遭遇节点胜利奖励（全局难度 × 该遭遇档位奖励倍率，之前只在卡片显示，现真正结算）
@@ -2557,7 +2781,7 @@
       '<img src="' + t.op.avatar + '" onerror="this.style.background=\'#222\'">' +
       '<span>' + t.op.name + (t.star > 1 ? '★' + t.star : '') + '</span></div>'
     ).join('');
-    // 敌方站位预览：叠加在统一棋盘右半 4×4 区域（pointer-events:none 不干扰拖拽）
+    // 敌方站位预览：叠加在统一棋盘右半 4×6 区域（pointer-events:none 不干扰拖拽）
     const overlay = $('enemyOverlay');
     if (overlay) {
       overlay.innerHTML = '';
@@ -2565,13 +2789,13 @@
       const eps = autoPositions(enemies, 'enemy'); // 敌方坐标 x∈[4,7]（右半4列）, y∈[0,7]
       enemies.forEach((t, i) => {
         const p = eps[i]; if (!p) return;
-        // 战场坐标 -> 部署区右半局部坐标：localCol = x-4 ∈[0,3], row = y ∈[0,7]
+        // 战场坐标 -> 部署区右半局部坐标：localCol = x-4 ∈[0,3], row = y ∈[0,5]
         const localCol = p.x - GRID_COLS;
         const row = p.y;
         if (localCol < 0 || localCol >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
         const c = document.createElement('div');
         c.className = 'eo-chip';
-        // 百分比定位：overlay 严格覆盖部署区右半（4 列 × 8 行），与战斗坐标一一对应，头像填满格子
+        // 百分比定位：overlay 严格覆盖部署区右半（4 列 × 6 行），与战斗坐标一一对应，头像填满格子
         c.style.left = ((localCol + 0.5) / GRID_COLS * 100) + '%';
         c.style.top = ((row + 0.5) / GRID_ROWS * 100) + '%';
         c.style.width = (100 / GRID_COLS) + '%';
@@ -2681,6 +2905,9 @@
     G.summonState = { wolf: { level: 1, exp: 0 }, beast: { level: 1, exp: 0 }, feedAtk: 0, feedHp: 0 };
     G._summonLevelUp = null;
     G._feedShownWolfLv = undefined;
+    // v2 装备：本局重置（背包 + 槽位）
+    G.equipState = { bag: [], slots: {} };
+    G._equipShop = null;
     buildNodes();
     $('resultScreen').classList.add('hidden');
     $('battleScreen').classList.add('hidden');
@@ -2898,6 +3125,30 @@
       }
       const sc = e.target.closest('[data-shop]');
       if (sc) { const i = parseInt(sc.dataset.shop, 10); buy(i); return; }
+      // v2 装备交互：购买商店装备 / 背包选中待穿 / 出售背包装备 / 穿到已选干员
+      const eqBuy = e.target.closest('[data-eq-shop]');
+      if (eqBuy) { buyEquip(eqBuy.dataset.eqShop); return; }
+      const eqSell = e.target.closest('[data-eq-sell]');
+      if (eqSell) { sellEquip(parseInt(eqSell.dataset.eqSell, 10)); return; }
+      const eqUne = e.target.closest('[data-eq-unequip]');
+      if (eqUne) { unequip(eqUne.dataset.eqUnequip, parseInt(eqUne.dataset.eqSlot, 10)); return; }
+      const eqBag = e.target.closest('[data-eq-bag]');
+      if (eqBag) {
+        const bi = parseInt(eqBag.dataset.eqBag, 10);
+        if (G._eqPending === bi) { G._eqPending = null; renderEquipPanel(); return; }
+        G._eqPending = bi; renderEquipPanel();
+        const selUid = G.selected;
+        if (selUid != null && findUnit(selUid)) {
+          const eqId = G.equipState.bag[bi];
+          equipToUnit(selUid, eqId);
+        }
+        return;
+      }
+      // 已选干员 + 点击装备卡 → 穿戴（支持点击干员卡后点背包）
+      if (G._eqPending != null && e.target.closest('.ucard[data-uid]')) {
+        const uid = parseInt(e.target.closest('.ucard[data-uid]').dataset.uid, 10);
+        if (findUnit(uid)) { const eqId = G.equipState.bag[G._eqPending]; if (eqId) { equipToUnit(uid, eqId); } return; }
+      }
       const uc = e.target.closest('.ucard[data-uid]');
       if (uc) { selectUnit(parseInt(uc.dataset.uid, 10)); return; }
     });
@@ -3010,6 +3261,8 @@
         shop: G.shop.map(o => o ? o.id : null),
         currentEnemy: (G.currentEnemy || []).map(t => ({ op: t.op.id, star: t.star })),
         selected: G.selected, result: G._result || null,
+        // v2 装备：背包 + 槽位（仅本场持久化，不写 Meta）
+        equipState: G.equipState ? { bag: G.equipState.bag || [], slots: G.equipState.slots || {} } : null,
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(sv));
     } catch (e) { /* 隐私模式等存储异常，忽略 */ }
@@ -3042,6 +3295,8 @@
     G.currentEnemy = (sv.currentEnemy || []).map(t => ({ op: byId(t.op), star: t.star })).filter(t => t.op);
     G.selected = sv.selected || null;
     G._result = sv.result || null;
+    // v2 装备：回读（仅本场；旧存档无字段则初始化空）
+    G.equipState = sv.equipState ? { bag: sv.equipState.bag || [], slots: sv.equipState.slots || {} } : { bag: [], slots: {} };
     if (G.phase === 'result' && G._result) {
       $('envScreen').classList.add('hidden');
       $('arena').classList.add('hidden');
@@ -3114,7 +3369,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, BONDS, SPECIAL };
+  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel };
 
   /* ---- 启动 ---- */
   buildNodes();

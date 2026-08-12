@@ -58,11 +58,11 @@ a{color:var(--gold-strong);text-decoration:none}
 .board-label::before{content:"";display:inline-block;width:0;height:0;margin-right:6px;vertical-align:middle;
   border-left:5px solid var(--c-stone);border-top:4px solid transparent;border-bottom:4px solid transparent}
 .board-label #boardCap,.board-label #benchCap{color:var(--gold-strong);font-weight:700}
-.board-grid{display:grid;grid-template-columns:repeat(8,64px);grid-template-rows:repeat(8,64px);
+.board-grid{display:grid;grid-template-columns:repeat(8,80px);grid-template-rows:repeat(6,80px);
   gap:4px;justify-content:center;padding:10px;background:#0c0f14;border:1px solid var(--line);border-radius:8px}
-.board-cell{width:64px;height:64px;border:1px dashed #2a3340;border-radius:8px;display:flex;align-items:center;
+.board-cell{width:80px;height:80px;border:1px dashed #2a3340;border-radius:8px;display:flex;align-items:center;
   justify-content:center;background:#10141b;position:relative}
-/* 部署区卡面适配 8×8 小格子 */
+/* 部署区卡面适配 8×6 大格子 */
 .board-cell .ucard{width:100%;height:100%}
 .board-cell.filled{border-style:solid;border-color:var(--line);background:var(--panel-2)}
 .board-cell.locked{border-style:dashed;border-color:#1b2029;background:#0a0d12;opacity:.7;cursor:not-allowed}
@@ -214,7 +214,7 @@ a{color:var(--gold-strong);text-decoration:none}
 .bf-legend{text-align:center;font-size:13px;color:var(--text-2);margin-bottom:10px;font-family:var(--font-display);letter-spacing:.3px}
 .bf-legend .ally{color:var(--ally);font-weight:700}
 .bf-legend .enemy{color:var(--enemy);font-weight:700}
-.bf-grid{position:relative;margin:0 auto;width:512px;height:512px;
+.bf-grid{position:relative;margin:0 auto;width:512px;height:384px;aspect-ratio:8/6;
   background:#0c0f14;border:1px solid var(--line);border-radius:10px;overflow:hidden;
   background-image:linear-gradient(#161c25 1px,transparent 1px),linear-gradient(90deg,#161c25 1px,transparent 1px);
   background-size:64px 64px}
@@ -266,7 +266,7 @@ a{color:var(--gold-strong);text-decoration:none}
 /* 战斗全屏化：上下结构（战场在上、信息框在下） */
 #battleScreen{flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;background:rgba(6,8,12,.98);z-index:46}
 #battleScreen .battle-stage{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;max-width:none;width:100%;border:none;border-radius:0;background:transparent;padding:22px 16px}
-#battleScreen .bf-grid{width:min(92vw,62vh,560px);height:min(92vw,62vh,560px)}
+#battleScreen .bf-grid{width:min(96vw,84vh,720px);height:calc(min(96vw,84vh,720px) * 0.75)}
 #battleScreen .battle-log{height:clamp(120px,24vh,260px);max-width:none;width:100%;margin:0;border-radius:0;border-left:none;border-right:none}
 #battleScreen #btnSkip{position:fixed;top:14px;right:18px;z-index:48}
 
@@ -350,6 +350,55 @@ a{color:var(--gold-strong);text-decoration:none}
 .feed-panel.form-adult .feed-form-ico{filter:drop-shadow(0 0 5px rgba(232,184,75,.6))}
 .feed-panel.form-king .feed-form-ico{filter:drop-shadow(0 0 7px rgba(224,90,90,.7))}
 
+/* ============ v2 装备面板（同塑料壳语言） ============ */
+.equip-panel{
+  margin-top:12px;padding:12px 14px;border-radius:var(--r-panel);
+  background:var(--panel-glass);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  border:1px solid var(--line);
+  box-shadow:var(--sh-2),inset 0 0 0 1px rgba(120,180,240,.10);
+  position:relative;overflow:hidden;
+}
+.equip-panel::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:var(--vignette) inset;border-radius:var(--r-panel)}
+.equip-panel::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent,var(--c-blue,#4a7fb5),transparent);opacity:.7}
+.equip-head{font-family:var(--font-display);font-size:15px;color:var(--gold-strong);letter-spacing:.5px;
+  display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.equip-ico{font-size:16px;line-height:1}
+.equip-hint{font-family:var(--font-sans);font-size:11px;color:var(--text-2);font-weight:400;margin-left:auto}
+.equip-shop-row,.equip-bag-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;min-height:22px;align-items:center}
+.equip-card{
+  display:flex;flex-direction:column;gap:2px;padding:7px 9px;border-radius:8px;
+  background:#10141c;border:1px solid var(--line);cursor:pointer;min-width:96px;max-width:150px;
+  transition:border-color .2s,transform .15s;
+}
+.equip-card:hover{border-color:var(--gold-strong);transform:translateY(-1px)}
+.equip-card.locked{opacity:.5;cursor:not-allowed}
+.equip-card.pending{outline:2px solid var(--gold-strong)}
+.eq-rarity{font-size:10px;color:var(--text-2);letter-spacing:.5px}
+.eq-icon{font-size:18px;line-height:1;margin:1px 0}
+.eq-name{font-size:12px;color:var(--text);font-weight:500}
+.eq-desc{font-size:11px;color:var(--text-2);line-height:1.4}
+.eq-cost{font-size:11px;color:var(--gold-strong);margin-top:2px}
+.eq-sell{font-size:10px;color:#c96;cursor:pointer;margin-top:2px;align-self:flex-start}
+.eq-sell:hover{color:var(--danger,#e24b4a)}
+.equip-card.rarity1{border-color:rgba(90,200,224,.45)}
+.equip-card.rarity2{border-color:rgba(180,130,240,.5)}
+.equip-card.rarity3{border-color:rgba(232,184,75,.55)}
+.equip-msg{font-size:12px;color:var(--success);margin-top:6px;min-height:14px}
+/* 干员卡装备角标 */
+.eq-badges{position:absolute;right:3px;top:3px;display:flex;flex-direction:column;gap:2px;z-index:3}
+.eq-slot{
+  width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;background:#0c0f14;border:1px solid var(--line);color:var(--text-2);cursor:pointer;
+}
+.eq-slot.empty{border-style:dashed;color:transparent}
+.eq-slot.rarity0{color:#dfe6ee;border-color:rgba(140,160,180,.4)}
+.eq-slot.rarity1{color:#5ac8e0;border-color:rgba(90,200,224,.45)}
+.eq-slot.rarity2{color:#b482f0;border-color:rgba(180,130,240,.5)}
+.eq-slot.rarity3{color:#e8b84b;border-color:rgba(232,184,75,.55)}
+.eq-slot:hover{border-color:var(--gold-strong)}
+
 /* ============ v2.1 战斗内召唤物等级角标 ============ */
 .bf-unit{position:relative}
 .bf-unit .lv-badge{position:absolute;top:-6px;left:-6px;min-width:16px;height:16px;padding:0 3px;
@@ -360,8 +409,8 @@ a{color:var(--gold-strong);text-decoration:none}
 
 @media (max-width:680px){
   .ucard,.slot{width:62px;height:78px}
-  .board-grid{grid-template-columns:repeat(8,42px);grid-template-rows:repeat(8,52px)}
-  .board-cell{width:42px;height:52px}
+  .board-grid{grid-template-columns:repeat(8,46px);grid-template-rows:repeat(6,54px)}
+  .board-cell{width:46px;height:54px}
   .ucard .card-tags,.shop-card .card-tags{bottom:24px;left:2px;right:2px}
   .ucard .cf-name,.shop-card .cf-name{max-width:40px;font-size:10px}
   .stat{font-size:12px}.stats{gap:10px}
