@@ -1071,11 +1071,13 @@
     return Math.max(1, c);
   }
 
-  // 统一棋盘 4×4：左半 8 格供我方部署，右半 8 格为敌方站位预览
+  // 统一棋盘 4×4：左半 8 格供我方部署（全部可放），右半 8 格为敌方站位预览
+  // 人口限制的是"场上角色总数"，而非解锁格子数
   const MAX_BOARD_SLOTS = 16;
   const LEFT_SLOTS = [0, 1, 4, 5, 8, 9, 12, 13];
   function boardCap() { return Math.min(LEFT_SLOTS.length, G.level + (G.boardBonus || 0)); }
-  function isLeftUnlocked(i) { const n = LEFT_SLOTS.indexOf(i); return n >= 0 && n < boardCap(); }
+  function isLeftSlot(i) { return LEFT_SLOTS.indexOf(i) >= 0; }
+  function boardCount() { return Object.keys(G.board).length; }
 
   function rnd(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
   function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -1144,8 +1146,8 @@
   }
 
   function firstFreeSlot() {
-    const cap = boardCap();
-    for (let n = 0; n < cap; n++) { const i = LEFT_SLOTS[n]; if (!G.board[i]) return i; }
+    if (boardCount() >= boardCap()) return null;
+    for (let i = 0; i < LEFT_SLOTS.length; i++) { const s = LEFT_SLOTS[i]; if (!G.board[s]) return s; }
     return null;
   }
   function slotOf(uid) {
@@ -1156,8 +1158,7 @@
   function renderBoard() {
     const b = $('board');
     let html = '';
-    // 固定渲染 4×4=16 格：左半 8 格为我方部署（按人口解锁），右半 8 格为敌方站位预览底格
-    const cap = boardCap();
+    // 固定渲染 4×4=16 格：左半 8 格全部为我方部署位，右半 8 格为敌方站位预览底格
     for (let i = 0; i < 16; i++) {
       const col = i % 4;
       const u = G.board[i];
@@ -1165,14 +1166,12 @@
         html += '<div class="board-cell enemy-zone" data-slot="' + i + '" tabindex="-1" aria-disabled="true"></div>';
       } else if (u) {
         html += '<div class="board-cell filled" data-slot="' + i + '" tabindex="0">' + unitCard(u, 'board') + '</div>';
-      } else if (isLeftUnlocked(i)) {
-        html += '<div class="board-cell" data-slot="' + i + '" tabindex="0"></div>';
       } else {
-        html += '<div class="board-cell locked" data-slot="' + i + '" tabindex="-1" aria-disabled="true"></div>';
+        html += '<div class="board-cell" data-slot="' + i + '" tabindex="0"></div>';
       }
     }
     b.innerHTML = html;
-    $('boardCap').textContent = Object.keys(G.board).length + '/' + boardCap();
+    $('boardCap').textContent = boardCount() + '/' + boardCap();
     const benchHtml = G.bench.map(u => unitCard(u, 'bench')).join('') || '<div class="slot empty"></div>';
     $('bench').innerHTML = benchHtml;
     $('benchCap').textContent = G.bench.length + '/' + BENCH_CAP;
@@ -1710,7 +1709,7 @@
     const u = findUnit(uid);
     if (!u) return;
     if (where === 'bench') {
-      if (Object.keys(G.board).length >= boardCap()) { flash('人口已满（Lv.' + boardCap() + '）'); return; }
+      if (boardCount() >= boardCap()) { flash('人口已满（Lv.' + boardCap() + '）'); return; }
       const c = firstFreeSlot();
       if (c == null) { flash('部署区已满'); return; }
       G.bench = G.bench.filter(x => x.uid !== uid);
@@ -1892,7 +1891,10 @@
         return;
       }
 
-      const allUnits = allyUnits.concat(enemyUnits);
+      // 渲染源必须与 res.frames 里的 uid 一致：simulateBattleGrid 内部分配 uid='a'+i / 'e'+i
+      const allUnits = [];
+      allyUnits.forEach((u, i) => { u.uid = 'a' + i; u.side = 'ally'; allUnits.push(u); });
+      enemyUnits.forEach((u, i) => { u.uid = 'e' + i; u.side = 'enemy'; allUnits.push(u); });
 
       const initPos = {};
       const f0 = res.frames[0];
@@ -2210,17 +2212,23 @@
       overlay.innerHTML = '';
       const enemies = team;
       const eps = autoPositions(enemies, 'enemy');
+      // 取一个敌方底格作为尺寸基准（含 gap），让 preview 头像填满格子
+      const refCell = document.querySelector('.board-cell.enemy-zone');
+      const refRect = refCell ? refCell.getBoundingClientRect() : { width: 92, height: 106 };
+      const gap = 8;
       enemies.forEach((t, i) => {
         const p = eps[i]; if (!p) return;
-        // 战场 x∈[4,7] 映射到棋盘右半列 0-3，y∈[0,3] 映射到行 0-3
-        const col = p.x - GRID_COLS;
+        // 战场 x∈[4,7] 映射到棋盘右半 2 列（col 0/1），y∈[0,3] 映射到行 0-3
+        const col = (p.x - GRID_COLS) % 2;
         const row = p.y;
-        if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
+        if (row < 0 || row >= GRID_ROWS) return;
         const c = document.createElement('div');
         c.className = 'eo-chip';
-        c.style.left = ((col + 0.5) / GRID_COLS * 100) + '%';
-        c.style.top = ((row + 0.5) / GRID_ROWS * 100) + '%';
-        c.innerHTML = '<img src="' + t.op.avatar + '" onerror="this.style.background=\'#222\'">';
+        c.style.width = refRect.width + 'px';
+        c.style.height = refRect.height + 'px';
+        c.style.left = (col * (refRect.width + gap)) + 'px';
+        c.style.top = (row * (refRect.height + gap)) + 'px';
+        c.innerHTML = '<img src="' + t.op.avatar + '" alt="" onerror="this.style.background=\'#222\'">';
         c.title = t.op.name + (t.star > 1 ? '★' + t.star : '');
         overlay.appendChild(c);
       });
@@ -2371,7 +2379,7 @@
     const el = elementAt(x, y);
     if (!el) return;
     const cell = el.closest('.board-cell');
-    if (cell && !cell.classList.contains('locked') && !cell.classList.contains('enemy-zone')) { cell.classList.add('drop-hover'); return; }
+    if (cell && !cell.classList.contains('enemy-zone')) { cell.classList.add('drop-hover'); return; }
     const bench = el.closest('#bench');
     if (bench) { bench.classList.add('drop-hover'); return; }
     const sz = el.closest('#sellZone');
@@ -2458,9 +2466,9 @@
   }
 
   function dropOnCell(d, idx) {
-    if (!isLeftUnlocked(idx)) { flash('人口不足（' + boardCap() + '/' + LEFT_SLOTS.length + '），升人口解锁更多格子'); return; }
+    if (!isLeftSlot(idx)) { flash('右侧为敌方站位预览，无法部署'); return; }
     const occU = G.board[idx];
-    const boardCount = Object.keys(G.board).length;
+    const curCount = boardCount();
 
     if (d.from === 'shop') {
       const op = d.op, c = effCost(op);
@@ -2472,7 +2480,7 @@
         G.bench.push(old);
         G.shop[d.shopIdx] = null; G.gold -= c;
       } else {
-        if (boardCount >= boardCap()) { flash('人口已满（Lv.' + boardCap() + '）'); return; }
+        if (curCount >= boardCap()) { flash('人口已满（' + curCount + '/' + boardCap() + '），请升级或下场干员'); return; }
         G.board[idx] = { uid: uidc++, op, star: 1 };
         G.shop[d.shopIdx] = null; G.gold -= c;
       }
@@ -2486,7 +2494,7 @@
         G.bench = G.bench.filter(x => x.uid !== u.uid);
         G.bench.push(old);
       } else {
-        if (boardCount >= boardCap()) { flash('人口已满（Lv.' + boardCap() + '）'); return; }
+        if (curCount >= boardCap()) { flash('人口已满（' + curCount + '/' + boardCap() + '），请升级或下场干员'); return; }
         G.bench = G.bench.filter(x => x.uid !== u.uid);
         G.board[idx] = { uid: u.uid, op: u.op, star: u.star };
       }
@@ -2495,7 +2503,7 @@
       const srcIdx = slotOf(u.uid);
       if (srcIdx === idx) return;
       if (occU) {
-        // 交换：把拖动的 u 放到目标格，目标 o 移到源格（修复：原逻辑漏写 G.board[idx]=u 导致卡片消失）
+        // 交换：把拖动的 u 放到目标格，目标 o 移到源格
         const o = G.board[idx];
         G.board[idx] = { uid: u.uid, op: u.op, star: u.star };
         G.board[srcIdx] = o;
@@ -2528,7 +2536,7 @@
       if (G.selected != null) {
         const u = findUnit(G.selected);
         const cell = e.target.closest('.board-cell');
-        if (cell && !cell.classList.contains('locked') && !cell.classList.contains('enemy-zone')) {
+        if (cell && !cell.classList.contains('enemy-zone')) {
           if (u) { const from = G.bench.some(x => x.uid === u.uid) ? 'bench' : 'board';
             dropOnCell({ from, uid: u.uid, unit: u, op: u.op, shopIdx: null }, parseInt(cell.dataset.slot, 10)); }
           G.selected = null; renderAll(); return;
@@ -2547,7 +2555,7 @@
       if (e.key === 'Escape' && G.selected != null) { selectUnit(G.selected); return; }
       if ((e.key === 'Enter' || e.key === ' ') && G.selected != null) {
         const cell = e.target.closest && e.target.closest('.board-cell');
-        if (cell && !cell.classList.contains('locked') && !cell.classList.contains('enemy-zone')) {
+        if (cell && !cell.classList.contains('enemy-zone')) {
           e.preventDefault();
           const u = findUnit(G.selected);
           if (u) { const from = G.bench.some(x => x.uid === u.uid) ? 'bench' : 'board';
@@ -2756,7 +2764,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv };
+  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot };
 
   /* ---- 启动 ---- */
   buildNodes();
