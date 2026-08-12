@@ -37,7 +37,6 @@
   var comp = null;                  // 总线压缩（防止混音削波）
   var buses = {};                   // { music, sfx, ui }
   var noiseBuffer = null;           // 复用白噪声缓冲（生成式音乐用）
-  var unlocked = false;
 
   // 采样播放
   var sampleCache = {};             // key -> AudioBuffer（已解码）
@@ -60,7 +59,6 @@
   var muted = false;
   try { muted = localStorage.getItem(STORE_KEY) === '1'; } catch (e) {}
 
-  function rnd(a, b) { return a + Math.random() * (b - a); }
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
   function assets() { return (typeof window !== 'undefined' && window.AUDIO_ASSETS) || {}; }
 
@@ -105,15 +103,31 @@
     var d = noiseBuffer.getChannelData(0);
     for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
 
-    unlocked = true;
     startScheduler();
     return AC;
   }
 
+  // 阵营 → 签名音色家族（bonds['阵营'] 主题键 → combat/fx_<flavor>）。
+  // 36 阵营按主题合并为 15 个家族；施放技能时该签名音作为"主层"播放。
+  var FACTION_FLAVOR = {
+    '拉特兰': 'bullet', '炎': 'fire', '维多利亚': 'steam',
+    '莱茵生命': 'tech', '哥伦比亚': 'tech', '叙拉古': 'revolver',
+    '莱塔尼亚': 'arcane', '使徒': 'arcane', '萨尔贡': 'sand', '东': 'sand', '米诺斯': 'sand',
+    '龙门': 'mech', '喀兰贸易': 'mech', '鲤氏侦探事务所': 'mech', 'S.W.E.E.P.': 'mech',
+    '企鹅物流': 'horn', '罗德岛': 'clinical', '巴别塔': 'clinical',
+    '行动预备组A6': 'clinical', '行动组A4': 'clinical',
+    '谢拉格': 'ice', '萨米': 'ice', '深海猎人': 'water', '阿戈尔': 'water',
+    '伊比利亚': 'water', '汐斯塔': 'water', '乌萨斯': 'heavy', '雷姆必拓': 'heavy',
+    '黑钢国际': 'heavy', '格拉斯哥帮': 'heavy', '卡西米尔': 'steel',
+    '塔拉': 'wind', '莱欧斯小队': 'wind'
+  };
+  // 机制副层开关：true=阵营签名音+机制音双层；false=仅阵营签名音（纯阵营味）
+  var LAYER_MECHANIC = true;
+  var MECH_GAIN = 0.55;            // 机制副层相对音量
+
   // ---- 语音管理（steal） ------------------------------------------------
   function trackVoice(node, endAt, priority) {
     var v = { node: node, endAt: endAt, priority: priority };
-    var idx = activeVoices.length;
     activeVoices.push(v);
     node.onended = function () {
       var j = activeVoices.indexOf(v);
@@ -166,7 +180,13 @@
       return { key: params.dmgType === 'arts' ? 'combat/hit_arts' : 'combat/hit', bus: 'sfx', pri: 2 };
     }
     if (name === 'combat/skill') {
-      return { key: 'combat/skill_' + (params.arch || 'default'), bus: 'sfx', pri: 2 };
+      // 双轴分层：阵营签名音（主层，满音量）+ 机制音（副层，低音量）。
+      var out = [];
+      var fx = FACTION_FLAVOR[params.faction];
+      if (fx) out.push({ key: 'combat/fx_' + fx, bus: 'sfx', pri: 2 });
+      if (LAYER_MECHANIC) out.push({ key: 'combat/skill_' + (params.arch || 'default'), bus: 'sfx', pri: 3, vol: MECH_GAIN });
+      if (!out.length) out.push({ key: 'combat/skill_default', bus: 'sfx', pri: 2 });
+      return out;
     }
     if (name === 'combat/death') {
       return { key: params.side === 'ally' ? 'combat/death_ally' : 'combat/death_enemy', bus: 'sfx', pri: 2 };
@@ -187,7 +207,7 @@
   function getBuffer(key, uri) {
     if (sampleCache[key]) return Promise.resolve(sampleCache[key]);
     if (sampleDecoding[key]) return sampleDecoding[key];
-    var p = new Promise(function (resolve, reject) {
+    var p = new Promise(function (res, rej) {
       try {
         var comma = uri.indexOf(',');
         var b64 = comma >= 0 ? uri.slice(comma + 1) : uri;
@@ -195,9 +215,9 @@
         var arr = new Uint8Array(bin.length);
         for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
         AC.decodeAudioData(arr.buffer,
-          function (buf) { sampleCache[key] = buf; resolve(buf); },
-          function (err) { reject(err || new Error('decode failed')); });
-      } catch (e) { reject(e); }
+          function (buf) { sampleCache[key] = buf; res(buf); },
+          function (err) { rej(err || new Error('decode failed')); });
+      } catch (e) { rej(e); }
     });
     sampleDecoding[key] = p;
     p.then(function () { delete sampleDecoding[key]; },
@@ -210,7 +230,7 @@
     blip({ freq: 440, type: 'sine', dur: 0.08, vol: 0.12, bus: busName, priority: priority });
   }
 
-  function playSampleKey(key, busName, priority) {
+  function playSampleKey(key, busName, priority, vol) {
     ensure();
     if (!AC) return;
     var uris = assets()[key];
@@ -225,10 +245,17 @@
       src.buffer = buf;
       // 每次播放微扰播放速率，避免机械重复感
       src.playbackRate.value = 1 + (Math.random() * 0.04 - 0.02);
-      src.connect(buses[busName] || buses.sfx);
+      var node = src;
+      if (vol != null && vol !== 1) {
+        var g = AC.createGain();
+        g.gain.value = vol;
+        src.connect(g); g.connect(buses[busName] || buses.sfx);
+      } else {
+        src.connect(buses[busName] || buses.sfx);
+      }
       var dur = buf.duration;
       src.start(t0);
-      trackVoice(src, t0 + dur, priority);
+      trackVoice(node, t0 + dur, priority);
     }).catch(function () { fallbackKey(key, busName, priority); });
   }
 
@@ -364,7 +391,14 @@
   function play(name, params) {
     if (muted) return;
     var r = resolve(name, params);
-    playSampleKey(r.key, r.bus, r.pri);
+    if (Array.isArray(r)) {
+      for (var i = 0; i < r.length; i++) {
+        var x = r[i];
+        playSampleKey(x.key, x.bus, x.pri, x.vol);
+      }
+    } else {
+      playSampleKey(r.key, r.bus, r.pri);
+    }
   }
 
   function setMusic(state) {
@@ -391,7 +425,7 @@
   function isMuted() { return muted; }
   function setVolume(v) {
     ensure();
-    if (master) master.gain.value = clamp(v == null ? 0.9 : v, 0, 1);
+    if (master) master.gain.value = clamp(v == null ? 0.82 : v, 0, 1);
   }
 
   // 首次手势解锁（浏览器自动播放策略）

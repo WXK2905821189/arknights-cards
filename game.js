@@ -118,6 +118,22 @@
     '鲤氏侦探事务所': { tier: 1, attr: { crit: 0.08 }, kw: null },                                             // 洞察：暴击
   };
 
+  // P2-3b：单干员势力「独行被动」叙事文案（叙事设计师补写，纯原创 prose，非台词，可自由润色）
+  // 与上节阵营 t1/t2/t3 同一笔调：写"为什么这个势力只能独行"，不冒充原台词。
+  const SOLO_FLAVOR = {
+    '格拉斯哥帮': '没有旗帜，没有故乡，只有自己握紧的枪。推进之王从不向任何人俯首——地下城的规矩，是她亲手写的。',
+    '黑钢国际': '合同之外无盟友，火力之内皆正义。黑钢的佣兵把信任折算成报酬，却总在最后一发子弹前，选择留下。',
+    'S.W.E.E.P.': '表面是清洁公司，暗处是维多利亚最利落的刀。阿斯卡纶擦去的从不止尘埃，还有不该被记住的痕迹。',
+    '阿戈尔': '海面之下另有一座文明，沉默、古老、不被理解。浊心斯卡蒂站在这里，也站在那片深蓝的边缘。',
+    '萨米': '雪原的旅人追随着古老的神谕，巨兽的足迹即是道路。提丰的箭，从不为某一座城邦而发。',
+    '米诺斯': '剑与荣光都沉进了废墟，米诺斯只剩一个不肯低头的名字。帕拉斯提起的，是整片大陆都快遗忘的骄傲。',
+    '汐斯塔': '移动的霓虹，不夜的舞台。黑在枪线与节拍之间游走，把战场当成另一场演出。',
+    '莱欧斯小队': '异界的旅人误入泰拉，剑与魔法只为找回归途。玛露西尔的术式，照亮的从不是同一片星空。',
+    '行动组A4': '没有番号值得记住，只有任务必须完成。麒麟R夜刀的身影，总在指令到达之前消失于东方的雾里。',
+    '行动预备组A6': '预备，意味着随时顶上，也意味着随时被遗忘。焰狐龙梓兰扣下扳机时，从不多看一眼身后。',
+    'Ave Mujica': '来自另一段旋律的客人，琴弦里缠着不属于这片大地的悲欢。丰川祥子带来的，是一首尚未写完的安魂曲。'
+  };
+
   // P2-3：单干员势力「独行被动」——池=1 的阵营无法成羁绊（F8），上场即给轻量风味被动，消除空洞感。
   // 运行时依据 DATA 计算（按职业给差异化属性），不改变平衡大局，仅让每个单位「有东西」。
   const DEPLOY_PASSIVE = (function () {
@@ -135,7 +151,7 @@
           case '辅助': attr = { aspd: 0.10 }; break;
           default: attr = { atk: 0.08, aspd: 0.06 }; // 先锋 / 近卫 / 特种等
         }
-        m[f] = { attr };
+        m[f] = { attr, desc: SOLO_FLAVOR[f] || '' };
       }
     });
     return m;
@@ -195,10 +211,12 @@
     const mult = {};
     const sig = {};      // name -> { attr, kw }  签名羁绊（单人被动）
     const special = {};  // name -> { kw, params } 阵营特殊机制
+    const specialEff = {}; // name -> { kw: 累计value } 呼应行为型 kw 溢出（P1②）
     boardUnits.forEach(u => {
       mult[u.name] = { atk: 1, hp: 1, def: 1, aspd: 1, crit: 0, magicAmp: 1, healAmp: 1, spInit: 0, spRegen: 1 };
       sig[u.name] = { attr: {}, kw: {} };
       special[u.name] = null;
+      specialEff[u.name] = null;
     });
     // —— 签名羁绊：cost=5 干员上场即生效，属性并入 mult，行为关键字记入 sig ——
     boardUnits.forEach(u => {
@@ -284,7 +302,34 @@
       const f = (u.bonds && u.bonds['阵营']);
       if (DEPLOY_PASSIVE[f]) active.push({ axis: '独行', value: f, count: 1, tier: 0, bonus: DEPLOY_PASSIVE[f].attr, kw: null });
     });
-    return { active, potential, mult, sig, special };
+    // P1：跨阵营呼应 → 真实轻量战斗加成（仅复用 BOND_KEYS 乘数；行为型 kw 暂留 PAIRS.bonus 叙事方向）
+    // 数值为保守占位 [PLACEHOLDER]，须经蒙特卡洛 + 试玩标定；EFF 无条目（tension/gap）的 pair 不生效。
+    if (typeof RESONANCE !== 'undefined' && RESONANCE.EFF) {
+      const activeFactions = new Set(boardUnits.map(u => (u.bonds || {}).阵营).filter(Boolean));
+      RESONANCE.compute(activeFactions, boardUnits).forEach(p => {
+        const eff = RESONANCE.EFF[p.a + '|' + p.b];
+        if (!eff) return;
+        boardUnits.forEach(u => {
+          const f = (u.bonds || {}).阵营;
+          if (eff[f]) applyMult(mult[u.name], eff[f]);
+        });
+      });
+    }
+    // ② 行为型呼应 → SPECIAL 关键字（单位属性 kw 家族，+= 叠加，不与 specialKw 单槽冲突）
+    // 数值为保守占位 [PLACEHOLDER]，须经蒙特卡洛 + 试玩标定；SPECIAL_EFF 无条目的 pair 不生效。
+    const resoKw = {}; // name -> { kw, params, label }
+    if (typeof RESONANCE !== 'undefined' && RESONANCE.SPECIAL_EFF) {
+      const activeFactions = new Set(boardUnits.map(u => (u.bonds || {}).阵营).filter(Boolean));
+      RESONANCE.compute(activeFactions, boardUnits).forEach(p => {
+        const se = RESONANCE.SPECIAL_EFF[p.a + '|' + p.b];
+        if (!se) return;
+        boardUnits.forEach(u => {
+          const f = (u.bonds || {}).阵营;
+          if (se.factions.indexOf(f) >= 0) resoKw[u.name] = { kw: se.kw, params: se.params, label: se.label };
+        });
+      });
+    }
+    return { active, potential, mult, sig, special, resoKw };
   }
 
   // 把效果包（属性乘数）并入 mult
@@ -300,7 +345,7 @@
     });
   }
 
-  function makeCombatUnit(op, star, side, mult, sig, special) {
+  function makeCombatUnit(op, star, side, mult, sig, special, resoKw) {
     const sm = STAR_MULT[star] || 1;
     const m = mult || DEF_MULT;
     // P1-1：攻击/生命 乘数软上限（详见 MAX_ATK_MULT / MAX_HP_MULT 注释），压制乘区爆炸
@@ -355,11 +400,26 @@
       else if (special.kw === 'rampHit') { u.rampHitPer = Math.max(u.rampHitPer, p.per || 0); u.rampHitCap = Math.max(u.rampHitCap, p.cap || 0); }
       else if (special.kw === 'spRegenBuff') u.spRegen *= (1 + (p.value || 0));
     }
+    // ② 行为型呼应（SPECIAL 关键字，单位属性家族）—— += 叠加在阵营 special 之上，不与 specialKw 单槽冲突
+    if (resoKw && resoKw.kw) {
+      const p = resoKw.params || {};
+      if (resoKw.kw === 'pierce') u.pierce += (p.value || 0);
+      else if (resoKw.kw === 'defShred') u.defShred += (p.value || 0);
+      else if (resoKw.kw === 'trueDmg') u.trueDmg += (p.value || 0);
+      else if (resoKw.kw === 'critDmg') u.critDmg += (p.value || 0);
+      else if (resoKw.kw === 'damageReduction') u.damageReduction += (p.value || 0);
+      else if (resoKw.kw === 'rampHit') { u.rampHitPer += (p.per || 0); u.rampHitCap += (p.cap || 0); }
+      else if (resoKw.kw === 'spRegenBuff') u.spRegen *= (1 + (p.value || 0));
+      else if (resoKw.kw === 'skillAmp') u.skillAmp = (u.skillAmp || 1) + (p.value || 0);
+      else if (resoKw.kw === 'lifesteal') u.lifesteal += (p.value || 0);
+      else if (resoKw.kw === 'slow') u.slow += (p.value || 0);
+      else if (resoKw.kw === 'counter') u.counter += (p.value || 0);
+    }
     return u;
   }
 
   function applyBonds(units, side) {
-    const { mult, sig, special } = computeBonds(units.map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star })));
+    const { mult, sig, special, resoKw } = computeBonds(units.map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star })));
     // P0-1：接通策略节点的全局战斗增益（锋锐/坚壁/急袭/战意/强军/天启/战术核心）。
     // 仅作用于我方（side==='ally'），敌方一律不享受，避免污染难度平衡。
     let gmult = null;
@@ -383,13 +443,13 @@
           else m[k] = (m[k] || 1) * (1 + dp.attr[k]);
         });
       }
-      return makeCombatUnit(u.op, u.star, side, m, sig[u.op.name] || { attr: {}, kw: {} }, special[u.op.name] || null);
+      return makeCombatUnit(u.op, u.star, side, m, sig[u.op.name] || { attr: {}, kw: {} }, special[u.op.name] || null, resoKw ? resoKw[u.op.name] : null);
     });
   }
 
-  // 部署格序号 -> 战斗坐标：第 0 行最前（x=3，紧邻敌方 x=4），逐行向后
+  // 部署格序号 -> 战斗坐标：棋盘 4×4，第 0 行最前（x=3，紧邻敌方 x=4），逐行向后
   function slotToXY(i) {
-    const r = Math.floor(i / 3), c = i % 3;
+    const r = Math.floor(i / 4), c = i % 4;
     return { x: 3 - r, y: c };
   }
 
@@ -641,7 +701,7 @@
         u.castBuffUntil = t + (p.dur || 3);
       }
       logBuf.push({ k: 'skill', line });
-      castsThisSnap.push({ uid: u.uid, arch, name: u.skill.name });
+      castsThisSnap.push({ uid: u.uid, arch, name: u.skill.name, fac: (u.op && u.op.bonds && u.op.bonds['阵营']) || '' });
     }
 
     function step() {
@@ -805,6 +865,17 @@
     GRID_COLS, GRID_ROWS, FIELD_W, FIELD_H, makeSummonOp, SPECIAL, SIGNATURE, DIFFICULTY,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  // 游戏状态对象：提到控制器之外，保证 Node 测试路径下也已初始化（引擎函数 applyBonds/generateEnemyTeam 依赖 G）
+  let uidc = 1;
+  const G = {
+    gold: 0, level: 1, exp: 0, hp: 100, maxHp: 100,
+    winStreak: 0, lossStreak: 0,
+    bench: [], board: {}, shop: [null, null, null, null, null],
+    nodes: [], nodeIdx: 0, env: null, selected: null, difficulty: 2,
+    strategies: [], stratCount: 0, freeRerollLeft: 0, encounterDiff: null, boardBonus: 0,
+    phase: 'env', battleRes: null, frameTimer: null, _bfEls: {},
+  };
+
   if (typeof document === 'undefined') return; // 浏览器之外不初始化控制器
 
   /* ============ DOM 控制器 ============ */
@@ -888,16 +959,6 @@
     extreme: { label: '极限', buffMult: 1.45, countBonus: 2, rewardMult: 2.8, desc: '敌方属性 +45%、+2 单位，奖励 ×2.8。' },
   };
 
-  let uidc = 1;
-  const G = {
-    gold: 0, level: 1, exp: 0, hp: 100, maxHp: 100,
-    winStreak: 0, lossStreak: 0,
-    bench: [], board: {}, shop: [null, null, null, null, null],
-    nodes: [], nodeIdx: 0, env: null, selected: null, difficulty: 2,
-    strategies: [], stratCount: 0, freeRerollLeft: 0, encounterDiff: null, boardBonus: 0,
-    phase: 'env', battleRes: null, frameTimer: null, _bfEls: {},
-  };
-
   function getPromote() {
     try { return parseInt(localStorage.getItem(PROMOTE_KEY) || '0', 10) || 0; } catch (e) { return 0; }
   }
@@ -910,7 +971,7 @@
   }
 
   // 部署板硬上限（3 列 × 4 行）；同时作为 boardCap 的安全钳制，杜绝溢出隐形单位
-  const MAX_BOARD_SLOTS = 12;
+  const MAX_BOARD_SLOTS = 16;
   // 上场人口上限 = 等级 + 环境/策略扩编加成（钳制在 MAX_BOARD_SLOTS 内）
   function boardCap() { return Math.min(MAX_BOARD_SLOTS, G.level + (G.boardBonus || 0)); }
 
@@ -938,14 +999,6 @@
 
   function costChip(c) { return '<span class="cost-dot c' + c + '">' + c + '</span>'; }
   function starStr(s) { return s > 1 ? '★'.repeat(s) : ''; }
-  function bondTags(op) {
-    const role = op.bonds && op.bonds['职业'];
-    const aff = op.bonds && op.bonds['阵营'];
-    let h = '';
-    if (role) h += '<span class="bond-tag tag-role">' + role + '</span>';
-    if (aff) h += '<span class="bond-tag tag-aff">' + aff + '</span>';
-    return h ? '<div class="card-tags">' + h + '</div>' : '';
-  }
   // 图鉴面板用：返回羁绊标签（含签名），不包外层卡片容器
   function bondTagsFull(op) {
     const role = op.bonds && op.bonds['职业'];
@@ -1001,16 +1054,14 @@
   function renderBoard() {
     const b = $('board');
     let html = '';
-    // 渲染所有可用格：取 [0, boardCap) 与已部署格的并集，确保任何单位都不会“隐形参战”
+    // 固定渲染 4×4=16 格：已部署 / 已解锁空格 / 未解锁格（locked），确保玩家始终看到完整战场
     const cap = boardCap();
-    const slots = new Set();
-    for (let i = 0; i < cap; i++) slots.add(i);
-    Object.keys(G.board).forEach(k => slots.add(parseInt(k, 10)));
-    [...slots].sort((a, b) => a - b).forEach(i => {
+    for (let i = 0; i < 16; i++) {
       const u = G.board[i];
       if (u) html += '<div class="board-cell filled" data-slot="' + i + '" tabindex="0">' + unitCard(u, 'board') + '</div>';
-      else html += '<div class="board-cell" data-slot="' + i + '" tabindex="0"></div>';
-    });
+      else if (i < cap) html += '<div class="board-cell" data-slot="' + i + '" tabindex="0"></div>';
+      else html += '<div class="board-cell locked" data-slot="' + i + '" tabindex="-1" aria-disabled="true"></div>';
+    }
     b.innerHTML = html;
     $('boardCap').textContent = Object.keys(G.board).length + '/' + boardCap();
     const benchHtml = G.bench.map(u => unitCard(u, 'bench')).join('') || '<div class="slot empty"></div>';
@@ -1057,48 +1108,45 @@
   }
 
   function renderBonds() {
-    const { active } = computeBonds(Object.values(G.board).map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star })));
+    const boardMembers = Object.values(G.board).map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star }));
+    const { active } = computeBonds(boardMembers);
+    // —— 跨阵营呼应（Narrative Resonance）：取作战区所有阵营键，二次结算隐藏呼应对 ——
+    const facSet = new Set();
+    Object.values(G.board).forEach(u => { const f = u.op.bonds && u.op.bonds['阵营']; if (f) facSet.add(f); });
+    const reso = (typeof RESONANCE !== 'undefined') ? RESONANCE.compute(facSet) : [];
     const bar = $('bondsBar');
-    if (!active.length) { bar.innerHTML = '<span class="hint" style="font-size:12px">上场干员凑齐同职业/阵营可触发羁绊</span>'; G._activeBondKeys = null; return; }
-    // 羁绊解锁音效：仅当新增了此前未激活的羁绊档位时触发（首帧/清空不触发）
+    if (!active.length && !reso.length) { bar.innerHTML = '<span class="hint" style="font-size:12px">上场干员凑齐同职业/阵营可触发羁绊；部分阵营同场会触发隐藏呼应</span>'; G._activeBondKeys = null; const c0=$('bondsCount'); if(c0) c0.textContent='0'; return; }
+    // 羁绊解锁音效：仅当新增了此前未激活的羁绊档位 / 新呼应对时触发（首帧/清空不触发）
     const newKeys = active.map(b => b.axis + '|' + b.value + '|' + b.tier);
+    reso.forEach(p => newKeys.push('reso|' + p.a + '|' + p.b));
     if (G._activeBondKeys && window.AUDIO) {
       newKeys.forEach(k => { if (G._activeBondKeys.indexOf(k) < 0) AUDIO.play('strategic/bond_unlock'); });
     }
     G._activeBondKeys = newKeys;
-    bar.innerHTML = active.map(b => {
+    let html = active.map(b => {
       const bn = b.bonus || {};
       const parts = [];
       const pct = (k, lbl) => { if (bn[k]) parts.push(lbl + '+' + Math.round(bn[k] * 100) + '%'); };
       pct('atk', '攻'); pct('hp', '血'); pct('def', '防'); pct('aspd', '速'); pct('crit', '暴'); pct('magicAmp', '法'); pct('healAmp', '疗'); pct('spRegen', '技回');
       if (bn.spInit) parts.push('技力+' + bn.spInit);
-      return '<div class="bond" data-axis="' + b.axis + '" data-value="' + b.value + '" title="点击查看羁绊详情"><b>' + b.axis + '·' + b.value + '</b> <span class="tier">' + b.tier + '阶 (' + b.count + ')</span> ' + parts.join(' ') + '</div>';
+      // 叙事 flavor：悬浮提示用阵营 capstone（剥离【台词出处】角标，保持 UI 干净）
+      const flav = (typeof BONDS_FLAVOR !== 'undefined' && BONDS_FLAVOR.faction) ? BONDS_FLAVOR.faction[b.value] : null;
+      const tip = (flav && flav.cap) ? flavorText(flav.cap).slice(0, 46) : '点击查看羁绊详情';
+      return '<div class="bond" data-axis="' + b.axis + '" data-value="' + b.value + '" data-tier="' + b.tier + '" title="' + tip.replace(/"/g, '&quot;') + '"><b>' + b.axis + '·' + b.value + '</b> <span class="tier">' + b.tier + '阶 (' + b.count + ')</span> ' + parts.join(' ') + '</div>';
     }).join('');
-    bar.querySelectorAll('.bond').forEach(el => el.onclick = () => { if (window.SFX) SFX.play('select'); showBondModal(el.dataset.axis, el.dataset.value); });
+    // 呼应 chips：独立于普通羁绊，青色标识，点击看呼应详情
+    html += reso.map(p => {
+      const cls = 'reso' + (p.confidence === 'gap' ? ' gap' : '') + (p.creative ? ' creative' : '');
+      return '<div class="' + cls + '" data-a="' + p.a + '" data-b="' + p.b + '" title="' + (p.flavor ? flavorText(p.flavor).slice(0, 46).replace(/"/g, '&quot;') : '点击查看阵营呼应') + '">' +
+        '<b>呼应 · ' + p.a + ' ⊕ ' + p.b + '</b>' + (p.creative ? '<span class="reso-flag">✦推演</span>' : '') + '</div>';
+    }).join('');
+    bar.innerHTML = html;
+    const c1=$('bondsCount'); if(c1) c1.textContent=active.length + reso.length;
+    bar.querySelectorAll('.bond').forEach(el => el.onclick = () => { if (window.SFX) SFX.play('select'); showBondModal(el.dataset.axis, el.dataset.value, el.dataset.tier ? parseInt(el.dataset.tier, 10) : 0); });
+    bar.querySelectorAll('.reso').forEach(el => el.onclick = () => { if (window.SFX) SFX.play('select'); showBondModal('呼应', el.dataset.a + '|' + el.dataset.b); });
   }
 
-  // —— 左侧羁绊面板：已激活 + 潜在（仅统计作战区）——
-  function renderBondsPanel() {
-    const panel = $('bondsPanel');
-    if (!panel) return;
-    const boardUnits = Object.values(G.board).map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star }));
-    const { active, potential } = computeBonds(boardUnits);
-    const act = active.filter(b => b.axis === '职业' || b.axis === '阵营' || b.axis === '特殊' || b.axis === '签名' || b.axis === '独行');
-    const pot = potential.filter(p => p.axis === '职业' || p.axis === '阵营');
-    let html = '<div class="bp-head">羁绊面板</div>';
-    html += '<div class="bp-sub">已激活</div>';
-    if (act.length) {
-      html += act.map(b => '<div class="bp-item active" data-axis="' + b.axis + '" data-value="' + b.value + '">' +
-        '<span class="bp-dot on"></span><b>' + b.axis + '·' + b.value + '</b> <span class="bp-tier">' + (b.tier >= 1 ? b.tier + '阶' : '被动') + '</span></div>').join('');
-    } else html += '<div class="bp-empty">暂无</div>';
-    html += '<div class="bp-sub">潜在（作战区）</div>';
-    if (pot.length) {
-      html += pot.map(p => '<div class="bp-item pot" data-axis="' + p.axis + '" data-value="' + p.value + '">' +
-        '<span class="bp-dot"></span><b>' + p.axis + '·' + p.value + '</b> <span class="bp-need">' + p.count + '/' + p.need + '</span></div>').join('');
-    } else html += '<div class="bp-empty">暂无（上场同职业/阵营干员可见）</div>';
-    panel.innerHTML = html;
-    panel.querySelectorAll('.bp-item').forEach(el => el.onclick = () => { if (window.SFX) SFX.play('select'); showBondModal(el.dataset.axis, el.dataset.value); });
-  }
+  // 左侧羁绊面板已整合进顶部「可折叠羁绊条」(.bonds-bar-wrap)；renderBondsPanel 弃用
 
   // —— 羁绊详情弹窗 ——
   function describeEffect(k, v) {
@@ -1130,7 +1178,9 @@
     if (s.kw) Object.keys(s.kw).forEach(k => parts.push(describeSpecial({ kw: k, params: s.kw[k] })));
     return parts.length ? parts.join('、') : '—';
   }
-  function showBondModal(axis, value) {
+  // 叙事 flavor 渲染辅助：剥离【台词出处】等开发角标，保持游戏 UI 干净
+  function flavorText(s) { return s ? String(s).replace(/【[^】]*】/g, '').replace(/\s+/g, ' ').trim() : ''; }
+  function showBondModal(axis, value, tier) {
     const titleEl = $('bondModalTitle'), bodyEl = $('bondModalBody');
     const boardNames = new Set(Object.values(G.board).map(u => u.op.name));
     let html = '';
@@ -1148,6 +1198,19 @@
         if (axis === '阵营') {
           const sp = SPECIAL[value];
           if (sp) html += '<h4>特殊机制（' + sp.tier + '阶解锁）</h4><div class="bm-tier">' + describeSpecial(sp) + '</div>';
+          // 叙事 flavor：阵营三阶文案 + capstone（按当前 tier 渐进披露，无 tier 时全显）
+          const fl = (typeof BONDS_FLAVOR !== 'undefined' && BONDS_FLAVOR.faction) ? BONDS_FLAVOR.faction[value] : null;
+          if (fl) {
+            const tN = tier || 0;
+            html += '<h4>叙事</h4><div class="bm-flavor">';
+            ['t1', 't2', 't3'].forEach((k, i) => {
+              if (!fl[k]) return;
+              const reached = (tN === 0) || (i + 1) <= tN;
+              html += '<p class="bm-fl' + (reached ? '' : ' lock') + '">' + flavorText(fl[k]) + '</p>';
+            });
+            if (fl.cap) html += '<p class="bm-fl bm-cap">' + flavorText(fl.cap) + '</p>';
+            html += '</div>';
+          }
         }
       }
       const ops = DATA.operators.filter(o => o.bonds[axis] === value);
@@ -1174,12 +1237,56 @@
           html += '<h4>效果</h4><div class="bm-tier">' + describeSig(s) + '</div>';
         }
       }
+      const sigFl = (typeof BONDS_FLAVOR !== 'undefined' && BONDS_FLAVOR.signature) ? BONDS_FLAVOR.signature[value] : null;
+      if (sigFl) html += '<h4>干员独白</h4><div class="bm-flavor"><p class="bm-fl bm-cap">' + flavorText(sigFl) + '</p></div>';
       const op = DATA.operators.find(o => o.name === value);
       if (op) html += '<div class="bm-ops"><div class="bm-op on">' +
         '<img class="bm-avatar" src="' + op.avatar + '" alt="' + op.name + '" onerror="this.style.background=\'#222\'">' +
         costChip(op.stats.cost) + op.name + '</div></div>';
+    } else if (axis === '独行') {
+      const dp = (typeof DEPLOY_PASSIVE !== 'undefined') && DEPLOY_PASSIVE[value];
+      if (dp) {
+        html += '<div class="bm-thr">单干员势力 · 上场即生效（独行被动）</div>';
+        const effs = [];
+        BOND_KEYS.forEach(k => { if (dp.attr && dp.attr[k] != null) effs.push(describeEffect(k, dp.attr[k])); });
+        html += '<h4>独行被动</h4><div class="bm-tier">' + (effs.length ? effs.join('、') : '—') + '</div>';
+        if (dp.desc) html += '<h4>叙事</h4><div class="bm-flavor"><p class="bm-fl bm-cap">' + flavorText(dp.desc) + '</p></div>';
+      }
+      const op = DATA.operators.find(o => o.bonds && o.bonds['阵营'] === value);
+      if (op) html += '<div class="bm-ops"><div class="bm-op on">' +
+        '<img class="bm-avatar" src="' + op.avatar + '" alt="' + op.name + '" onerror="this.style.background=\'#222\'">' +
+        costChip(op.stats.cost) + op.name + '</div></div>';
+    } else if (axis === '呼应') {
+      const parts = value.split('|');
+      const a = parts[0], b = parts[1];
+      const p = (typeof RESONANCE !== 'undefined') && RESONANCE.PAIRS.find(x => x.a === a && x.b === b);
+      if (p) {
+        const typeDesc = (RESONANCE.TYPE_DESC && RESONANCE.TYPE_DESC[p.type]) || p.type;
+        const confLabel = { verified: '确证（史实）', thematic: '主题（创作推演）', gap: '缺口（待补父键）' }[p.confidence] || p.confidence;
+        html += '<div class="bm-thr">阵营呼应 · ' + typeDesc + '</div>';
+        html += '<div class="bm-thr" style="border-left:3px solid var(--info)">置信度：' + confLabel + '</div>';
+        if (p.creative && RESONANCE.CREATIVE_BADGE) {
+          html += '<div class="bm-creative">✦ ' + RESONANCE.CREATIVE_BADGE.label + ' · 非游戏史实</div>';
+          html += '<div class="bm-tier" style="color:var(--text-2);font-size:12px;margin-top:-2px">' + RESONANCE.CREATIVE_BADGE.note + '</div>';
+        }
+        html += '<h4>叙事</h4><div class="bm-tier">' + p.flavor + '</div>';
+        const eff = (typeof RESONANCE !== 'undefined' && RESONANCE.EFF) ? RESONANCE.EFF[p.a + '|' + p.b] : null;
+        const seEff = (typeof RESONANCE !== 'undefined' && RESONANCE.SPECIAL_EFF) ? RESONANCE.SPECIAL_EFF[p.a + '|' + p.b] : null;
+        const live = !!(eff || seEff);
+        html += '<h4>' + (live ? '战斗加成/机制（已生效）' : '叙事构想（暂未接入）') + '</h4><div class="bm-tier">' + p.bonus + '</div>';
+        if (eff) {
+          const parts = [];
+          Object.keys(eff).forEach(f => { const m = eff[f]; Object.keys(m).forEach(k => parts.push(f + ' ' + describeEffect(k, m[k]))); });
+          html += '<div class="bm-thr" style="border-left:3px solid var(--info)">实际属性加成：' + parts.join('、') + '</div>';
+        }
+        if (seEff) {
+          const seParts = seEff.factions.map(f => f + ' 「' + seEff.label + '」' + describeSpecial({ kw: seEff.kw, params: seEff.params })).join('、');
+          html += '<div class="bm-thr" style="border-left:3px solid #4fd1c5">实际战斗机制：' + seParts + '</div>';
+        }
+        if (p.type === 'ecosystem' && p.third) html += '<div class="bm-thr">需三者同场：' + p.a + ' ⊕ ' + p.b + ' ⊕ ' + p.third + '</div>';
+      }
     }
-    titleEl.textContent = axis + '·' + value;
+    titleEl.textContent = (axis === '呼应') ? ('呼应 · ' + value.split('|').join(' ⊕ ')) : (axis + '·' + value);
     bodyEl.innerHTML = html;
     $('bondModal').classList.remove('hidden');
   }
@@ -1560,6 +1667,13 @@
       const g = $('bfGrid');
       g.innerHTML = '';
       G._bfEls = {};
+      // 实测网格尺寸：bf-grid 全屏时会被放大，按真实 cell 比例定位才能填满并居中
+      const _gr = g.getBoundingClientRect();
+      const _gw = _gr.width || (FIELD_W * CELL), _gh = _gr.height || (FIELD_H * CELL);
+      const _cw = _gw / FIELD_W, _ch = _gh / FIELD_H;
+      const _uw = Math.max(34, Math.min(58, _cw - 6)), _uh = Math.max(40, Math.min(66, _ch - 6));
+      G._bfCell = { cw: _cw, ch: _ch, uw: _uw, uh: _uh };
+      g.style.backgroundSize = _cw + 'px ' + _ch + 'px';
 
       // 防御：校验帧数据
       if (!res || !res.frames || !res.frames.length) {
@@ -1590,7 +1704,9 @@
           '<div class="nm">' + u.name + (u.star > 1 ? '★' + u.star : '') + '</div>' +
           '<div class="hpbar"><i style="width:100%"></i></div>' +
           '<div class="spbar"><i style="width:0%"></i></div>';
-        el.style.transform = 'translate(' + (p.x * CELL + 4) + 'px,' + (p.y * CELL + 4) + 'px)';
+        el.style.width = _uw + 'px'; el.style.height = _uh + 'px';
+        const _av = el.querySelector('.av'); if (_av) { _av.style.width = (_uw - 14) + 'px'; _av.style.height = (_uw - 14) + 'px'; }
+        el.style.transform = 'translate(' + (p.x * _cw + (_cw - _uw) / 2) + 'px,' + (p.y * _ch + (_ch - _uh) / 2) + 'px)';
         if (!p.alive) el.classList.add('dead');
         el.dataset.alive = p.alive ? 'alive' : 'dead';
         g.appendChild(el);
@@ -1629,7 +1745,8 @@
   function updateUnit(s) {
     const el = G._bfEls[s.uid];
     if (!el) return;
-    el.style.transform = 'translate(' + (s.x * CELL + 4) + 'px,' + (s.y * CELL + 4) + 'px)';
+    const _c = G._bfCell || { cw: CELL, ch: CELL, uw: 58, uh: 66 };
+    el.style.transform = 'translate(' + (s.x * _c.cw + (_c.cw - _c.uw) / 2) + 'px,' + (s.y * _c.ch + (_c.ch - _c.uh) / 2) + 'px)';
     el.classList.toggle('dead', !s.alive);
     if (!s.alive) {
       if (el.dataset.alive !== 'dead') {
@@ -1678,7 +1795,7 @@
           fr.casts.forEach(c => {
             if (cn >= 2) return;
             const side = (c.uid && c.uid.charAt(0) === 'a') ? 'ally' : 'enemy';
-            AUDIO.play('combat/skill', { arch: c.arch, side: side });
+            AUDIO.play('combat/skill', { arch: c.arch, side: side, faction: c.fac });
             cn++;
           });
         }
@@ -1861,23 +1978,66 @@
       '<img src="' + t.op.avatar + '" onerror="this.style.background=\'#222\'">' +
       '<span>' + t.op.name + (t.star > 1 ? '★' + t.star : '') + '</span></div>'
     ).join('');
+    // 敌方站位预览：叠加在统一棋盘右半 4×4 区域（pointer-events:none 不干扰拖拽）
+    const overlay = $('enemyOverlay');
+    if (overlay) {
+      overlay.innerHTML = '';
+      const enemies = team;
+      const eps = autoPositions(enemies, 'enemy');
+      enemies.forEach((t, i) => {
+        const p = eps[i]; if (!p) return;
+        // 战场 x∈[4,7] 映射到棋盘右半列 0-3，y∈[0,3] 映射到行 0-3
+        const col = p.x - GRID_COLS;
+        const row = p.y;
+        if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
+        const c = document.createElement('div');
+        c.className = 'eo-chip';
+        c.style.left = ((col + 0.5) / GRID_COLS * 100) + '%';
+        c.style.top = ((row + 0.5) / GRID_ROWS * 100) + '%';
+        c.innerHTML = '<img src="' + t.op.avatar + '" onerror="this.style.background=\'#222\'">';
+        c.title = t.op.name + (t.star > 1 ? '★' + t.star : '');
+        overlay.appendChild(c);
+      });
+    }
   }
 
   function renderAll() {
-    renderTop(); renderBoard(); renderShop(); renderBonds(); renderBondsPanel(); renderUnitBar(); showEnemyPreview();
+    renderTop(); renderBoard(); renderShop(); renderBonds(); renderUnitBar(); showEnemyPreview();
   }
 
   /* ---- 投资环境 ---- */
   function renderEnv() {
-    const promo = getPromote();
     const wrap = $('envChoices');
-    const choices = shuffle(ENV_POOL).slice(0, getMeta().unlocks.envPlus ? 4 : 3);
+    if (!wrap) { console.error('[renderEnv] #envChoices 不存在'); return; }
+    // 防御：ENV_POOL 或 shuffle 不可用时用硬编码保底
+    let pool = (typeof ENV_POOL !== 'undefined' && ENV_POOL && ENV_POOL.length) ? ENV_POOL : null;
+    if (!pool) {
+      console.warn('[renderEnv] ENV_POOL 不可用，使用保底环境列表');
+      pool = [
+        { id: 'gold', name: '资本注入', desc: '起始 +12 金币，前期即可抢高费。', effects: { gold: 12 } },
+        { id: 'exp', name: '精英培养', desc: '每回合额外 +3 经验，更快拉高人口。', effects: { expBonus: 3 } },
+        { id: 'hp', name: '重装防线', desc: '小队生命 +40，容错更高。', effects: { maxHp: 40 } },
+      ];
+    }
+    const shuf = (typeof shuffle === 'function') ? shuffle : (arr) => arr.slice().sort(() => Math.random() - 0.5);
+    let count = 3;
+    try { if (typeof getMeta === 'function' && getMeta()?.unlocks?.envPlus) count = 4; } catch(e) { /* 保持默认 3 */ }
+    const promo = (typeof getPromote === 'function') ? (() => { try { return getPromote(); } catch(e) { return 1; } })() : 1;
+    const choices = shuf(pool).slice(0, count);
     wrap.innerHTML = choices.map(e =>
       '<div class="env-card" data-env="' + e.id + '"><h4>' + e.name + '</h4><p>' + e.desc + '</p></div>'
     ).join('') + '<div class="hint" style="width:100%;margin-top:10px">历史最高晋升：Lv.' + promo + '</div>';
+    // 防御：确认卡片确实渲染出来了
+    if (wrap.querySelectorAll('.env-card').length === 0) {
+      console.error('[renderEnv] 卡片渲染失败，使用紧急保底');
+      wrap.innerHTML = '<div class="env-card" data-env="gold"><h4>资本注入</h4><p>起始 +12 金币。</p></div>' +
+        '<div class="env-card" data-env="exp"><h4>精英培养</h4><p>每回合额外 +3 经验。</p></div>' +
+        '<div class="env-card" data-env="hp"><h4>重装防线</h4><p>小队生命 +40。</p></div>' +
+        '<div class="hint" style="width:100%;margin-top:10px">历史最高晋升：Lv.' + promo + '</div>';
+    }
     wrap.querySelectorAll('.env-card').forEach(c => c.onclick = () => {
       if (window.SFX) SFX.play('click');
-      G.env = ENV_POOL.find(e => e.id === c.dataset.env);
+      G.env = (pool || []).find(e => e.id === c.dataset.env) || { id: c.dataset.env, name: '', effects: {} };
       const ef = (G.env && G.env.effects) || {};
       if (ef.gold) G.gold += ef.gold;
       if (ef.maxHp) { G.maxHp += ef.maxHp; G.hp += ef.maxHp; }
@@ -1891,8 +2051,16 @@
   function renderDiff() {
     const wrap = $('diffChoices');
     if (!wrap) { console.error('[renderDiff] #diffChoices 不存在'); return; }
-    wrap.innerHTML = Object.keys(DIFFICULTY).map(k => {
-      const d = DIFFICULTY[k];
+    // 防御：DIFFICULTY 不可用时用保底
+    const diff = (typeof DIFFICULTY !== 'undefined' && DIFFICULTY) ? DIFFICULTY : {
+      '1': { name: '轻松', desc: '适合熟悉游戏机制。', enemyMult: 0.88, countBonus: 0, rewardMult: 0.8 },
+      '2': { name: '普通', desc: '标准难度，适合大多数玩家。', enemyMult: 1.0, countBonus: 0, rewardMult: 1.0 },
+      '3': { name: '困难', desc: '敌方较强，需要合理规划。', enemyMult: 1.2, countBonus: 1, rewardMult: 1.4 },
+      '4': { name: '噩梦', desc: '非常困难，每项属性都压制你。', enemyMult: 1.35, countBonus: 1, rewardMult: 1.8 },
+      '5': { name: '梦魇', desc: '极限挑战，只有最强棋手能存活。', enemyMult: 1.45, countBonus: 2, rewardMult: 2.5 },
+    };
+    wrap.innerHTML = Object.keys(diff).map(k => {
+      const d = diff[k];
       return '<div class="diff-card" data-diff="' + k + '">' +
         '<div class="dc-num">' + k + '</div>' +
         '<div class="dc-name">' + d.name + '</div>' +
@@ -1900,13 +2068,20 @@
         '<div class="dc-enemy">敌强 ×' + d.enemyMult + (d.countBonus ? ' (+' + d.countBonus + ')' : '') + '　奖励 ×' + d.rewardMult + '</div>' +
       '</div>';
     }).join('');
-    wrap.querySelectorAll('.diff-card').forEach(c => c.onclick = () => {
-      if (window.SFX) SFX.play('click');
-      G.difficulty = parseInt(c.dataset.diff, 10) || 2;
-      $('diffScreen').classList.add('hidden');
-      $('envScreen').classList.remove('hidden');
-      if (window.AUDIO) AUDIO.setMusic('exploration');
-      renderEnv();
+    // 防御：确认卡片渲染成功
+    if (wrap.querySelectorAll('.diff-card').length === 0) {
+      console.error('[renderDiff] 难度卡片渲染失败');
+      wrap.innerHTML = '<div class="diff-card" data-diff="2"><div class="dc-num">2</div><div class="dc-name">普通</div><div class="dc-desc">标准难度。</div></div>';
+    }
+    wrap.querySelectorAll('.diff-card').forEach(c => {
+      c.onclick = () => {
+        if (window.SFX) SFX.play('click');
+        G.difficulty = parseInt(c.dataset.diff, 10) || 2;
+        $('diffScreen').classList.add('hidden');
+        $('envScreen').classList.remove('hidden');
+        if (window.AUDIO) AUDIO.setMusic('exploration');
+        renderEnv();
+      };
     });
   }
 
@@ -1934,6 +2109,17 @@
       if (window.AUDIO) AUDIO.setMusic('exploration');
       renderEnv();
     }
+    // 防御：环境界面保底恢复——300ms 后检查卡片是否渲染成功，失败则自动重试一次
+    setTimeout(() => {
+      const es = $('envScreen');
+      if (es && !es.classList.contains('hidden')) {
+        const ec = $$('#envChoices .env-card');
+        if (!ec || ec.length === 0) {
+          console.warn('[reset] 环境卡片未渲染，自动重试 renderEnv()');
+          try { renderEnv(); } catch(e2) { console.error('[reset] 重试也失败:', e2); }
+        }
+      }
+    }, 300);
   }
 
   /* ---- 拖拽系统（稳健版） ---- */
@@ -2142,6 +2328,12 @@
       }
     });
     document.body.addEventListener('pointerdown', onPointerDown);
+    const bondsToggle = $('bondsToggle');
+    if (bondsToggle) bondsToggle.onclick = () => {
+      const bar = $('bondsBar'); if (!bar) return;
+      const collapsed = bar.classList.toggle('collapsed');
+      bondsToggle.setAttribute('aria-expanded', String(!collapsed));
+    };
     $('btnRefresh').onclick = refresh;
     $('btnExp').onclick = buyExp;
     $('btnFight').onclick = onFight;
@@ -2333,7 +2525,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, applyBonds, computeBonds, makeSummonOp, autoPositions, renderAll, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap };
+  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, applyBonds, computeBonds, makeSummonOp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam };
 
   /* ---- 启动 ---- */
   buildNodes();

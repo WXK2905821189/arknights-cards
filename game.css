@@ -1,5 +1,7 @@
 /* 设计令牌已统一在 tokens.css（由 game.html 优先引入），此处不再定义 :root */
 *{box-sizing:border-box}
+/* §3 数字等宽：金币 / 等级 / HP / 费用 / 节点读数稳定不跳 */
+.stat b,.cost-dot,.nf-num,.dc-num,.ucard .cf-cost,.shop-card .cf-cost,.exp-text{font-variant-numeric:tabular-nums}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
   font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;}
 a{color:var(--gold-strong);text-decoration:none}
@@ -26,8 +28,17 @@ a{color:var(--gold-strong);text-decoration:none}
 
 /* arena */
 .arena{padding:14px 18px 90px;max-width:1100px;margin:0 auto}
-.enemy-preview{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:12px}
-.enemy-head{font-size:13px;color:var(--enemy);margin-bottom:8px;font-weight:600}
+.enemy-head{font-size:13px;color:var(--enemy);margin:10px 0 8px;font-weight:700}
+.enemy-head .ez-tip{font-size:11px;color:var(--text-2);font-weight:400;margin-left:6px}
+/* 统一棋盘：我方 4×4 部署区 + 敌方站位覆盖层 */
+.board-battle{position:relative;display:block;margin:0 auto;background:#0c0f14;border:1px solid var(--line);border-radius:8px;padding:10px;overflow:hidden;width:fit-content}
+.board-battle::after{content:"";position:absolute;left:50%;top:10px;bottom:10px;width:2px;z-index:2;transform:translateX(-1px);
+  background:repeating-linear-gradient(180deg,#3a4660 0 6px,transparent 6px 12px)}
+.enemy-overlay{position:absolute;left:50%;top:10px;right:10px;bottom:10px;z-index:3;pointer-events:none}
+.eo-chip{position:absolute;transform:translate(-50%,-50%);width:62px;height:70px;border:2px solid var(--enemy);
+  border-radius:6px;background:rgba(220,80,80,.16);display:flex;align-items:center;justify-content:center;
+  z-index:3;box-sizing:border-box;overflow:hidden}
+.eo-chip img{width:46px;height:46px;border-radius:4px;object-fit:cover;display:block;background:#161c25}
 .mini-team{display:flex;gap:8px;flex-wrap:wrap}
 .mini-chip{display:flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);
   border-radius:8px;padding:4px 8px;font-size:12px}
@@ -41,7 +52,7 @@ a{color:var(--gold-strong);text-decoration:none}
 .board-wrap{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
 .board-label{font-size:12px;color:var(--text-2);margin:4px 0 8px}
 .board-label #boardCap,.board-label #benchCap{color:var(--gold-strong);font-weight:700}
-.board-grid{display:grid;grid-template-columns:repeat(3,92px);grid-template-rows:repeat(3,106px);
+.board-grid{display:grid;grid-template-columns:repeat(4,92px);grid-template-rows:repeat(4,106px);
   gap:8px;justify-content:center;padding:10px;background:#0c0f14;border:1px solid var(--line);border-radius:8px}
 .board-cell{width:92px;height:106px;border:1px dashed #2a3340;border-radius:8px;display:flex;align-items:center;
   justify-content:center;background:#10141b;position:relative}
@@ -108,13 +119,42 @@ a{color:var(--gold-strong);text-decoration:none}
 /* cost-dot badge (saturated, for small number) */
 .c1{background:#c8ccd2;color:#1a1f26}.c2{background:#22c55e;color:#fff}.c3{background:#3b82f6;color:#fff}.c4{background:#a855f7;color:#fff}.c5{background:#e8b84b;color:#1a1408}
 
-/* bonds */
-.bonds-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;min-height:10px}
+/* bonds — 单一可折叠羁绊条（§7.4：合并原左侧面板与顶部条） */
+.bonds-bar-wrap{margin-bottom:12px}
+.bonds-toggle{display:inline-flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:8px;padding:5px 11px;font-size:12px;color:var(--text-2);cursor:pointer;transition:var(--dur-fast);font-family:inherit}
+.bonds-toggle:hover{border-color:var(--gold)}
+.bonds-toggle:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.bonds-toggle[aria-expanded="true"] .bt-chev{transform:rotate(180deg)}
+.bonds-toggle .bt-ico{color:var(--gold);font-size:11px}
+.bonds-toggle .bt-label{font-weight:700;color:var(--text)}
+.bonds-toggle .bt-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;
+  border-radius:999px;background:var(--gold-soft);color:var(--gold-strong);font-weight:700;font-variant-numeric:tabular-nums}
+.bonds-toggle .bt-chev{transition:transform var(--dur-fast);color:var(--text-2);font-size:10px;display:inline-block}
+.bonds-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;min-height:10px}
+.bonds-bar.collapsed{display:none}
 .bond{background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--gold);
   border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;transition:var(--dur-fast)}
 .bond:hover{border-color:var(--gold);background:#222c38}
 .bond b{color:var(--gold-strong)}
 .bond .tier{color:var(--text-2);font-size:11px}
+/* 跨阵营呼应 chips：青色标识，区别于普通羁绊（金） */
+.reso{background:linear-gradient(135deg,#16242b,#13202a);border:1px solid #2c8f86;border-left:3px solid #4fd1c5;padding:4px 9px;border-radius:7px;cursor:pointer;font-size:12px;transition:border-color var(--dur-fast),background var(--dur-fast)}
+.reso:hover{border-color:#4fd1c5;background:#1a2b33}
+.reso b{color:#7fe3d8}
+.reso.gap{opacity:.72;border-left-color:var(--gold-deep)}
+.reso.gap b{color:var(--gold-deep)}
+/* 创作推演呼应：紫罗兰色，区别于已证实呼应（青）与缺口（金） */
+.reso.creative{border-left-color:#8b5cf6}
+.reso.creative b{color:#c4b5fd}
+.reso-flag{margin-left:6px;font-size:10px;font-weight:600;color:#c4b5fd;border:1px solid #8b5cf6;border-radius:999px;padding:0 5px;vertical-align:1px}
+.bm-creative{display:inline-block;font-size:11px;font-weight:600;color:#c4b5fd;background:rgba(139,92,246,.16);border:1px solid #8b5cf6;border-radius:999px;padding:2px 10px;margin-bottom:6px;letter-spacing:.5px}
+
+/* 羁绊弹窗 · 叙事 flavor 文案 */
+.bm-flavor{margin:.15em 0 .5em}
+.bm-fl{margin:.4em 0;line-height:1.65;color:var(--text);font-size:13px}
+.bm-fl.lock{opacity:.42;font-style:italic}
+.bm-cap{color:var(--gold-strong);border-left:3px solid var(--gold-deep);padding-left:9px;font-weight:600;text-shadow:0 0 8px rgba(207,154,46,.15)}
 
 /* shop */
 .shop{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
@@ -144,7 +184,7 @@ a{color:var(--gold-strong);text-decoration:none}
 .phase-hint{color:var(--text-2);font-size:13px}
 
 /* overlays */
-.overlay{position:fixed;inset:0;background:rgba(8,10,14,.86);display:flex;align-items:center;justify-content:center;z-index:40}
+.overlay{position:fixed;inset:0;background:rgba(8,10,14,.86);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:40}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:26px 30px;max-width:640px;text-align:center}
 .panel h2{margin:0 0 8px;color:var(--gold-strong)}
 .hint{color:var(--text-2);font-size:13px;line-height:1.6}
@@ -170,7 +210,7 @@ a{color:var(--gold-strong);text-decoration:none}
   background:#0c0f14;border:1px solid var(--line);border-radius:10px;overflow:hidden;
   background-image:linear-gradient(#161c25 1px,transparent 1px),linear-gradient(90deg,#161c25 1px,transparent 1px);
   background-size:64px 64px}
-.bf-grid::before{content:"";position:absolute;left:256px;top:0;bottom:0;width:2px;z-index:3;
+.bf-grid::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;z-index:3;transform:translateX(-1px);
   background:repeating-linear-gradient(180deg,#3a4660 0 6px,transparent 6px 12px)}
 .bf-unit{position:absolute;width:58px;height:66px;top:0;left:0;transition:transform var(--dur-slow) linear;will-change:transform;z-index:2;
   border-radius:8px;display:flex;flex-direction:column;align-items:center;padding:2px;box-sizing:border-box;
@@ -244,8 +284,10 @@ a{color:var(--gold-strong);text-decoration:none}
 
 @media (max-width:680px){
   .ucard,.slot{width:62px;height:78px}
-  .board-grid{grid-template-columns:repeat(3,62px);grid-template-rows:repeat(3,80px)}
+  .board-grid{grid-template-columns:repeat(4,62px);grid-template-rows:repeat(4,80px)}
   .board-cell{width:62px;height:80px}
+  .eo-chip{width:42px;height:52px}
+  .eo-chip img{width:30px;height:30px}
   .ucard .card-tags,.shop-card .card-tags{bottom:24px;left:2px;right:2px}
   .ucard .cf-name,.shop-card .cf-name{max-width:40px;font-size:10px}
   .stat{font-size:12px}.stats{gap:10px}
@@ -254,7 +296,7 @@ a{color:var(--gold-strong);text-decoration:none}
 /* 进度流程条（页面上方） */
 .node-flow{padding:10px 14px 12px;margin:0 auto;max-width:1080px}
 .nf-head{font-size:12px;font-weight:700;color:var(--gold-strong);letter-spacing:.5px;margin-bottom:6px;text-align:center}
-.nf-track{display:flex;align-items:center;gap:0;flex-wrap:nowrap;overflow-x:auto;padding:4px 2px 8px;max-width:100%}
+.nf-track{display:flex;align-items:center;gap:0;flex-wrap:nowrap;overflow-x:auto;padding:4px 2px 8px;max-width:100%;justify-content:safe center}
 .nf-node{display:flex;flex-direction:column;align-items:center;width:62px;padding:6px 0;border-radius:8px;
   background:#16202e;border:1px solid #26344a;color:#8fa6c0;transition:var(--dur);flex:0 0 auto}
 .nf-node .nf-ico{font-size:18px;line-height:1}
@@ -303,24 +345,8 @@ a{color:var(--gold-strong);text-decoration:none}
 .ec-desc{font-size:12px;color:var(--text-2);line-height:1.5}
 .ec-reward{margin-top:8px;font-size:12px;color:var(--gold-strong)}
 
-/* ============ 左侧羁绊面板（仅作战区） ============ */
-.arena-flex{display:flex;gap:14px;align-items:flex-start}
+/* ============ 左侧羁绊面板已整合进顶部「可折叠羁绊条」(.bonds-bar-wrap)，原 .bonds-panel/.bp-* 弃用 ============ */
 .arena-main{flex:1;min-width:0}
-.bonds-panel{flex:0 0 188px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;position:sticky;top:64px;max-height:calc(100vh - 84px);overflow-y:auto}
-.bonds-panel .bp-head{font-size:13px;color:var(--gold-strong);font-weight:700;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:6px}
-.bp-sub{font-size:11px;color:var(--text-2);margin:8px 0 4px}
-.bp-empty{font-size:11px;color:var(--text-2);line-height:1.5}
-.bp-item{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;margin-bottom:5px;cursor:pointer;border-left:3px solid var(--line);background:var(--panel-2);transition:var(--dur-fast)}
-.bp-item:hover{border-left-color:var(--gold)}
-.bp-item.active{border-left-color:var(--gold);background:#1f2a1c}
-.bp-item.pot{border-left-color:#3a4660;opacity:.85}
-.bp-item b{font-size:13px;font-weight:600}
-.bp-item.active b{color:var(--gold-strong)}
-.bp-item.pot b{color:#aebfd2}
-.bp-dot{width:9px;height:9px;border-radius:50%;background:#39424f;flex:0 0 auto}
-.bp-dot.on{background:var(--gold);box-shadow:0 0 0 2px rgba(232,184,75,.3)}
-.bp-tier,.bp-need{font-size:11px;color:var(--text-2);margin-left:auto}
-.bp-item.active .bp-tier{color:#9fd08a}
 
 /* ============ 卡面 / 弹窗通用羁绊标签（单列左对齐，唯一来源） ============ */
 .card-tags{display:flex;flex-direction:column;gap:2px;align-items:flex-start;justify-content:flex-start;padding:2px 0}
@@ -354,6 +380,5 @@ a{color:var(--gold-strong);text-decoration:none}
 .bm-op.on .bm-avatar{border-color:var(--gold);box-shadow:0 0 0 1px rgba(232,184,75,.5)}
 
 @media (max-width:860px){
-  .arena-flex{flex-direction:column}
-  .bonds-panel{flex:0 0 auto;width:100%;position:static;max-height:none}
+  .bonds-bar{margin-top:6px}
 }

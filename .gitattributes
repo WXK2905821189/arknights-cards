@@ -1,0 +1,2 @@
+# 统一换行符，避免 Windows/macOS/Linux 协作时出现无意义 diff
+* text=auto eol=lf

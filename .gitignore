@@ -13,3 +13,19 @@ _test_*.js
 *.log
 .DS_Store
 Thumbs.db
+
+# lint / 审查产物（应落在 workfiles/reference，勿入游戏目录）
+lint_*.txt
+lint_*.json
+lint-report.json
+crawl.log
+
+# 开发/测试产物（2026-08-11 重组：应落在 workfiles/，勿入游戏目录）
+# 注意：本项目下另一并行对话会反复把这些文件写回游戏目录，已用忽略标记其"不应在此"。
+# 例外：bonds_flavor.js 是运行时脚本（game.html 直接 <script> 引用），必须入库，不得忽略。
+.eslintrc.json
+.eslintignore
+serve*
+smoke*
+*.bat
+*.py

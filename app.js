@@ -13,7 +13,7 @@ const CLASS_COLORS = {
 const CLASS_ORDER = ['先锋','近卫','重装','狙击','术师','医疗','辅助','特种'];
 
 let DATA = { operators: [] };
-let state = { cls: 'all', q: '', sort: 'class' };
+const state = { cls: 'all', q: '', sort: 'class' };
 
 const $ = (s) => document.querySelector(s);
 

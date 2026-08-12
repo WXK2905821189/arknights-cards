@@ -18,7 +18,7 @@
       <span class="stat diff" id="diffChip"></span>
       <span class="stat streak" id="streak"></span>
     </div>
-    <button id="sfxBtn" class="sfx-btn" title="音效开关">🔊</button>
+    <button id="sfxBtn" class="sfx-btn" title="音效开关" aria-label="切换音效">🔊</button>
     <a class="codex-link" href="index.html" target="_blank">← 图鉴</a>
   </header>
 
@@ -28,7 +28,7 @@
 
     <!-- 开始 / 继续 -->
     <section id="startScreen" class="overlay hidden">
-      <div class="panel">
+      <div class="panel" role="dialog" aria-modal="true">
         <h2>罗德岛棋局 · 货币战争</h2>
         <p id="startInfo" class="hint"></p>
         <div class="start-actions">
@@ -41,7 +41,7 @@
 
     <!-- 难度选择（数字 1-5，由易到难） -->
     <section id="diffScreen" class="overlay">
-      <div class="panel">
+      <div class="panel" role="dialog" aria-modal="true">
         <h2>选择难度</h2>
         <p class="hint">数字越大越难：敌方更强、数量更多，但奖励也更丰厚。建议从「普通(2)」起步，由易到难。</p>
         <div id="diffChoices" class="env-choices"></div>
@@ -50,7 +50,7 @@
 
     <!-- 投资环境选择 -->
     <section id="envScreen" class="overlay">
-      <div class="panel">
+      <div class="panel" role="dialog" aria-modal="true">
         <h2>选择投资环境</h2>
         <p class="hint">进入棋局前，先押注一项全局增益。高风险高回报，决定你这一局的运营风格。</p>
         <div id="envChoices" class="env-choices"></div>
@@ -59,24 +59,27 @@
 
     <!-- 主对局 -->
     <section id="arena" class="arena hidden">
-      <div class="arena-flex">
-        <aside id="bondsPanel" class="bonds-panel"></aside>
-        <div class="arena-main">
-          <div class="enemy-preview">
+      <div class="arena-main">
+          <div class="board-wrap">
+            <div class="board-label">战斗部署区 · 把卡牌拖入左侧蓝色格子上场（人口 <span id="boardCap"></span>，右侧红色为敌方站位预览，灰色🔒为未解锁格）</div>
+            <div class="board-battle">
+              <div id="board" class="board-grid"></div>
+              <div id="enemyOverlay" class="enemy-overlay" aria-hidden="true"></div>
+            </div>
             <div class="enemy-head">敌方编队 · <span id="enemyDesc"></span></div>
             <div id="enemyTeam" class="mini-team"></div>
-          </div>
-
-          <div class="board-wrap">
-            <div class="board-label">我方部署区 · 把卡牌拖入格子上场（人口 <span id="boardCap"></span>，灰色🔒为未解锁格）</div>
-            <div id="board" class="board-grid"></div>
             <div class="board-label">备战席 <span id="benchCap"></span> · 拖到上方格子即可上场；超过 10 名需先售出</div>
             <div id="benchWarn" class="bench-warn hidden"></div>
             <div id="bench" class="bench"></div>
             <div id="sellZone" class="sell-zone">🗑 拖到此处售出</div>
           </div>
 
-          <div class="bonds-bar" id="bondsBar"></div>
+          <div class="bonds-bar-wrap" id="bondsBarWrap">
+            <button class="bonds-toggle" id="bondsToggle" type="button" aria-expanded="true" aria-controls="bondsBar">
+              <span class="bt-ico">✦</span><span class="bt-label">羁绊</span><span class="bt-count" id="bondsCount">0</span><span class="bt-chev">▾</span>
+            </button>
+            <div class="bonds-bar" id="bondsBar"></div>
+          </div>
 
           <div class="shop">
             <div class="shop-head">
@@ -98,12 +101,11 @@
             <span id="phaseHint" class="phase-hint"></span>
           </div>
         </div>
-      </div>
     </section>
 
     <!-- 策略节点（青铜/白银/黄金/彩色） -->
     <section id="strategyScreen" class="overlay hidden">
-      <div class="panel">
+      <div class="panel" role="dialog" aria-modal="true">
         <h2>策略节点</h2>
         <p class="hint">选择一项全局增益，永久生效。档位 青铜 &lt; 白银 &lt; 黄金 &lt; 彩色，强度递增；越后面的策略节点可选档位越高。</p>
         <div id="strategyChoices" class="env-choices"></div>
@@ -112,7 +114,7 @@
 
     <!-- 遭遇节点（难度选择） -->
     <section id="encounterScreen" class="overlay hidden">
-      <div class="panel">
+      <div class="panel" role="dialog" aria-modal="true">
         <h2>遭遇节点</h2>
         <p class="hint">选择挑战难度：难度越高，敌方越强、奖励越丰厚。</p>
         <div id="encounterChoices" class="env-choices"></div>
@@ -121,7 +123,7 @@
 
     <!-- 分叉节点（路径抉择 · P2-1） -->
     <section id="forkScreen" class="overlay hidden">
-      <div class="panel">
+      <div class="panel" role="dialog" aria-modal="true">
         <h2>抉择点 🔀</h2>
         <p class="hint">前方出现分岔，选择一条前进路线。每条路线收益不同，请按当前阵容取舍。</p>
         <div id="forkChoices" class="env-choices"></div>
@@ -140,7 +142,7 @@
 
     <!-- 结算 -->
     <section id="resultScreen" class="overlay hidden">
-      <div class="panel">
+      <div class="panel" role="dialog" aria-modal="true">
         <h2 id="resultTitle"></h2>
         <p id="resultBody" class="hint"></p>
         <div id="resultRecap" class="hidden" style="margin:12px 0;padding:10px 12px;background:#fff7e6;border:1px solid #f0c674;border-radius:8px;font-size:13px;color:#6b4e16;text-align:left;"></div>
@@ -150,7 +152,7 @@
 
     <!-- 战利品库（Meta 进度 · P2-2） -->
     <section id="metaScreen" class="overlay hidden">
-      <div class="panel">
+      <div class="panel" role="dialog" aria-modal="true">
         <h2>战利品库 💎</h2>
         <p class="hint">通关 BOSS 积累战利品币，解锁永久增益，让每一次重开都更强。</p>
         <div style="margin:8px 0;font-size:15px;">当前战利品币：<b id="metaCoins">0</b> 💎</div>
@@ -163,7 +165,7 @@
     </section>
     <!-- 羁绊详情弹窗 -->
     <section id="bondModal" class="overlay hidden">
-      <div class="panel bond-modal">
+      <div class="panel bond-modal" role="dialog" aria-modal="true">
         <h2 id="bondModalTitle"></h2>
         <div id="bondModalBody"></div>
         <div style="text-align:center;margin-top:14px">
@@ -194,6 +196,20 @@
   <script src="signatures.js"></script>
   <script src="audio_assets.js"></script>
   <script src="audio.js"></script>
+  <script src="resonance.js"></script>
+  <script src="bonds_flavor.js"></script>
   <script src="game.js"></script>
+  <!-- 脚本加载失败检测：若核心函数不存在，显示重载提示而非空白界面 -->
+  <script>(function(){
+    if (typeof reset !== 'function' || typeof renderEnv !== 'function') {
+      document.body.insertAdjacentHTML('beforeend',
+        '<div style="position:fixed;inset:0;background:#0a0c10;z-index:9999;display:flex;align-items:center;justify-content:center">' +
+        '<div style="background:var(--panel,#141820);border:1px solid var(--line,#2a3040);border-radius:12px;padding:28px 36px;text-align:center;max-width:420px">' +
+        '<h3 style="color:var(--gold-strong,#e6b960);margin:0 0 12px">⚠ 游戏资源加载不完整</h3>' +
+        '<p style="color:var(--text-2,#9fb4cc);margin:0 0 18px;font-size:13px;line-height:1.6">游戏脚本未能正确加载。可能是网络波动或服务暂时不可用。</p>' +
+        '<button onclick="location.reload()" style="background:var(--gold,#d4a03c);color:#0a0c10;border:none;padding:10px 28px;border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer">重新加载</button>' +
+        '</div></div>');
+    }
+  })();</script>
 </body>
 </html>
