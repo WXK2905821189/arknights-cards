@@ -2,6 +2,11 @@
 (function (global) {
   'use strict';
 
+  // 提前声明游戏状态对象，避免 computeBonds/aggregateStrategies 等纯逻辑函数在 G 初始化前
+  // 访问 G 触发 TDZ（Cannot access 'G' before initialization）。TDZ 期内 G 为 null，
+  // 相关读取均做了 typeof/空值保护；浏览器初始化阶段会在下方重新赋值。
+  let G = null;
+
   // DATA 来源：浏览器中由 data.js 注入的全局 const __DATA；Node 测试用 __DATA_TEST__
   const DATA = (typeof __DATA !== 'undefined') ? __DATA
     : (global.__DATA_TEST__ || { operators: [] });
@@ -230,6 +235,9 @@
   const BOND_KEYS = ['atk', 'hp', 'def', 'aspd', 'crit', 'magicAmp', 'healAmp', 'spInit', 'spRegen'];
 
   function computeBonds(boardUnits) {
+    // 策略节点「羁绊亲和」(bondEase)：阶位需求 -N（最低 1）；「呼应共振」(resoBonus)：呼应加成 ×(1+N)。
+    let bondEase = 0, resoBonus = 0;
+    try { if (typeof G !== 'undefined' && G && G.strategies) { const se = aggregateStrategies(); bondEase = se.bondEase || 0; resoBonus = se.resonanceBonusPct || 0; } } catch (e) {}
     const axes = ['职业', '阵营'];
     const seen = { 职业: {}, 阵营: {} };
     boardUnits.forEach(u => {
@@ -274,8 +282,8 @@
         Object.keys(nByV).forEach(v => {
           const n = nByV[v].size;
           let tier = -1;
-          for (let t = 0; t < cfg.thr.length; t++) if (n >= cfg.thr[t]) tier = t;
-          if (tier < 0) { if (n >= 1) potential.push({ axis: ax, value: v, count: n, need: cfg.thr[0] }); return; }
+          for (let t = 0; t < cfg.thr.length; t++) if (n >= Math.max(1, cfg.thr[t] - bondEase)) tier = t;
+          if (tier < 0) { if (n >= 1) potential.push({ axis: ax, value: v, count: n, need: Math.max(1, cfg.thr[0] - bondEase) }); return; }
           const atkB = cfg.atk[tier] || 0, hpB = cfg.hp[tier] || 0;
           if (atkB || hpB) {
             const bonus = {};
@@ -294,8 +302,8 @@
           if (!vc) return;
           const n = seen[ax][v].size;
           let tier = -1;
-          for (let t = 0; t < vc.thr.length; t++) if (n >= vc.thr[t]) tier = t;
-          if (tier < 0) { if (n >= 1) potential.push({ axis: ax, value: v, count: n, need: vc.thr[0] }); return; }
+          for (let t = 0; t < vc.thr.length; t++) if (n >= Math.max(1, vc.thr[t] - bondEase)) tier = t;
+          if (tier < 0) { if (n >= 1) potential.push({ axis: ax, value: v, count: n, need: Math.max(1, vc.thr[0] - bondEase) }); return; }
           const tierN = tier + 1;
           const bonus = {};
           BOND_KEYS.forEach(k => { if (vc[k] && vc[k][tier] != null) bonus[k] = vc[k][tier]; });
@@ -343,7 +351,11 @@
         if (!eff) return;
         boardUnits.forEach(u => {
           const f = (u.bonds || {}).阵营;
-          if (eff[f]) applyMult(mult[u.name], eff[f]);
+          if (eff[f]) {
+            const scaled = {};
+            Object.keys(eff[f]).forEach(k => { scaled[k] = eff[f][k] * (1 + resoBonus); });
+            applyMult(mult[u.name], scaled);
+          }
         });
       });
     }
@@ -473,18 +485,16 @@
     return u;
   }
 
-  function applyBonds(units, side) {
+  function applyBonds(units, side, positions) {
     const { mult, sig, special, resoKw } = computeBonds(units.map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star })));
-    // P0-1：接通策略节点的全局战斗增益（锋锐/坚壁/急袭/战意/强军/天启/战术核心）。
+    // P0-1：接通策略节点的全局战斗增益（锋锐/坚壁 等 stat 卡）。
     // 仅作用于我方（side==='ally'），敌方一律不享受，避免污染难度平衡。
+    const se = aggregateStrategies();
     let gmult = null;
-    if (side === 'ally') {
-      const se = aggregateStrategies();
-      if (se.allAtkPct || se.allHpPct || se.allAspdPct || se.allMagicPct) {
-        gmult = { atk: 1 + se.allAtkPct, hp: 1 + se.allHpPct, aspd: 1 + se.allAspdPct, magicAmp: 1 + se.allMagicPct };
-      }
+    if (side === 'ally' && (se.allAtkPct || se.allHpPct || se.allAspdPct || se.allMagicPct)) {
+      gmult = { atk: 1 + se.allAtkPct, hp: 1 + se.allHpPct, aspd: 1 + se.allAspdPct, magicAmp: 1 + se.allMagicPct };
     }
-    return units.map(u => {
+    return units.map((u, idx) => {
       let m = mult[u.op.name] || DEF_MULT;
       if (u.buff && u.buff !== 1) { m = Object.assign({}, m); m.atk *= u.buff; m.hp *= u.buff; m.def *= u.buff; }
       if (gmult) { m = Object.assign({}, m); m.atk *= gmult.atk; m.hp *= gmult.hp; m.aspd *= gmult.aspd; m.magicAmp *= gmult.magicAmp; }
@@ -497,6 +507,32 @@
           else if (k === 'spRegen') m.spRegen *= (1 + dp.attr[k]);
           else m[k] = (m[k] || 1) * (1 + dp.attr[k]);
         });
+      }
+      // 策略节点 comp 定向加成（阵容导向）+ 位置加成（引导前后排站位），仅我方
+      if (side === 'ally') {
+        const cm = (se.classBonusPct && se.classBonusPct[u.op.class]) || null;
+        const fm = (se.factionBonusPct && se.factionBonusPct[(u.op.bonds || {}).阵营]) || null;
+        const isSig = (typeof SIGNATURE !== 'undefined') && !!SIGNATURE[u.op.name];
+        const applyBonus = (b) => { if (!b) return; Object.keys(b).forEach(k => { if (k === 'spInit') m.spInit += b[k]; else if (k === 'spRegen') m.spRegen *= (1 + b[k]); else m[k] = (m[k] || 1) * (1 + b[k]); }); };
+        if (cm || fm || (isSig && se.sigBonusPct)) {
+          m = Object.assign({}, m);
+          applyBonus(cm); applyBonus(fm);
+          if (isSig && se.sigBonusPct) { m.atk *= (1 + se.sigBonusPct); m.hp *= (1 + se.sigBonusPct); }
+        }
+        // 位置加成：我方列 0-3，front=x>=2（临近敌方）、back=x<=1（远离敌方）
+        if (positions && positions[idx]) {
+          const x = positions[idx].x;
+          const front = x >= 2, back = x <= 1;
+          let ra = 0, rh = 0, rd = 0;
+          if (front) { ra += (se.roleAtkPct.front || 0); rh += (se.roleHpPct.front || 0); rd += (se.roleDefPct.front || 0); }
+          if (back) { ra += (se.roleAtkPct.back || 0); rh += (se.roleHpPct.back || 0); rd += (se.roleDefPct.back || 0); }
+          if (ra || rh || rd) {
+            m = Object.assign({}, m);
+            if (ra) m.atk *= (1 + ra);
+            if (rh) m.hp *= (1 + rh);
+            if (rd) m.def *= (1 + rd);
+          }
+        }
       }
       return makeCombatUnit(u.op, u.star, side, m, sig[u.op.name] || { attr: {}, kw: {} }, special[u.op.name] || null, resoKw ? resoKw[u.op.name] : null);
     });
@@ -622,23 +658,35 @@
     const enemy = enemyRaw.map(u => Object.assign({}, u));
     ally.forEach((u, i) => { u.uid = 'a' + i; u.x = allyPos[i].x; u.y = allyPos[i].y; u.cd = 0; u.stunUntil = 0; });
     enemy.forEach((u, i) => { u.uid = 'e' + i; u.x = enemyPos[i].x; u.y = enemyPos[i].y; u.cd = 0; u.stunUntil = 0; });
-    const all = ally.concat(enemy);
+    // 对称先手：随机决定先手方，并按 (先手, 后手) 逐索引交错排列，
+    // 消除「ally 每 tick 恒定先动」带来的系统性偏置（原为 ally.concat(enemy)）。
+    const firstSide = Math.random() < 0.5 ? 'ally' : 'enemy';
+    const ord = firstSide === 'ally' ? [ally, enemy] : [enemy, ally];
+    const all = [];
+    const _maxLen = Math.max(ally.length, enemy.length);
+    for (let _i = 0; _i < _maxLen; _i++) {
+      for (const _side of ord) { if (_i < _side.length) all.push(_side[_i]); }
+    }
     const occ = new Map();
     all.forEach(u => occ.set(u.x + ',' + u.y, u));
-    // light 版：团队级前置（全队攻速 / 敌方减速）
-    if (ally.some(u => u.specialKw.includes('globalAspd'))) {
-      const v = (SPECIAL['企鹅物流'] && SPECIAL['企鹅物流'].params.value) || 0.10;
-      ally.forEach(u => { u.spd *= (1 + v); });
-    }
-    const slowA = ally.find(u => u.specialKw.includes('slowAura'));
-    if (slowA) {
-      const v = (slowA.specialParams && slowA.specialParams['slowAura'] && slowA.specialParams['slowAura'].value) || 0.20;
-      enemy.forEach(u => { u.slowFactor = 1 - v; u.slowUntil = 1e9; });
+    // light 版：团队级前置（全队攻速 / 减速光环）——双向对称：双方各自阵营机制作用于己方
+    for (const _sx of [ally, enemy]) {
+      const foes = _sx === ally ? enemy : ally;
+      if (_sx.some(u => u.specialKw.includes('globalAspd'))) {
+        const v = (SPECIAL['企鹅物流'] && SPECIAL['企鹅物流'].params.value) || 0.10;
+        _sx.forEach(u => { u.spd *= (1 + v); });
+      }
+      const slowA = _sx.find(u => u.specialKw.includes('slowAura'));
+      if (slowA) {
+        const v = (slowA.specialParams && slowA.specialParams['slowAura'] && slowA.specialParams['slowAura'].value) || 0.20;
+        foes.forEach(u => { u.slowFactor = 1 - v; u.slowUntil = 1e9; });
+      }
     }
     const frames = [];
     const logBuf = [];
     const castsThisSnap = [];
     let t = 0;
+    let suddenDeath = false; // 猝死阶段：禁用续航、无视护盾、伤害翻倍，强制终结僵局
     // P2-4：战斗统计（复盘用）——双方累计伤害与阵亡数
     const stats = { allyDmg: 0, enemyDmg: 0, allyDeaths: 0, enemyDeaths: 0, summonKills: 0 };
     // 行动间隔：受减速(slowFactor)与施法加速(castAspd)影响
@@ -696,13 +744,15 @@
         }
       }
       finalDmg = Math.max(1, Math.round(finalDmg));
-      // 护盾吸收
-      if (tgt.shield > 0) {
+      let dealtTotal = finalDmg;            // 含护盾吸收的总输出（用于对称裁定）
+      if (suddenDeath) { finalDmg *= 2; dealtTotal = finalDmg; } // 猝死阶段伤害翻倍，加速终结
+      // 护盾吸收（猝死阶段无视护盾，避免僵局）
+      if (tgt.shield > 0 && !suddenDeath) {
         const absorb = Math.min(tgt.shield, finalDmg);
         tgt.shield -= absorb; finalDmg -= absorb;
       }
       tgt.hp -= finalDmg;
-      if (src && src.side === 'ally') stats.allyDmg += finalDmg; else if (src) stats.enemyDmg += finalDmg;
+      if (src && src.side === 'ally') stats.allyDmg += dealtTotal; else if (src) stats.enemyDmg += dealtTotal;
       if (tgt.hp <= 0) { tgt.alive = false; occ.delete(tgt.x + ',' + tgt.y); if (tgt.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; if (src && src.isSummon) stats.summonKills++; }
       // 命中破甲（薇薇安娜 / 伊比利亚）
       if (src.defShred && tgt.alive) tgt.def = Math.max(0, tgt.def * (1 - src.defShred));
@@ -814,25 +864,29 @@
       all.forEach(u => { if (u.slowUntil && t > u.slowUntil) u.slowFactor = 1; });
       // 施法加速到期复位
       all.forEach(u => { if (u.castBuffUntil && t > u.castBuffUntil) { u.castAmpMul = 1; u.castAspd = 1; } });
-      // 灼烧 DoT（炎特殊）：按每秒比例结算
+      // 灼烧 DoT（炎特殊）：按每秒比例结算（归属施放对手，计入伤害裁定）
       all.forEach(u => {
         if (u.alive && u.burn && t < u.burn.until) {
           const d = Math.round(u.maxHp * u.burn.dps * DT);
           u.hp -= d;
+          if (u.side === 'ally') stats.enemyDmg += d; else stats.allyDmg += d;
           if (u.hp <= 0) { u.alive = false; occ.delete(u.x + ',' + u.y); if (u.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; }
         }
       });
-      // 急救协议（罗德岛特殊）：全队低于 70% 时回血
-      const healer = ally.find(u => u.alive && u.specialKw.includes('healAura'));
-      if (healer) {
-        const r = (healer.specialParams && healer.specialParams['healAura'] && healer.specialParams['healAura'].regen) || 0.03;
-        ally.forEach(a => { if (a.alive && a.hp / a.maxHp < 0.7) a.hp = Math.min(a.maxHp, a.hp + a.maxHp * r); });
-      }
-      // 霜护（谢拉格特殊）：每 period 秒全队获得周期护盾
-      const shielder = ally.find(u => u.alive && u.specialKw.includes('shieldPeriodic'));
-      if (shielder && t > 0 && Math.round(t) % ((shielder.specialParams['shieldPeriodic'] || {}).period || 5) === 0) {
-        const frac = ((shielder.specialParams['shieldPeriodic'] || {}).frac || 0.10);
-        ally.forEach(a => { if (a.alive) a.shield += Math.round(a.maxHp * frac); });
+      // 急救协议（罗德岛特殊）/ 霜护（谢拉格特殊）——双向对称：双方各自阵营机制作用于己方
+      if (!suddenDeath) {
+        for (const _sx of [ally, enemy]) {
+          const healer = _sx.find(u => u.alive && u.specialKw.includes('healAura'));
+          if (healer) {
+            const r = (healer.specialParams && healer.specialParams['healAura'] && healer.specialParams['healAura'].regen) || 0.03;
+            _sx.forEach(a => { if (a.alive && a.hp / a.maxHp < 0.7) a.hp = Math.min(a.maxHp, a.hp + a.maxHp * r); });
+          }
+          const shielder = _sx.find(u => u.alive && u.specialKw.includes('shieldPeriodic'));
+          if (shielder && t > 0 && Math.round(t) % ((shielder.specialParams['shieldPeriodic'] || {}).period || 5) === 0) {
+            const frac = ((shielder.specialParams['shieldPeriodic'] || {}).frac || 0.10);
+            _sx.forEach(a => { if (a.alive) a.shield += Math.round(a.maxHp * frac); });
+          }
+        }
       }
 
       for (const u of all) {
@@ -919,7 +973,11 @@
 
     snap();
     let nextSample = SAMPLE_DT;
-    while (t < MAX_T) {
+    const SUDDEN_MAX = 30; // 猝死阶段上限（秒），与 MAX_T 合计 ≤90s 必终结
+    while (t < MAX_T + SUDDEN_MAX) {
+      if (t >= MAX_T && !suddenDeath) {
+        suddenDeath = true; // 进入猝死：禁用续航、无视护盾、伤害翻倍，强制打破僵局
+      }
       step(); t += DT;
       if (!ally.some(u => u.alive) || !enemy.some(u => u.alive)) break;
       if (t >= nextSample) { snap(); nextSample += SAMPLE_DT; }
@@ -932,9 +990,15 @@
     if (aAlive > 0 && eAlive === 0) winner = 'ally';
     else if (eAlive > 0 && aAlive === 0) winner = 'enemy';
     else {
-      const aHp = ally.reduce((s, u) => s + Math.max(0, u.hp), 0);
-      const eHp = enemy.reduce((s, u) => s + Math.max(0, u.hp), 0);
-      winner = aHp >= eHp ? 'ally' : 'enemy';
+      // 超时裁定：以「累计造成的总伤害」衡量谁更胜一筹（含护盾吸收量，去 ally 偏置）；等量再以剩余血量决胜
+      const aD = stats.allyDmg, eD = stats.enemyDmg;
+      if (aD > eD) winner = 'ally';
+      else if (eD > aD) winner = 'enemy';
+      else {
+        const aHp = ally.reduce((s, u) => s + Math.max(0, u.hp), 0);
+        const eHp = enemy.reduce((s, u) => s + Math.max(0, u.hp), 0);
+        winner = aHp >= eHp ? 'ally' : 'enemy';
+      }
     }
     frames.push({ sys: true, line: winner === 'ally' ? '★ 我方胜利！' : '✗ 敌方胜利…' });
     return { winner, frames, aAlive, eAlive, stats };
@@ -966,9 +1030,17 @@
     grantSummonExp, summonLevelFromExp, SPECIAL, SIGNATURE, DIFFICULTY,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  // 惰性 getter 挂载（访问时解析，绕开 TDZ；此处必执行）：策略节点重构测试用
+  Object.defineProperties(api, {
+    G: { get: () => G },
+    STRATEGY_POOL: { get: () => STRATEGY_POOL },
+    STRATEGY_BY_ID: { get: () => STRATEGY_BY_ID },
+    aggregateStrategies: { get: () => aggregateStrategies },
+    pickDiverseStrategies: { get: () => pickDiverseStrategies },
+  });
   // 游戏状态对象：提到控制器之外，保证 Node 测试路径下也已初始化（引擎函数 applyBonds/generateEnemyTeam 依赖 G）
   let uidc = 1;
-  const G = {
+  G = {
     gold: 0, level: 1, exp: 0, hp: 100, maxHp: 100,
     winStreak: 0, lossStreak: 0,
     bench: [], board: {}, shop: [null, null, null, null, null],
@@ -1011,31 +1083,57 @@
   const STRATEGY_TIERS_ROMAN = { bronze: 'I', silver: 'II', gold: 'III', color: 'IV' };
   const STRAT_ICON = {
     s_finance: '💰', s_train: '🎯', s_free: '🔄', s_sharp: '⚔', s_wall: '🛡', s_swift: '⚡',
-    s_war: '🔥', s_rich: '💎', s_arm: '🪖', s_apoc: '🌟', s_black: '🕶', s_core: '🧠'
+    s_war: '🔥', s_rich: '💎', s_arm: '🪖', s_apoc: '🌟', s_black: '🕶', s_core: '🧠',
+    s_comp_pioneer: '🚩', s_comp_rhodes: '🏥', s_comp_guard: '🛡', s_comp_sig: '⭐', s_comp_sniper: '🎯',
+    s_comp_xila: '🐺', s_comp_summon: '🐾', s_comp_front: '🧱', s_comp_back: '🔫', s_comp_mage: '🔮',
+    s_comp_victoria: '⚔', s_comp_heat: '🔥', s_rule_bond: '🔗', s_rule_resonance: '💞', s_rule_expand: '📐'
   };
+  // —— 策略节点卡池：从"属性糖果"重做为"身份承诺 deck"（2026-08-12 重构）——
+  // category：comp 阵容导向（≥50%）/ rule 规则改写（~20%）/ tempo 经济节奏（~20%）/ stat 纯数值安全牌（≤10%）。
+  // effects 键：
+  //   全局（legacy，向后兼容）：goldPerRound / expPerRound / freeReroll / allAtkPct / allHpPct / allAspdPct / allMagicPct / sellValuePct / boardCapBonus
+  //   定向（comp 引导阵容）：classBonusPct{职业:{atk,hp,def,crit,aspd,magicAmp,spInit,spRegen}} / factionBonusPct{阵营:{...}} / sigBonusPct / summonBonusPct / summonExpMult
+  //   位置（comp 引导站位）：roleAtkPct{front,back} / roleHpPct{front,back}（我方列 0-3，front=x>=2 临近敌方，back=x<=1）
+  //   规则（rule）：bondEase（羁绊阶位需求 -N，最低 1）/ resonanceBonusPct（呼应加成 ×(1+N)）
+  // 数值全 [PLACEHOLDER]，待 balance_sim.py 蒙特卡洛标定。
   const STRATEGY_POOL = [
-    // 青铜
-    { id: 's_finance', name: '理财', tier: 'bronze', desc: '每回合 +2 金币。', effects: { goldPerRound: 2 } },
-    { id: 's_train', name: '练兵', tier: 'bronze', desc: '每回合 +2 经验。', effects: { expPerRound: 2 } },
-    { id: 's_free', name: '免费情报', tier: 'bronze', desc: '每回合 1 次免费刷新。', effects: { freeReroll: 1 } },
-    // 白银
-    { id: 's_sharp', name: '锋锐', tier: 'silver', desc: '全体干员 +8% 攻击。', effects: { allAtkPct: 0.08 } },
-    { id: 's_wall', name: '坚壁', tier: 'silver', desc: '全体干员 +8% 生命。', effects: { allHpPct: 0.08 } },
-    { id: 's_swift', name: '急袭', tier: 'silver', desc: '全体干员 +8% 攻速。', effects: { allAspdPct: 0.08 } },
-    // 黄金
-    { id: 's_war', name: '战意', tier: 'gold', desc: '全体 +15% 攻击、+10% 生命。', effects: { allAtkPct: 0.15, allHpPct: 0.10 } },
-    { id: 's_rich', name: '厚赏', tier: 'gold', desc: '每回合 +4 金币、+3 经验。', effects: { goldPerRound: 4, expPerRound: 3 } },
-    { id: 's_arm', name: '强军', tier: 'gold', desc: '全体 +12% 攻击、+8% 生命。', effects: { allAtkPct: 0.12, allHpPct: 0.08 } },
-    // 彩色
-    { id: 's_apoc', name: '天启', tier: 'color', desc: '全体 +20% 攻击、+15% 生命、+12% 攻速。', effects: { allAtkPct: 0.20, allHpPct: 0.15, allAspdPct: 0.12 } },
-    { id: 's_black', name: '黑市', tier: 'color', desc: '售出价格 +50%。', effects: { sellValuePct: 0.5 } },
-    { id: 's_core', name: '战术核心', tier: 'color', desc: '每回合 1 次免费刷新，全体 +10% 法强。', effects: { freeReroll: 1, allMagicPct: 0.10 } },
+    // ===== comp：阵容导向（10/22 ≈ 45%，配合 rule/tempo 引导，纯数值仅 2 张）=====
+    // 职业专精
+    { id: 's_comp_pioneer', name: '先锋专精', tier: 'bronze', category: 'comp', desc: '先锋干员 +12% 攻击、+12% 生命。', effects: { classBonusPct: { '先锋': { atk: 0.12, hp: 0.12 } } } },
+    { id: 's_comp_rhodes', name: '罗德岛共识', tier: 'bronze', category: 'comp', desc: '罗德岛干员 +10% 治疗量、+10% 生命。', effects: { factionBonusPct: { '罗德岛': { healAmp: 0.10, hp: 0.10 } } } },
+    { id: 's_comp_guard', name: '重装壁垒', tier: 'silver', category: 'comp', desc: '重装干员 +15% 防御、+12% 生命。', effects: { classBonusPct: { '重装': { def: 0.15, hp: 0.12 } } } },
+    { id: 's_comp_sig', name: '签名号令', tier: 'silver', category: 'comp', desc: '5 费签名干员 +15% 攻击、+15% 生命。', effects: { sigBonusPct: 0.15 } },
+    { id: 's_comp_sniper', name: '狙击专注', tier: 'gold', category: 'comp', desc: '狙击干员 +18% 攻击、+12% 暴击。', effects: { classBonusPct: { '狙击': { atk: 0.18, crit: 0.12 } } } },
+    { id: 's_comp_xila', name: '叙拉古家族', tier: 'gold', category: 'comp', desc: '叙拉古干员 +15% 暴击、+15% 攻速；狼群受益。', effects: { factionBonusPct: { '叙拉古': { crit: 0.15, aspd: 0.15 } } } },
+    { id: 's_comp_summon', name: '召唤铺场', tier: 'gold', category: 'comp', desc: '召唤物 +20% 攻击、+20% 生命；召唤经验 +50%。', effects: { summonBonusPct: 0.20, summonExpMult: 0.50 } },
+    { id: 's_comp_front', name: '前排铁壁', tier: 'silver', category: 'comp', desc: '前排（临近敌方列）干员 +15% 防御、+15% 生命。', effects: { roleHpPct: { front: 0.15 }, roleDefPct: { front: 0.15 } } },
+    { id: 's_comp_back', name: '后排火力', tier: 'gold', category: 'comp', desc: '后排（远离敌方列）干员 +18% 攻击。', effects: { roleAtkPct: { back: 0.18 } } },
+    { id: 's_comp_mage', name: '术师奥能', tier: 'color', category: 'comp', desc: '术师干员 +20% 法强、+6 起手技力。', effects: { classBonusPct: { '术师': { magicAmp: 0.20, spInit: 6 } } } },
+    { id: 's_comp_victoria', name: '维多利亚骑士', tier: 'color', category: 'comp', desc: '维多利亚干员 +18% 攻击、+18% 防御。', effects: { factionBonusPct: { '维多利亚': { atk: 0.18, def: 0.18 } } } },
+    { id: 's_comp_heat', name: '炎国烈焰', tier: 'color', category: 'comp', desc: '炎干员 +15% 生命、+15% 防御；灼烧受益。', effects: { factionBonusPct: { '炎': { hp: 0.15, def: 0.15 } } } },
+    // ===== rule：规则改写（3/22）=====
+    { id: 's_rule_bond', name: '羁绊亲和', tier: 'silver', category: 'rule', desc: '所有羁绊阶位需求 -1（最低 1）。', effects: { bondEase: 1 } },
+    { id: 's_rule_resonance', name: '呼应共振', tier: 'gold', category: 'rule', desc: '跨阵营呼应加成 +40%。', effects: { resonanceBonusPct: 0.40 } },
+    { id: 's_rule_expand', name: '扩张令', tier: 'color', category: 'rule', desc: '部署上限 +1。', effects: { boardCapBonus: 1 } },
+    // ===== tempo：经济节奏（5/22）=====
+    { id: 's_finance', name: '理财', tier: 'bronze', category: 'tempo', desc: '每回合 +2 金币。', effects: { goldPerRound: 2 } },
+    { id: 's_train', name: '练兵', tier: 'bronze', category: 'tempo', desc: '每回合 +2 经验。', effects: { expPerRound: 2 } },
+    { id: 's_free', name: '免费情报', tier: 'bronze', category: 'tempo', desc: '每回合 1 次免费刷新。', effects: { freeReroll: 1 } },
+    { id: 's_rich', name: '厚赏', tier: 'gold', category: 'tempo', desc: '每回合 +4 金币、+3 经验。', effects: { goldPerRound: 4, expPerRound: 3 } },
+    { id: 's_black', name: '黑市', tier: 'color', category: 'tempo', desc: '售出价格 +50%。', effects: { sellValuePct: 0.5 } },
+    // ===== stat：纯数值安全牌（仅 2/22，可选兜底）=====
+    { id: 's_sharp', name: '锋锐', tier: 'silver', category: 'stat', desc: '全体干员 +8% 攻击。', effects: { allAtkPct: 0.08 } },
+    { id: 's_wall', name: '坚壁', tier: 'silver', category: 'stat', desc: '全体干员 +8% 生命。', effects: { allHpPct: 0.08 } },
   ];
   const STRATEGY_BY_ID = {}; STRATEGY_POOL.forEach(s => STRATEGY_BY_ID[s.id] = s);
 
-  // 汇总已选策略的全局效果
+  // 汇总已选策略的全局 / 定向 / 规则效果
   function aggregateStrategies() {
-    const acc = { goldPerRound: 0, expPerRound: 0, freeReroll: 0, allAtkPct: 0, allHpPct: 0, allAspdPct: 0, allMagicPct: 0, sellValuePct: 0, boardCapBonus: 0 };
+    const acc = {
+      goldPerRound: 0, expPerRound: 0, freeReroll: 0, allAtkPct: 0, allHpPct: 0, allAspdPct: 0, allMagicPct: 0, sellValuePct: 0, boardCapBonus: 0,
+      classBonusPct: {}, factionBonusPct: {}, sigBonusPct: 0, summonBonusPct: 0, summonExpMult: 0,
+      roleAtkPct: {}, roleHpPct: {}, roleDefPct: {}, resonanceBonusPct: 0, bondEase: 0
+    };
     (G.strategies || []).forEach(id => {
       const s = STRATEGY_BY_ID[id]; if (!s) return;
       const e = s.effects || {};
@@ -1048,6 +1146,17 @@
       if (e.allMagicPct) acc.allMagicPct += e.allMagicPct;
       if (e.sellValuePct) acc.sellValuePct += e.sellValuePct;
       if (e.boardCapBonus) acc.boardCapBonus += e.boardCapBonus;
+      if (e.sigBonusPct) acc.sigBonusPct += e.sigBonusPct;
+      if (e.summonBonusPct) acc.summonBonusPct += e.summonBonusPct;
+      if (e.summonExpMult) acc.summonExpMult += e.summonExpMult;
+      if (e.resonanceBonusPct) acc.resonanceBonusPct += e.resonanceBonusPct;
+      if (e.bondEase) acc.bondEase += e.bondEase;
+      const mergeMap = (src, dst) => { if (!src) return; Object.keys(src).forEach(k => { const t = dst[k] || (dst[k] = {}); const v = src[k]; Object.keys(v).forEach(a => { t[a] = (t[a] || 0) + v[a]; }); }); };
+      mergeMap(e.classBonusPct, acc.classBonusPct);
+      mergeMap(e.factionBonusPct, acc.factionBonusPct);
+      mergeMap(e.roleAtkPct, acc.roleAtkPct);
+      mergeMap(e.roleHpPct, acc.roleHpPct);
+      mergeMap(e.roleDefPct, acc.roleDefPct);
     });
     return acc;
   }
@@ -1233,6 +1342,17 @@
     const meatBtn = $('btnFeedMeat'); if (meatBtn) meatBtn.disabled = G.gold < 3;
     const rationBtn = $('btnFeedRation'); if (rationBtn) rationBtn.disabled = G.gold < 5;
     const msg = $('feedMsg'); if (msg) msg.textContent = '';
+    // v2.1 UI：形态图标 + 主题色 + 升级闪光特效（狼崽 🐾 / 成年狼 🐺 / 狼王 👑）
+    const form = lv >= SUMMON_MAX_LEVEL ? 'king' : (lv >= 3 ? 'adult' : 'pup');
+    const formIcon = form === 'king' ? '👑' : (form === 'adult' ? '🐺' : '🐾');
+    panel.classList.remove('form-pup', 'form-adult', 'form-king');
+    panel.classList.add('form-' + form);
+    const fi = $('feedForm'); if (fi) fi.textContent = formIcon;
+    if (G._feedShownWolfLv !== undefined && lv > G._feedShownWolfLv) {
+      panel.classList.remove('flash'); void panel.offsetWidth; panel.classList.add('flash'); // 重启动画
+      if (fi) { fi.classList.remove('bump'); void fi.offsetWidth; fi.classList.add('bump'); }
+    }
+    G._feedShownWolfLv = lv;
   }
 
   // v2.1 养狼：商店购买喂养（生肉 +EXP / 战前口粮 临时加成下一场）
@@ -1579,11 +1699,37 @@
 
   // —— 策略节点：3 选 1 永久全局被动，档位随已选次数抬高 ——
   function tierRank(t) { return { bronze: 0, silver: 1, gold: 2, color: 3 }[t] || 0; }
+  // 分类多样 3 选 1：尽量从不同 category 各取一张，优先 comp（引导玩法），杜绝三张同方向（尤其纯数值堆叠）。
+  function pickDiverseStrategies(pool, n) {
+    const byCat = {};
+    pool.forEach(s => { (byCat[s.category] = byCat[s.category] || []).push(s); });
+    Object.keys(byCat).forEach(c => { byCat[c] = shuffle(byCat[c]); });
+    const order = ['comp', 'rule', 'tempo', 'stat'].filter(c => byCat[c] && byCat[c].length);
+    const chosen = [];
+    let i = 0;
+    while (chosen.length < n && chosen.length < pool.length) {
+      let progressed = false;
+      for (let k = 0; k < order.length; k++) {
+        const c = order[(i + k) % order.length];
+        const arr = byCat[c];
+        if (arr && arr.length) { chosen.push(arr.shift()); progressed = true; break; }
+      }
+      if (!progressed) break;
+      i++;
+    }
+    if (chosen.length < n) {
+      const rest = shuffle(pool.filter(s => chosen.indexOf(s) < 0));
+      chosen.push(...rest.slice(0, n - chosen.length));
+    }
+    return chosen.slice(0, n);
+  }
   function showStrategyScreen(node) {
     const minTier = ['bronze', 'silver', 'gold'][Math.min(G.stratCount, 2)];
-    let pool = STRATEGY_POOL.filter(s => tierRank(s.tier) >= tierRank(minTier));
-    if (pool.length < 3) pool = STRATEGY_POOL.slice();
-    const picks = shuffle(pool).slice(0, 3);
+    // 去重（痛点①）：已选 ID 永不返回。软档位：先按 tier 过滤，不足 3 张可选则放宽到全池（仍排除已选）。
+    let pool = STRATEGY_POOL.filter(s => tierRank(s.tier) >= tierRank(minTier) && G.strategies.indexOf(s.id) < 0);
+    if (pool.length < 3) pool = STRATEGY_POOL.filter(s => G.strategies.indexOf(s.id) < 0);
+    if (pool.length === 0) pool = STRATEGY_POOL.slice(); // 极端：全选过，允许重复兜底
+    const picks = pickDiverseStrategies(pool, 3);
     const wrap = $('strategyChoices');
     wrap.innerHTML = picks.map(s =>
       '<div class="strategy-card tier-' + s.tier + '" data-sid="' + s.id + '">' +
@@ -1774,6 +1920,7 @@
     }
     const node = G.nodes[G.nodeIdx];
     const enemyBase = G.currentEnemy || generateEnemyTeam(G.level, G.nodeIdx, node.type === 'boss', null, diffCfg());
+    const se = aggregateStrategies(); // 策略节点全局/定向/规则效果（comp 召唤加成与经验倍率在此取用）
 
     let allyList = [];
     let allyPos = [];
@@ -1807,6 +1954,14 @@
       summonPlan.push({ unit: u, summonerPos: allyPos[lingIdx] });
       placedSummons.push(u);
     }
+    // v2.1+：策略节点「召唤铺场」comp 卡 → 召唤物 +atk/+hp（乘法叠加 feeding）
+    if (se.summonBonusPct) {
+      summonPlan.forEach(p => {
+        const u = p.unit;
+        u.atk = Math.round(u.atk * (1 + se.summonBonusPct)); u.baseAtk = u.atk;
+        u.maxHp = Math.round(u.maxHp * (1 + se.summonBonusPct)); u.hp = u.maxHp;
+      });
+    }
     if (summonPlan.length) {
       const placed = placeAdjacentSummons(allyList, allyPos, summonPlan);
       allyList = placed.allyList; allyPos = placed.allyPos;
@@ -1825,7 +1980,7 @@
     // 因此先把召唤物从 allyList 中剥离，仅对常规干员套用羁绊，再把召唤物原样接回（保持与 allyPos 索引对齐：常规在前、召唤在后）。
     const regEntries = [], summonUnits = [];
     allyList.forEach(u => { if (u.isSummon) summonUnits.push(u); else regEntries.push(u); });
-    const allyUnits = applyBonds(regEntries.map(u => ({ op: u.op, star: u.star })), 'ally');
+    const allyUnits = applyBonds(regEntries.map(u => ({ op: u.op, star: u.star })), 'ally', allyPos);
     const enemyUnits = applyBonds(enemyBase.map(t => ({ op: t.op, star: t.star, buff: t.buff })), 'enemy');
     // uid 由 simulateBattleGrid 统一重排（ally:a0.. / enemy:e0..），这里按顺序拼接即可。
     const allyAll = allyUnits.concat(summonUnits);
@@ -1834,17 +1989,18 @@
     const res = simulateBattleGrid(allyAll, enemyUnits, allyPos, enemyPos);
     G.battleRes = res;
     // —— v2.1 养狼：战斗后 EXP 结算（仅本 run，不写 Meta）——
-    const lvlUp = grantSummonExp(xilaCount, xilaTier, res, ss);
+    const lvlUp = grantSummonExp(xilaCount, xilaTier, res, ss, 1 + (se.summonExpMult || 0));
     G._summonLevelUp = lvlUp; // 供复盘/recap 提示（升级：下一场以新等级重生）
     ss.feedAtk = 0; ss.feedHp = 0; // 清空一次性战前口粮
-    showBattle(res, allyUnits, enemyUnits);
+    showBattle(res, allyAll, enemyUnits);
   }
 
   // v2.1 养狼：战斗后 EXP 累积与升级（state 为 G.summonState，仅本 run 有效）
   // 狼 EXP = 叙拉古干员数 × 羁绊阶 × 10 + 击杀贡献（每只召唤物击杀 ×5）；岁兽约为狼的 60% 速度。
-  function grantSummonExp(xilaCount, xilaTier, res, ss) {
+  function grantSummonExp(xilaCount, xilaTier, res, ss, expMult) {
+    expMult = expMult || 1; // 策略节点「召唤铺场」经验倍率（默认 1）
     const killExp = (res && res.stats && res.stats.summonKills) ? res.stats.summonKills * 5 : 0;
-    const wolfGain = xilaCount > 0 ? (xilaCount * xilaTier * 10 + killExp) : 0; // [PLACEHOLDER] 公式
+    const wolfGain = xilaCount > 0 ? Math.round((xilaCount * xilaTier * 10 + killExp) * expMult) : 0; // [PLACEHOLDER] 公式
     const beastGain = Math.floor(wolfGain * 0.6); // 岁兽约 60% 狼速度 [PLACEHOLDER]
     const ups = [];
     if (wolfGain > 0 && ss.wolf) {
@@ -1915,7 +2071,8 @@
           '<img class="av" src="' + u.avatar + '" onerror="this.style.background=\'#222\'">' +
           '<div class="nm">' + u.name + (u.star > 1 ? '★' + u.star : '') + '</div>' +
           '<div class="hpbar"><i style="width:100%"></i></div>' +
-          '<div class="spbar"><i style="width:0%"></i></div>';
+          '<div class="spbar"><i style="width:0%"></i></div>' +
+          (u.level ? '<div class="lv-badge">' + u.level + '</div>' : '');
         el.style.width = _uw + 'px'; el.style.height = _uh + 'px';
         const _av = el.querySelector('.av'); if (_av) { _av.style.width = (_uw - 14) + 'px'; _av.style.height = (_uw - 14) + 'px'; }
         el.style.transform = 'translate(' + (p.x * _cw + (_cw - _uw) / 2) + 'px,' + (p.y * _ch + (_ch - _uh) / 2) + 'px)';
@@ -2328,6 +2485,7 @@
     // v2.1 养狼：局内（本 run）召唤物状态——开局初始化，局结束重置，不写 Meta（cross-run）
     G.summonState = { wolf: { level: 1, exp: 0 }, beast: { level: 1, exp: 0 }, feedAtk: 0, feedHp: 0 };
     G._summonLevelUp = null;
+    G._feedShownWolfLv = undefined;
     buildNodes();
     $('resultScreen').classList.add('hidden');
     $('battleScreen').classList.add('hidden');
