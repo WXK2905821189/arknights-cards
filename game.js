@@ -133,7 +133,7 @@
     '龙门':     { tier: 3, kw: 'guardAura',       params: { value: 0.10 } },                                  // 协防：相邻减伤
     '企鹅物流': { tier: 3, kw: 'globalAspd',      params: { value: 0.10 } },                                  // 极速配送：全局攻速
     // —— 池=4 → 阶二 capstone ——
-    '巴别塔':   { tier: 2, attr: { def: 0.12 }, kw: null },                                                    // 传承：防御
+    '巴别塔':   { tier: 2, attr: { def: 0.12 }, kw: 'guardAura',      params: { value: 0.06 } },                // 传承：防御 + 协防减伤（v2.4 质变层）
     '谢拉格':   { tier: 2, kw: 'shieldPeriodic',  params: { frac: 0.10, period: 5 } },                         // 霜护：周期护盾
     '深海猎人': { tier: 2, kw: 'pierce',          params: { value: 0.25 } },                                  // 数值压制：破甲
     '乌萨斯':   { tier: 2, kw: 'slowAura',        params: { value: 0.20 } },                                  // 严冬：敌减速
@@ -142,13 +142,13 @@
     '东':       { tier: 2, kw: 'rampHit',         params: { per: 0.06, cap: 0.30 } },                         // 心流：攻速成长
     '哥伦比亚': { tier: 2, kw: 'critDmg',         params: { value: 0.30 } },                                  // 军火：暴伤
     '卡西米尔': { tier: 2, kw: 'trueDmg',         params: { value: 0.15 } },                                  // 骑士团：真伤
-    '喀兰贸易': { tier: 2, attr: { atk: 0.12 }, kw: null },                                                    // 雇佣：攻击
+    '喀兰贸易': { tier: 2, attr: { atk: 0.12 }, kw: 'rampHit', params: { per: 0.04, cap: 0.20 } },            // 雇佣：攻击 + 渐增（v2.4 质变层）
     // —— 池=2 → 阶一 capstone ——
     '雷姆必拓': { tier: 1, kw: 'damageReduction', params: { value: 0.08 } },                                  // 矿脉护体：减伤
-    '塔拉':     { tier: 1, attr: { aspd: 0.08 }, kw: null },                                                   // 战歌：攻速
-    '使徒':     { tier: 1, attr: { hp: 0.10 }, kw: null },                                                     // 神恩：生命
-    '鲤氏侦探事务所': { tier: 1, attr: { crit: 0.08 }, kw: null },                                             // 洞察：暴击
-    '卡兹戴尔':       { tier: 1, attr: { def: 0.10 }, kw: null },                                              // 源石壁垒：防御（池=2，阶一解锁；萨卡兹故土）
+    '塔拉':     { tier: 1, attr: { aspd: 0.08 }, kw: 'lifesteal', params: { value: 0.10 } },                  // 战歌：攻速 + 吸血（v2.4 质变层）
+    '使徒':     { tier: 1, attr: { hp: 0.10 }, kw: 'shieldPeriodic', params: { frac: 0.06, period: 5 } },     // 神恩：生命 + 周期护盾（v2.4 质变层）
+    '鲤氏侦探事务所': { tier: 1, attr: { crit: 0.08 }, kw: 'execute', params: { thresh: 0.25, mult: 0.50 } },// 洞察：暴击 + 处决（v2.4 质变层）
+    '卡兹戴尔':       { tier: 1, attr: { def: 0.10 }, kw: 'counter', params: { value: 0.08 } },               // 源石壁垒：防御 + 反伤（v2.4 质变层）
   };
 
   // ③b 装备系统（v2 · 2026-08-12 用户拍板）：无限制 / 纯属性或纯机制 / 阵营铭刻（装备后视为该阵营，羁绊计数叠加）
@@ -237,6 +237,23 @@
     { id: 'e_g_reactor',  name: '源石反应堆', icon: '🔋', type: 'attr', cat4: 'device', rarity: 2, cost: 8, attr: { atk: 0.08, hp: 0.08 }, desc: '攻击 +8% 生命 +8%', flavor: '驱动核心级的源石反应堆，把澎湃的源石能同时灌进攻击与体魄——前提是你扛得住它的温度。' },        // [PLACEHOLDER]
     { id: 'e_g_anchor',   name: '源石稳定锚', icon: '🧲', type: 'mech', cat4: 'device', rarity: 2, cost: 8, kw: 'regenShield', params: { period: 5, frac: 0.08 }, desc: '每 5s 生成 8% 生命护盾', flavor: '莱塔尼亚源石技艺稳定技术的便携版，像船锚一样把失控的术式压回正轨，也把佩戴者的体表凝出一层薄盾。' },        // [PLACEHOLDER]
     { id: 'e_g_drone',    name: '工程无人机', icon: '🛸', type: 'attr', cat4: 'device', rarity: 1, cost: 5, attr: { aspd: 0.10 }, desc: '攻速 +10%', flavor: '可露希尔说它比某些干员听话。工程部的无人机绕着你转，把补给与节奏一起递到手上。' },        // [PLACEHOLDER]
+    // —— v2.4 装备池扩展（P1 · 全部复用现成消费点，数值 [PLACEHOLDER]）——
+    // —— 属性装 +5（attr fold 已扩展支持 magicAmp/healAmp/spRegen/defShred/slow）——
+    { id: 'e_magic',     name: '术式增幅器', icon: '🔮', type: 'attr', cat4: 'weapon', rarity: 1, cost: 5, attr: { magicAmp: 0.15 }, desc: '法强 +15%', flavor: '莱塔尼亚术师协会的制式增幅环，把源石技艺的功率拧到上限，代价是更容易烧灼术式回路。' },        // [PLACEHOLDER]
+    { id: 'e_loop',      name: '技力回环', icon: '🌀', type: 'attr', cat4: 'device', rarity: 2, cost: 8, attr: { spRegen: 0.20 }, desc: '技力回复 +20%', flavor: '以企鹅物流的调度算法为灵感做成的源石回路，让佩戴者的技能转得比时钟还准时。' },        // [PLACEHOLDER]
+    { id: 'e_bandage',   name: '急救绷带', icon: '🩹', type: 'attr', cat4: 'armor',  rarity: 0, cost: 3, attr: { healAmp: 0.15 }, desc: '治疗量 +15%', flavor: '罗德岛医疗部标准急救包，绷带浸过消毒剂与一点源石粉末，止血快，痛得也短。' },        // [PLACEHOLDER]
+    { id: 'e_shredder',  name: '破甲刃', icon: '🗜', type: 'attr', cat4: 'weapon', rarity: 1, cost: 5, attr: { defShred: 0.10 }, desc: '命中破甲 10%', flavor: '刃口带锯齿的破甲刃，砍进重甲后会咬住不放，把对方的防御一点点剥下来。' },        // [PLACEHOLDER]
+    { id: 'e_ice',       name: '冰霜弹', icon: '🧊', type: 'attr', cat4: 'weapon', rarity: 2, cost: 8, attr: { slow: 0.20 }, desc: '命中减速 20%', flavor: '内含低温源石的冰冻弹，命中后让目标身上凝出一层霜——谢拉格人管这叫"家乡的温度"。' },        // [PLACEHOLDER]
+    // —— 机制装 +5（mech 折叠已扩展支持 execute/trueDmg/rampHit/castAmp/stun）——
+    { id: 'e_hammer',    name: '震荡锤', icon: '🔨', type: 'mech', cat4: 'weapon', rarity: 2, cost: 8, kw: 'stun', params: { pct: 0.15 }, desc: '普攻 15% 概率眩晕 1.2s', flavor: '乌萨斯军工的震荡锤，挥下去时连地面都在发抖。中招的敌人需要一点时间，才能重新想起自己叫什么都。' },        // [PLACEHOLDER]
+    { id: 'e_exec',      name: '处决刃', icon: '💀', type: 'mech', cat4: 'weapon', rarity: 3, cost: 12, kw: 'execute', params: { thresh: 0.30, mult: 0.50 }, desc: '对残血目标伤害 +50%', flavor: '萨尔贡处刑官的短刃，专门等对手强弩之末时补上最后一下。荒野的规矩：活下去的才有资格讲道理。' },        // [PLACEHOLDER]
+    { id: 'e_true',      name: '源石刃', icon: '⚡', type: 'mech', cat4: 'weapon', rarity: 3, cost: 12, kw: 'trueDmg', params: { value: 0.20 }, desc: '20% 真实伤害', flavor: '以源石结晶开刃的武器，切割的不是血肉，是物理法则本身。' },        // [PLACEHOLDER]
+    { id: 'e_ramp',      name: '渐增回路', icon: '📈', type: 'mech', cat4: 'device', rarity: 1, cost: 5, kw: 'rampHit', params: { per: 0.02, cap: 0.20 }, desc: '每次攻击伤害 +2%（上限 +20%）', flavor: '越战越勇的增幅回路，东国武士的"心流"概念被做成了源石电路板。' },        // [PLACEHOLDER]
+    { id: 'e_channel',   name: '咏唱核心', icon: '🎼', type: 'mech', cat4: 'device', rarity: 3, cost: 12, kw: 'castAmp', params: { aspd: 0.15, amp: 0.15, dur: 3 }, desc: '施法后 3s 内攻速与伤害提升', flavor: '莱塔尼亚术士咏唱时佩戴的核心，让下一次施法带着整支曲子的共鸣。' },        // [PLACEHOLDER]
+    // —— 铭刻 +3（龙门/企鹅物流/萨尔贡，池≥3 有 5 阶价值）——
+    { id: 'e_m_longmen',  name: '龙门近卫徽章', icon: '🏯', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '龙门',       desc: '视为龙门（阵营羁绊计数）', flavor: '龙门近卫局的制式徽章。戴上它，魏彦吾的城便把你算作自己人——治安与共犯，都认这枚章。' },        // [PLACEHOLDER]
+    { id: 'e_m_penguin',  name: '企鹅物流工牌', icon: '📦', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '企鹅物流',   desc: '视为企鹅物流（阵营羁绊计数）', flavor: '企鹅物流的工牌，背面印着"准时送达或退款"。戴上它，你就是这家快递公司的编外员工，赶工单优先。' },        // [PLACEHOLDER]
+    { id: 'e_m_sargon',   name: '萨尔贡沙徽', icon: '🏜', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '萨尔贡',     desc: '视为萨尔贡（阵营羁绊计数）', flavor: '萨尔贡王帐发的沙徽，刻着绿洲与王杖。荒野认徽章不认人——有它，你就是王帐的子民。' },        // [PLACEHOLDER]
   ];
   const EQUIP_BY_ID = {}; EQUIP_POOL.forEach(e => EQUIP_BY_ID[e.id] = e);
 
@@ -593,6 +610,8 @@
       rampHitPer: 0, rampHitCap: 0, rampHitAcc: 0,
       summonBeast: 0, specialKw: [], specialParams: {}, castAspd: 1, castAmpMul: 1, castBuffUntil: 0,
       reviveCharges: 0, revivePct: 0,
+      // v2.4 装备扩展字段
+      hitStun: 0, executeThresh: 0, executeMult: 0,
     };
     // 合并签名关键字
     const skw = (sig && sig.kw) || {};
@@ -618,6 +637,8 @@
       else if (special.kw === 'damageReduction') u.damageReduction = Math.max(u.damageReduction, p.value || 0);
       else if (special.kw === 'rampHit') { u.rampHitPer = Math.max(u.rampHitPer, p.per || 0); u.rampHitCap = Math.max(u.rampHitCap, p.cap || 0); }
       else if (special.kw === 'spRegenBuff') u.spRegen *= (1 + (p.value || 0));
+      else if (special.kw === 'lifesteal') u.lifesteal = Math.max(u.lifesteal, p.value || 0); // v2.4 塔拉·战歌
+      else if (special.kw === 'counter') u.counter = Math.max(u.counter, p.value || 0);      // v2.4 卡兹戴尔·源石反噬
     }
     // 阵营多阶：深度阶 kws[]（与基础 kw 同名已在上面覆盖参数；此处处理异名 capstone 行为 + healAura/burnDoT 进化已在上面）
     if (special && special.kws && special.kws.length) {
@@ -632,6 +653,8 @@
         else if (KW === 'damageReduction') u.damageReduction = Math.max(u.damageReduction, p.value || 0);
         else if (KW === 'rampHit') { u.rampHitPer = Math.max(u.rampHitPer, p.per || 0); u.rampHitCap = Math.max(u.rampHitCap, p.cap || 0); }
         else if (KW === 'spRegenBuff') u.spRegen *= (1 + (p.value || 0));
+        else if (KW === 'lifesteal') u.lifesteal = Math.max(u.lifesteal, p.value || 0); // v2.4 塔拉·战歌
+        else if (KW === 'counter') u.counter = Math.max(u.counter, p.value || 0);      // v2.4 卡兹戴尔·源石反噬
         else if (KW === 'castAmp') { u.castAmpMul = 1 + (p.amp || 0.15); u.castAspd = 1 + (p.aspd || 0.15); u.castBuffUntil = Math.max(u.castBuffUntil, 1e9); }
         else if (KW === 'triage') { u.reviveCharges = (p.charges || 1); u.revivePct = (p.revivePct || 0.30); }
         // infernoRally / knightBanner / overload / capo / barrage 在 step/onFight 专门消费
@@ -669,6 +692,12 @@
           if (eq.attr.aspd) u.spd *= (1 + eq.attr.aspd);
           if (eq.attr.def) u.def = Math.round(u.def * (1 + eq.attr.def));
           if (eq.attr.crit) u.crit += eq.attr.crit;
+          // v2.4 扩展：法强/治疗/技回/破甲/减速（复用既有乘区与字段）
+          if (eq.attr.magicAmp) u.magicAmp *= (1 + eq.attr.magicAmp);
+          if (eq.attr.healAmp) u.healAmp *= (1 + eq.attr.healAmp);
+          if (eq.attr.spRegen) u.spRegen *= (1 + eq.attr.spRegen);
+          if (eq.attr.defShred) u.defShred += eq.attr.defShred;
+          if (eq.attr.slow) u.slow += eq.attr.slow;
         } else if (eq.type === 'mech') {
           if (u.equipKw.indexOf(eq.kw) < 0) u.equipKw.push(eq.kw);
           u.equipParams[eq.kw] = p;
@@ -680,6 +709,12 @@
           else if (eq.kw === 'quickStart') u.quickF = 1 + (p.aspd || 0.35); // 走 ATK() 通道
           else if (eq.kw === 'splash') u.splash = p.pct || 0.40;
           else if (eq.kw === 'berzerk') u.berzerk = { thresh: p.thresh || 0.30, atkPct: p.atkPct || 0.20, leech: p.leech || 0.10 };
+          // v2.4 扩展机制装（复用现有消费点）
+          else if (eq.kw === 'execute') { u.executeThresh = p.thresh || 0.30; u.executeMult = p.mult || 0.50; } // dealDamage 处决同款
+          else if (eq.kw === 'trueDmg') u.trueDmg += (p.value || 0);   // 复用真伤字段
+          else if (eq.kw === 'rampHit') { u.rampHitPer += (p.per || 0); u.rampHitCap += (p.cap || 0); } // 复用暖机字段
+          else if (eq.kw === 'castAmp') { u.castAmpMul = 1 + (p.amp || 0.15); u.castAspd = 1 + (p.aspd || 0.15); u.castBuffUntil = 1e9; } // 复用咏唱字段
+          else if (eq.kw === 'stun') u.hitStun = p.pct || 0.15; // step 普攻眩晕
         }
       });
     }
@@ -966,8 +1001,10 @@
         finalDmg *= (1 + src.berzerk.atkPct);
         if (src.alive) src.hp = Math.min(src.maxHp, src.hp + Math.round(finalDmg * src.berzerk.leech));
       }
-      // 处决（萨尔贡特殊）
-      if (src.specialKw.includes('execute') && tgt.hp / tgt.maxHp < ((src.specialParams['execute'] || {}).thresh || 0.3)) finalDmg *= (1 + ((src.specialParams['execute'] || {}).mult || 0.5));
+      // 处决（萨尔贡特殊 / v2.4 装备·处决刃）
+      if ((src.specialKw.includes('execute') || src.executeThresh) && tgt.hp / tgt.maxHp < (src.executeThresh || (src.specialParams['execute'] || {}).thresh || 0.3)) {
+        finalDmg *= (1 + (src.executeMult || (src.specialParams['execute'] || {}).mult || 0.5));
+      }
       // 受击减伤（泥岩 / 雷姆必拓 / 龙门协防）
       if (tgt.damageReduction) finalDmg *= (1 - tgt.damageReduction);
       // 龙门协防（guardAura）：受击方若有存活相邻友军（龙门）则额外减伤
@@ -992,6 +1029,7 @@
       if (tgt.hp <= 0) {
         if (tgt.reviveCharges > 0 && !suddenDeath) { // 罗德岛[9→深度阶] 不抛下任何人：阵亡复活一次
           tgt.reviveCharges--; tgt.hp = Math.max(1, Math.round(tgt.maxHp * (tgt.revivePct || 0.30))); if (tgt.burn) tgt.burn = null;
+          tgt._reviveFx = 1; // v2.4 可视化：金光重生
           logBuf.push({ k: 'revive', line: tgt.name + ' 复活！(' + tgt.hp + ' HP)', side: tgt.side });
         } else {
           tgt.alive = false; occ.delete(tgt.x + ',' + tgt.y); if (tgt.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; if (src && src.isSummon) stats.summonKills++;
@@ -1135,6 +1173,7 @@
           if (u.hp <= 0) {
             if (u.reviveCharges > 0 && !suddenDeath) { // 灼烧致死也可触发复活
               u.reviveCharges--; u.hp = Math.max(1, Math.round(u.maxHp * (u.revivePct || 0.30))); if (u.burn) u.burn = null;
+              u._reviveFx = 1; // v2.4 可视化：金光重生
             } else { u.alive = false; occ.delete(u.x + ',' + u.y); if (u.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; }
           }
         }
@@ -1260,6 +1299,7 @@
             const dmg = dealDamage(u, tgt, raw);
             let line = u.name + ' → ' + tgt.name + ' -' + dmg;
             if (u.traits.indexOf('控场') >= 0 && Math.random() < 0.3) { tgt.stunUntil = t + 1.2; line += ' (眩晕)'; }
+            else if (u.hitStun && Math.random() < u.hitStun) { tgt.stunUntil = t + 1.2; line += ' (震荡眩晕)'; } // v2.4 装备·震荡锤
             if (!tgt.alive) line += ' ☠';
             logBuf.push({ k: 'hit', line, dmgType: u.dmgType, side: u.side });
             u.cd = ATK(u);
@@ -1276,7 +1316,18 @@
     }
 
     function snap() {
-      const map = u => ({ uid: u.uid, hp: Math.max(0, Math.round(u.hp)), max: u.maxHp, alive: u.alive, x: u.x, y: u.y, sp: Math.round(u.sp), spMax: u.spMax, shield: Math.round(u.shield) });
+      // v2.4 可视化层：帧携带 burn/slow/revive 状态，供战斗演出切换视觉类
+      const map = u => {
+        const st = {
+          uid: u.uid, hp: Math.max(0, Math.round(u.hp)), max: u.maxHp, alive: u.alive, x: u.x, y: u.y,
+          sp: Math.round(u.sp), spMax: u.spMax, shield: Math.round(u.shield),
+          burn: u.burn && t < u.burn.until ? 1 : 0,
+          slow: u.slowUntil && t < u.slowUntil ? 1 : 0,
+          reviving: u._reviveFx ? 1 : 0,
+        };
+        if (u._reviveFx) u._reviveFx = 0; // 一次性金光标记，仅复活当帧生效
+        return st;
+      };
       const lines = logBuf.slice(); logBuf.length = 0;
       const casts = castsThisSnap.slice(); castsThisSnap.length = 0;
       frames.push({ lines, ally: ally.map(map), enemy: enemy.map(map), casts });
@@ -1822,8 +1873,24 @@
     // 羁绊解锁音效：仅当新增了此前未激活的羁绊档位 / 新呼应对时触发（首帧/清空不触发）
     const newKeys = active.map(b => b.axis + '|' + b.value + '|' + b.tier);
     reso.forEach(p => newKeys.push('reso|' + p.a + '|' + p.b));
+    // —— v2.4 演出层：capstone / deep 深度阶解锁时全屏横幅（普通 tier 升级只播轻音效）——
     if (G._activeBondKeys && window.AUDIO) {
-      newKeys.forEach(k => { if (G._activeBondKeys.indexOf(k) < 0) AUDIO.play('strategic/bond_unlock'); });
+      newKeys.forEach(k => {
+        if (G._activeBondKeys.indexOf(k) < 0) {
+          AUDIO.play('strategic/bond_unlock');
+          const parts = k.split('|');
+          if (parts.length === 3 && parts[0] === '阵营') {
+            const v = parts[1], tier = parseInt(parts[2], 10);
+            const sp = SPECIAL[v];
+            const isCap = sp && tier >= sp.tier;
+            const isDeep = sp && sp.deep && Object.keys(sp.deep).some(dk => parseInt(dk, 10) === tier);
+            if (isCap || isDeep) {
+              const deepLabel = isDeep ? (sp.deep[tier] && sp.deep[tier].label) : null;
+              showBondBanner(v, isDeep ? deepLabel : (sp.kw ? describeSpecial({ kw: sp.kw, params: sp.params }) : null), tier, isDeep);
+            }
+          }
+        }
+      });
     }
     G._activeBondKeys = newKeys;
     let html = active.map(b => {
@@ -1847,6 +1914,22 @@
     const c1=$('bondsCount'); if(c1) c1.textContent=active.length + reso.length;
     bar.querySelectorAll('.bond').forEach(el => el.onclick = () => { if (window.SFX) SFX.play('select'); showBondModal(el.dataset.axis, el.dataset.value, el.dataset.tier ? parseInt(el.dataset.tier, 10) : 0); });
     bar.querySelectorAll('.reso').forEach(el => el.onclick = () => { if (window.SFX) SFX.play('select'); showBondModal('呼应', el.dataset.a + '|' + el.dataset.b); });
+  }
+
+  // v2.4 演出层：capstone/deep 解锁全屏横幅（金色描边 + 2s 自动消失）
+  let _bannerTimer = null;
+  function showBondBanner(faction, specialDesc, tier, isDeep) {
+    const el = $('bondBanner'); if (!el) return;
+    const txt = $('bondBannerText'); if (!txt) return;
+    const label = isDeep ? specialDesc : (specialDesc || '阵营特殊机制');
+    txt.textContent = '✦ ' + faction + ' · ' + tier + ' 阶 · ' + label + ' 已解锁';
+    el.classList.remove('hidden', 'bb-deep');
+    if (isDeep) el.classList.add('bb-deep');
+    void el.offsetWidth; // 重启动画
+    el.classList.add('bb-pop');
+    if (window.AUDIO) { try { AUDIO.play('strategic/bond_unlock'); } catch (e) {} }
+    clearTimeout(_bannerTimer);
+    _bannerTimer = setTimeout(() => { el.classList.add('hidden'); }, 2200);
   }
 
   // 左侧羁绊面板已整合进顶部「可折叠羁绊条」(.bonds-bar-wrap)；renderBondsPanel 弃用
@@ -2692,6 +2775,16 @@
     const sp = el.querySelector('.spbar i');
     if (sp) sp.style.width = (s.spMax ? Math.max(0, Math.min(100, s.sp / s.spMax * 100)) : 0) + '%';
     if (s.shield > 0) el.classList.add('has-shield'); else el.classList.remove('has-shield');
+    // v2.4 可视化层：burn/slow/revive 状态视觉（CSS 类驱动）
+    el.classList.toggle('on-burn', !!s.burn);
+    el.classList.toggle('on-slow', !!s.slow);
+    if (s.reviving && el.dataset.revived !== '1') {
+      el.dataset.revived = '1';
+      el.classList.add('fx-revive');
+      setTimeout(() => el.classList.remove('fx-revive'), 600);
+    } else if (!s.reviving && el.dataset.revived === '1') {
+      el.dataset.revived = '0';
+    }
   }
 
   function applyFrame(fr) {
@@ -3531,7 +3624,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen };
+  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen };
 
   /* ---- 启动 ---- */
   buildNodes();

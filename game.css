@@ -400,6 +400,57 @@ a{color:var(--gold-strong);text-decoration:none}
 .eq-slot.rarity3{color:#ffd76a;border-color:#e8a33d;background:rgba(130,80,20,.9)}
 .eq-slot:hover{border-color:#fff;transform:scale(1.15)}
 
+/* ============ v2.4 羁绊点亮演出横幅（capstone/deep 解锁仪式） ============ */
+.bond-banner{
+  position:fixed;top:18%;left:50%;transform:translateX(-50%);z-index:90;
+  pointer-events:none;text-align:center;
+}
+.bond-banner .bb-inner{
+  display:inline-block;padding:14px 30px;border-radius:14px;
+  background:linear-gradient(160deg,rgba(30,24,8,.92),rgba(16,14,8,.92));
+  border:2px solid var(--gold-strong);box-shadow:0 0 30px rgba(232,184,75,.45),inset 0 0 18px rgba(232,184,75,.12);
+  backdrop-filter:blur(4px);
+}
+.bond-banner.bb-deep .bb-inner{border-color:#b482f0;box-shadow:0 0 30px rgba(180,130,240,.5),inset 0 0 18px rgba(180,130,240,.15)}
+.bond-banner .bb-text{
+  font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:1px;
+  color:var(--gold-strong);text-shadow:0 0 8px rgba(232,184,75,.5);white-space:nowrap;
+}
+.bond-banner.bb-deep .bb-text{color:#d0a5ff;text-shadow:0 0 8px rgba(180,130,240,.5)}
+.bond-banner.bb-pop{animation:bbPop 2.2s var(--ease) forwards}
+@keyframes bbPop{
+  0%{opacity:0;transform:translateX(-50%) scale(.7)}
+  12%{opacity:1;transform:translateX(-50%) scale(1.08)}
+  20%{transform:translateX(-50%) scale(1)}
+  82%{opacity:1}
+  100%{opacity:0;transform:translateX(-50%) translateY(-14px)}
+}
+
+/* ============ v2.4 战斗可视化层：kw 状态视觉（bf-unit 类驱动） ============ */
+.bf-unit{transition:transform .12s linear}
+.bf-unit.has-shield::after{
+  content:"";position:absolute;inset:-3px;border-radius:8px;
+  border:2px solid rgba(90,200,224,.75);box-shadow:0 0 10px rgba(90,200,224,.4) inset;
+  pointer-events:none;animation:shieldPulse 1.6s ease-in-out infinite;
+}
+@keyframes shieldPulse{0%,100%{opacity:.65}50%{opacity:1}}
+.bf-unit.on-burn .av{filter:brightness(1.35) sepia(.4) hue-rotate(-15deg)}
+.bf-unit.on-burn::before{
+  content:"🔥";position:absolute;top:-14px;left:50%;transform:translateX(-50%);
+  font-size:15px;filter:drop-shadow(0 0 4px rgba(240,120,40,.9));
+  animation:burnFlicker .5s steps(2) infinite;pointer-events:none;
+}
+@keyframes burnFlicker{50%{opacity:.55;transform:translateX(-50%) scale(1.15)}}
+.bf-unit.on-slow{filter:grayscale(.5) brightness(.85)}
+.bf-unit.on-slow .nm{color:#9fd8ff}
+.bf-unit.fx-revive{animation:fxRevive .6s var(--ease)}
+@keyframes fxRevive{
+  0%{opacity:.2;transform:scale(.6)}
+  60%{opacity:1;transform:scale(1.15)}
+  100%{transform:scale(1)}
+}
+.bf-unit.fx-revive .av{filter:drop-shadow(0 0 8px rgba(255,215,106,.9))}
+
 /* ============ v2.1 战斗内召唤物等级角标 ============ */
 .bf-unit{position:relative}
 .bf-unit .lv-badge{position:absolute;top:-6px;left:-6px;min-width:16px;height:16px;padding:0 3px;
