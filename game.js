@@ -580,6 +580,36 @@
     '狙击': 4, '术师': 3, '辅助': 2, '医疗': 2,           // 远程：隔空输出（狙击最长）
   };
 
+  // v2.4 子职业射程细分（Chebyshev）：SUBCLASS_RANGE[subclass] 优先于 CLASS_RANGE[class]。
+  // 近战系大多 1（贴脸 3x3）；个别远程/策士型给 2；远程系按子类拉开档次（神射手最远 5）。
+  // 数值均为 [PLACEHOLDER]，须经 balance_sim.py 蒙特卡洛 + 试玩标定后替换。
+  const SUBCLASS_RANGE = {
+    // 近卫
+    '领主': 1, '重剑手': 1, '撼地者': 1, '术战者': 2, '解放者': 1, '收割者': 1, '斗士': 1, '武者': 1, '教官': 1, '无畏者': 1, '强攻手': 1, '剑豪': 1,
+    // 先锋
+    '情报官': 1, '战术家': 2, '策士': 2, '尖兵': 1, '执旗手': 1, '冲锋手': 1,
+    // 重装
+    '本源铁卫': 1, '哨戒铁卫': 1, '要塞': 2, '守护者': 1, '铁卫': 1, '不屈者': 1, '驭法铁卫': 2, '决战者': 1,
+    // 特种
+    '巡空者': 1, '处决者': 1, '陷阱师': 1, '炼金师': 2, '傀儡师': 1, '怪杰': 1, '钩索师': 1, '伏击客': 1, '推击手': 1, '行商': 1,
+    // 狙击
+    '炮手': 3, '散射手': 3, '回环射手': 3, '攻城手': 3, '速射手': 3, '重射手': 4, '投掷手': 3, '猎手': 3, '神射手': 5,
+    // 术师
+    '轰击术师': 3, '中坚术师': 3, '阵法术师': 3, '扩散术师': 2, '本源术师': 3, '链术师': 3, '塑灵术师': 2, '驭械术师': 3, '秘术师': 4,
+    // 医疗
+    '链愈师': 2, '医师': 2, '守望者': 2, '群愈师': 1, '疗养师': 2, '咒愈师': 2, '行医': 1,
+    // 辅助
+    '召唤师': 1, '巫役': 2, '工匠': 2, '凝滞师': 3, '吟游者': 1, '护佑者': 1, '削弱者': 2,
+  };
+  // 统一射程解析：子职业 > 职业 > 单卡 stats.range > 1（部署高亮 / 战斗单位 / 详情条三处共用）
+  function rangeOf(op) {
+    if (!op) return 1;
+    const sc = op.subclass ? SUBCLASS_RANGE[op.subclass] : null;
+    if (sc != null) return sc;
+    if (op.class && CLASS_RANGE[op.class] != null) return CLASS_RANGE[op.class];
+    return (op.stats && op.stats.range != null) ? op.stats.range : 1;
+  }
+
   function makeCombatUnit(op, star, side, mult, sig, special, resoKw, equip) {
     const sm = STAR_MULT[star] || 1;
     const m = mult || DEF_MULT;
@@ -588,12 +618,20 @@
     const hpMultRaw = sm * (m.hp || 1);
     const atk = Math.round(op.stats.atk * Math.min(atkMultRaw, MAX_ATK_MULT));
     const hp = Math.round(op.stats.hp * Math.min(hpMultRaw, MAX_HP_MULT));
-    const sk = op.skill || null;
+    // v2.5 M1：星级分阶技能——1★/2★/3★ 分别用 skillsAll[0]/[1]/[2]（3★=op.skill，零回归）
+    // 选中的技能若缺战斗参数（M2 全干员改造前），回退 op.skill 兜底，保证任何星级都有可用技能
+    const pickSkillByStar = () => {
+      const idx = star >= 3 ? 2 : (star === 2 ? 1 : 0);
+      const all = (op.skillsAll && op.skillsAll.length) ? op.skillsAll : null;
+      const cand = all && all[idx] && (all[idx].archetype || all[idx].effect) ? all[idx] : null;
+      return cand || op.skill || null;
+    };
+    const sk = pickSkillByStar();
     const spMax = sk ? sk.spMax : 24;
     const aspd = m.aspd || 1;
     const u = {
       op, name: op.name, cls: op.class, avatar: op.avatar, traits: op.traits || [],
-      dmgType: op.stats.dmgType, range: (CLASS_RANGE[op.class] != null ? CLASS_RANGE[op.class] : (op.stats.range || 1)), cost: op.stats.cost, star,
+      dmgType: op.stats.dmgType, range: rangeOf(op), cost: op.stats.cost, star,
       maxHp: hp, hp, atk, baseAtk: atk,
       def: Math.round(op.stats.def * sm * (m.def || 1)),
       spd: op.stats.spd * aspd,
@@ -601,7 +639,7 @@
       next: 100 / (op.stats.spd * aspd), alive: true, stunUntil: 0, slowUntil: 0, slowFactor: 1,
       sp: Math.min(spMax, m.spInit || 0), spMax,
       spRegen: (sk ? sk.spRegen : 1) * (m.spRegen || 1),
-      skill: sk ? { name: sk.name, archetype: sk.archetype, effect: sk.effect, range: sk.range } : null,
+      skill: sk ? { name: sk.name, archetype: sk.archetype, effect: sk.effect, range: sk.range, starIdx: star } : null,
       shield: 0, burn: null,
       crit: m.crit || 0, magicAmp: m.magicAmp || 1, healAmp: m.healAmp || 1,
       // —— 行为关键字（签名 + 阵营特殊）——
@@ -1675,13 +1713,25 @@
     return s + '。';
   }
 
+  // v2.5 M1：取干员当前星级技能（1★[0]/2★[1]/3★[2]；缺参数或没有 skillsAll 回退 op.skill）
+  function skillFor(op, star) {
+    const idx = star >= 3 ? 2 : (star === 2 ? 1 : 0);
+    const all = (op.skillsAll && op.skillsAll.length) ? op.skillsAll : null;
+    const cand = all && all[idx] && (all[idx].archetype || all[idx].effect) ? all[idx] : null;
+    return cand || op.skill || null;
+  }
+  function skillLabelFor(u) {
+    const s = skillFor(u.op, u.star);
+    return s ? (s.name || s.archLabel || '') : '';
+  }
+
   function unitCard(u, where) {
     const op = u.op;
     const sel = G.selected === u.uid ? ' sel' : '';
     const cost = op.stats.cost;
     const role = op.bonds && op.bonds['职业'];
     const aff = op.bonds && op.bonds['阵营'];
-    const skArch = op.skill ? op.skill.archLabel : '';
+    const skArch = skillLabelFor(u); // v2.5 M1：按星级显示技能名
     // v2 装备角标：该干员 2 槽装备（背包待穿时显示空槽提示）
     let eqBadges = '';
     try {
@@ -1736,14 +1786,16 @@
     cells.forEach(c => c.classList.remove('in-range'));
     if (active == null || !G.board[active]) return;
     const op = G.board[active].op;
-    const rng = CLASS_RANGE[op.class] != null ? CLASS_RANGE[op.class] : (op.stats.range || 1);
+    const rng = rangeOf(op);
     const p = slotToXY(active);
     cells.forEach(c => {
       const i = +c.dataset.slot;
+      c.removeAttribute('data-range');
       if (i === active) return;                 // 不标自身格
       const q = slotToXY(i);
       const d = Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y));
-      if (d <= rng) c.classList.add('in-range');
+      if (d <= rng) { c.classList.add('in-range'); c.setAttribute('data-range', rng); }
+      else c.classList.remove('in-range');
     });
   }
 
@@ -2193,7 +2245,7 @@
     $('ubAvatar').src = op.avatar;
     $('ubName').textContent = op.name;
     $('ubStar').textContent = starStr(u.star);
-    const _rng = CLASS_RANGE[op.class] != null ? CLASS_RANGE[op.class] : (st.range != null ? st.range : 1);
+    const _rng = rangeOf(op);
     $('ubStats').innerHTML =
       '费 ' + st.cost + '　HP ' + Math.round(st.hp * sm) +
       '　ATK ' + Math.round(st.atk * sm) + '　DEF ' + Math.round((st.def || 0) * sm) +
@@ -2205,7 +2257,7 @@
         '<div class="ub-bond-note">' + bondShort(op) + '</div>';
     }
     const skEl = $('ubSkill');
-    if (skEl) { skEl.innerHTML = renderSkillBlock(op); bindSkillToggle(); }
+    if (skEl) { skEl.innerHTML = renderSkillBlock(u); bindSkillToggle(); }
     // v2.3 装备详情条（方案C：棋盘卡信息下沉，装备在此完整展示/卸下；复用 data-eq-unequip 委托）
     const eqEl = $('ubEquip');
     if (eqEl) {
@@ -2238,8 +2290,8 @@
     if (!s) s = (sk.archLabel || sk.type || '特殊') + '类技能。';
     return s;
   }
-  function renderSkillBlock(op) {
-    const sk = op.skill;
+  function renderSkillBlock(u) {
+    const sk = skillFor(u.op, u.star); // v2.5 M1：按星级显示当前技能
     if (!sk) return '<div class="sk-block"><div class="sk-none">无主动技能（基础攻击）</div></div>';
     const e = sk.effect || {};
     const tmap = { nearest: '最近敌人', all: '全体敌人', self: '自身', row: '整行', col: '整列', adj: '周围', lowest: '最低生命', front: '最前排', back: '最后排' };
@@ -2844,6 +2896,7 @@
       const g = $('bfGrid');
       g.innerHTML = '';
       G._bfEls = {};
+      G._bfUnits = {}; // v2.4 战斗射程可视化：uid -> {x,y,range,name}
       // 实测网格尺寸：bf-grid 全屏时会被放大，按真实 cell 比例定位才能填满并居中
       const _gr = g.getBoundingClientRect();
       const _gw = _gr.width || (FIELD_W * CELL), _gh = _gr.height || (FIELD_H * CELL);
@@ -2893,6 +2946,7 @@
         el.dataset.alive = p.alive ? 'alive' : 'dead';
         g.appendChild(el);
         G._bfEls[u.uid] = el;
+        G._bfUnits[u.uid] = { x: p.x, y: p.y, range: u.range, name: u.name };
         rendered++;
       });
 
@@ -2903,6 +2957,43 @@
         return;
       }
 
+      // v2.4 战斗射程可视化：hover 单位显示其 Chebyshev 射程覆盖格（一次性绑定）
+      if (!g.dataset.rangeBound) {
+        g.dataset.rangeBound = '1';
+        let _bfLayer = null;
+        const clearLayer = function () { if (_bfLayer) { _bfLayer.remove(); _bfLayer = null; } };
+        g.addEventListener('mouseover', function (e) {
+          const t = e.target.closest && e.target.closest('.bf-unit');
+          if (!t) return;
+          const u = G._bfUnits && G._bfUnits[t.dataset.uid];
+          if (!u || G._bfCell == null) return;
+          clearLayer();
+          const layer = document.createElement('div');
+          layer.className = 'bf-range-layer';
+          const _c = G._bfCell;
+          for (let x = 0; x < FIELD_W; x++) for (let y = 0; y < FIELD_H; y++) {
+            const d = Math.max(Math.abs(u.x - x), Math.abs(u.y - y));
+            if (d >= 1 && d <= u.range) {
+              const cell = document.createElement('div');
+              cell.className = 'bf-range-cell' + (d === 1 ? ' near' : '');
+              cell.style.left = (x * _c.cw) + 'px'; cell.style.top = (y * _c.ch) + 'px';
+              cell.style.width = _c.cw + 'px'; cell.style.height = _c.ch + 'px';
+              layer.appendChild(cell);
+            }
+          }
+          const tag = document.createElement('div');
+          tag.className = 'bf-range-tag';
+          tag.textContent = u.name + ' · 射程 ' + u.range;
+          tag.style.left = ((u.x + 0.5) * _c.cw) + 'px';
+          tag.style.top = (u.y * _c.ch - 22) + 'px';
+          layer.appendChild(tag);
+          g.appendChild(layer);
+          _bfLayer = layer;
+        });
+        g.addEventListener('mouseout', function (e) {
+          if (e.target.closest && e.target.closest('.bf-unit')) clearLayer();
+        });
+      }
       // 启动帧动画
       let fi = 0;
       const speed = 300;
@@ -2927,6 +3018,7 @@
   function updateUnit(s) {
     const el = G._bfEls[s.uid];
     if (!el) return;
+    if (G._bfUnits && G._bfUnits[s.uid]) { G._bfUnits[s.uid].x = s.x; G._bfUnits[s.uid].y = s.y; }
     const _c = G._bfCell || { cw: CELL, ch: CELL, uw: 58, uh: 66 };
     el.style.transform = 'translate(' + (s.x * _c.cw + (_c.cw - _c.uw) / 2) + 'px,' + (s.y * _c.ch + (_c.ch - _c.uh) / 2) + 'px)';
     el.classList.toggle('dead', !s.alive);
@@ -3887,7 +3979,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { FX, G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop };
+  if (typeof window !== 'undefined') window.__RH = { FX, G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
 
   /* ---- 启动 ---- */
   buildNodes();
