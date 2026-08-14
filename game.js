@@ -2848,7 +2848,7 @@
       const _gr = g.getBoundingClientRect();
       const _gw = _gr.width || (FIELD_W * CELL), _gh = _gr.height || (FIELD_H * CELL);
       const _cw = _gw / FIELD_W, _ch = _gh / FIELD_H;
-      const _uw = Math.max(34, Math.min(58, _cw - 6)), _uh = Math.max(40, Math.min(66, _ch - 6));
+      const _uw = Math.max(40, Math.min(72, _cw - 4)), _uh = Math.max(46, Math.min(80, _ch - 4)); // v2.4 单位放大填格，减小部署/战斗视觉空隙
       G._bfCell = { cw: _cw, ch: _ch, uw: _uw, uh: _uh };
       g.style.backgroundSize = _cw + 'px ' + _ch + 'px';
 
@@ -3387,13 +3387,15 @@
 
   /* ---- 拖拽系统（稳健版） ---- */
   let drag = null;
+  let eqDrag = null; // v2.4 装备拖拽：背包装备卡拖到干员卡穿戴
   let clickSuppress = false;
 
   // 在判定落点时临时隐藏幽灵，彻底避免 elementFromPoint 命中幽灵本身
   function elementAt(x, y) {
-    const g = drag && drag.ghost;
+    const g = (drag && drag.ghost) || (eqDrag && eqDrag.ghost);
     if (g) g.style.display = 'none';
-    const el = document.elementFromPoint(x, y);
+    let el = null;
+    try { el = document.elementFromPoint ? document.elementFromPoint(x, y) : null; } catch (e) { el = null; } // jsdom 无此 API，安全兜底
     if (g) g.style.display = '';
     return el;
   }
@@ -3434,6 +3436,18 @@
 
   function onPointerDown(e) {
     if (e.button !== undefined && e.button !== 0) return;
+    // v2.4 装备拖拽：背包装备卡直接拖到干员卡穿戴（优先于干员拖拽）
+    const eqCard = e.target.closest('[data-eq-bag]');
+    if (eqCard) {
+      const bi = parseInt(eqCard.dataset.eqBag, 10);
+      const eqId = G.equipState.bag[bi];
+      if (!eqId) return;
+      eqDrag = { active: false, bagIdx: bi, eqId, startX: e.clientX, startY: e.clientY, ghost: null };
+      window.addEventListener('pointermove', onEqPointerMove);
+      window.addEventListener('pointerup', onEqPointerUp);
+      e.preventDefault();
+      return;
+    }
     const card = e.target.closest('.ucard');
     if (!card) return;
     if (!e.target.closest('#arena')) return;
@@ -3488,6 +3502,53 @@
     if (tgt && tgt.type === 'cell') dropOnCell(d, tgt.idx);
     else if (tgt && tgt.type === 'bench') dropOnBench(d);
     else if (tgt && tgt.type === 'sell' && d.uid != null) sellUnit(d.uid);
+    renderAll();
+  }
+
+  // —— v2.4 装备拖拽：背包装备卡拖到干员卡穿戴 ——
+  function onEqPointerMove(e) {
+    if (!eqDrag) return;
+    const dx = e.clientX - eqDrag.startX, dy = e.clientY - eqDrag.startY;
+    if (!eqDrag.active) {
+      if (Math.hypot(dx, dy) < 6) return;
+      eqDrag.active = true;
+      const card = document.querySelector('[data-eq-bag="' + eqDrag.bagIdx + '"]');
+      if (card) { card.classList.add('dragging'); eqDrag.ghost = createGhost(card); }
+    }
+    if (eqDrag.ghost) {
+      eqDrag.ghost.style.left = (e.clientX - 39) + 'px';
+      eqDrag.ghost.style.top = (e.clientY - 46) + 'px';
+    }
+    markEqHover(e.clientX, e.clientY);
+  }
+  function markEqHover(x, y) {
+    clearEqHover();
+    const el = elementAt(x, y);
+    if (!el) return;
+    const uc = el.closest('.ucard[data-uid]');
+    if (uc && findUnit(parseInt(uc.dataset.uid, 10))) uc.classList.add('eq-drop-target');
+  }
+  function clearEqHover() {
+    document.querySelectorAll('.eq-drop-target').forEach(e => e.classList.remove('eq-drop-target'));
+  }
+  function onEqPointerUp(e) {
+    window.removeEventListener('pointermove', onEqPointerMove);
+    window.removeEventListener('pointerup', onEqPointerUp);
+    if (!eqDrag) return;
+    const d = eqDrag; eqDrag = null;
+    clearEqHover();
+    if (d.ghost) { d.ghost.remove(); d.ghost = null; }
+    document.querySelectorAll('[data-eq-bag].dragging').forEach(c => c.classList.remove('dragging'));
+    // 点击（未拖动）→ 保持原"选中待穿"行为
+    if (!d.active) { clickSuppress = true; G._eqPending = d.bagIdx; renderEquipPanel(); return; }
+    // 拖动 → 落到干员卡上穿戴（elementAt 优先；jsdom 无布局时回退 e.target）
+    clickSuppress = true;
+    const el = elementAt(e.clientX, e.clientY) || e.target;
+    const uc = el && el.closest('.ucard[data-uid]');
+    if (uc) {
+      const uid = parseInt(uc.dataset.uid, 10);
+      if (findUnit(uid)) { equipToUnit(uid, d.eqId); }
+    }
     renderAll();
   }
 
