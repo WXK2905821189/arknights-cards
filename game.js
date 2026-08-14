@@ -842,10 +842,30 @@
     return [0, 2, 2, 3, 3, 4, 4, 5, 5, 5][Math.max(1, Math.min(9, level))] || 5;
   }
 
+  // v2.4 方案A：动态定向招募——玩家场上/备战席已有小阵营（池≤5）时，商店提升该阵营出现率（越凑越容易）
+  // 多阵营并存按已有单位数加权（谁多谁优先），不锁死单一阵营；数值 [PLACEHOLDER] 待标定
+  // 权重设计：2-3 人池 ×1.6 实测几乎无感（40 抽命中≈随机基线），已调高——池越小权重越高
+  function factionTrackBias() {
+    const bias = {}; // 阵营 -> 权重
+    try {
+      if (typeof G === 'undefined' || !G) return bias;
+      const cnt = {};
+      Object.values(G.board).forEach(u => { const f = u.op.bonds && u.op.bonds['阵营']; if (f) cnt[f] = (cnt[f] || 0) + 1; });
+      G.bench.forEach(u => { const f = u.op.bonds && u.op.bonds['阵营']; if (f) cnt[f] = (cnt[f] || 0) + 1; });
+      Object.keys(cnt).forEach(f => {
+        const pool = DATA.operators.filter(o => o.bonds && o.bonds['阵营'] === f).length;
+        // 小阵营（池≤5）才定向：已有 1 人 ×2.5，2+ 人 ×3.5（越凑越容易）；大阵营不干预（随手就有）
+        if (pool <= 5 && pool >= 2) bias[f] = (cnt[f] >= 2) ? 3.5 : 2.5;
+      });
+    } catch (e) {}
+    return bias;
+  }
+
   function pickShop(pool, level) {
     const cap = maxShopCost(level);
     // 开局环境可提升某职业/阵营的出现率（羁绊爆率）
     const bias = (G.env && G.env.effects && G.env.effects.shopBias) || null;
+    const track = factionTrackBias(); // v2.4 动态定向招募（小阵营）
     const byCost = { 1: [], 2: [], 3: [], 4: [], 5: [] };
     pool.forEach(o => { if (o.stats.cost <= cap) byCost[o.stats.cost].push(o); });
     const out = [];
@@ -855,9 +875,16 @@
       let arr = byCost[c];
       while (!arr.length && c > 1) { c--; arr = byCost[c]; }
       if (!arr.length) { out.push(null); continue; }
-      if (bias) {
-        // 加权随机：命中目标职业/阵营的权重 ×mult
-        const w = arr.map(o => (o.bonds[bias.field] === bias.value) ? bias.mult : 1);
+      const hasEnvBias = !!(bias && bias.field);
+      const hasTrack = Object.keys(track).length > 0;
+      if (hasEnvBias || hasTrack) {
+        // 加权随机：开局环境 bias ×mult，动态定向招募按阵营加权（两者可叠加）
+        const w = arr.map(o => {
+          let wt = 1;
+          if (hasEnvBias && o.bonds[bias.field] === bias.value) wt *= bias.mult;
+          if (hasTrack) { const f = o.bonds && o.bonds['阵营']; if (track[f]) wt *= track[f]; }
+          return wt;
+        });
         let tot = 0; for (const x of w) tot += x;
         let r = Math.random() * tot, pick = arr[0];
         for (let k = 0; k < arr.length; k++) { r -= w[k]; if (r <= 0) { pick = arr[k]; break; } }
@@ -1549,8 +1576,66 @@
   function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; }
 
   /* ---- 渲染 ---- */
+  /* ===== v2.4 统一动效系统：飘字/粒子/涟漪/震屏，respects prefers-reduced-motion ===== */
+  const FX = (function () {
+    let reduced = false;
+    try { reduced = (typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) {}
+    function mk(className, x, y, html) {
+      if (reduced || typeof document === 'undefined') return null;
+      const d = document.createElement('div');
+      d.className = className;
+      d.style.left = x + 'px'; d.style.top = y + 'px';
+      if (html != null) d.innerHTML = html;
+      document.body.appendChild(d);
+      return d;
+    }
+    function floatText(x, y, text, cls) {
+      const d = mk('fx-float ' + (cls || ''), x, y, text);
+      if (d) setTimeout(function () { d.remove(); }, 1100);
+    }
+    function burst(x, y, n, color, cls) {
+      if (!n || typeof document === 'undefined' || reduced) return;
+      const arr = [];
+      for (let i = 0; i < n; i++) {
+        const sp = mk('fx-particle ' + (cls || ''), x, y);
+        if (!sp) return;
+        if (color) sp.style.background = color;
+        const ang = Math.random() * Math.PI * 2;
+        const dist = 18 + Math.random() * 34;
+        sp.style.setProperty('--dx', (Math.cos(ang) * dist) + 'px');
+        sp.style.setProperty('--dy', (Math.sin(ang) * dist) + 'px');
+        arr.push(sp);
+      }
+      setTimeout(function () { arr.forEach(x2 => x2.remove()); }, 700);
+    }
+    function ripple(x, y, color) {
+      const d = mk('fx-ripple', x - 16, y - 16);
+      if (d) { if (color) d.style.borderColor = color; setTimeout(function () { d.remove(); }, 600); }
+    }
+    function shake(ms, dist) {
+      if (reduced || typeof document === 'undefined') return;
+      const b = document.body;
+      ms = ms || 130; dist = dist || 6;
+      b.classList.remove('fx-shake'); void b.offsetWidth;
+      b.style.setProperty('--shake-dist', dist + 'px');
+      b.style.setProperty('--shake-ms', ms + 'ms');
+      b.classList.add('fx-shake');
+      setTimeout(function () { b.classList.remove('fx-shake'); }, ms);
+    }
+    return { reduced: reduced, floatText: floatText, burst: burst, ripple: ripple, shake: shake };
+  })();
+
   function renderTop() {
-    $('gold').textContent = G.gold;
+    const ge = $('gold');
+    if (G._lastGold != null && ge && G._lastGold !== G.gold) {
+      try {
+        const r = ge.getBoundingClientRect();
+        if (r && (r.width || r.height)) FX.floatText(r.left + r.width / 2, r.top + 10, (G.gold > G._lastGold ? '+' : '') + (G.gold - G._lastGold), G.gold > G._lastGold ? 'gold' : 'red');
+        ge.classList.remove('num-pop'); void ge.offsetWidth; ge.classList.add('num-pop');
+      } catch (e) {}
+    }
+    G._lastGold = G.gold;
+    ge.textContent = G.gold;
     $('level').textContent = G.level;
     $('hp').textContent = Math.max(0, G.hp);
     $('nodeIdx').textContent = G.nodeIdx + 1;
@@ -1710,7 +1795,7 @@
       const role = op.bonds && op.bonds['职业'];
       const aff = op.bonds && op.bonds['阵营'];
       // 方舟风格卡片：大头像 + 底部信息栏 + 标签叠层
-      return '<div class="ucard shop-card c' + cost + afford + '" data-shop="' + i + '">' +
+      return '<div class="ucard shop-card c' + cost + afford + '" data-shop="' + i + '" style="animation-delay:' + (i * 70) + 'ms">' +
         '<img class="avatar" src="' + op.avatar + '" alt="" onerror="this.style.background=\'#222\'">' +
         '<div class="card-fade"></div>' +
         '<div class="card-tags">' +
@@ -1872,12 +1957,14 @@
     if (!active.length && !reso.length) { bar.innerHTML = '<span class="hint" style="font-size:12px">上场干员凑齐同职业/阵营可触发羁绊；部分阵营同场会触发隐藏呼应</span>'; G._activeBondKeys = null; const c0=$('bondsCount'); if(c0) c0.textContent='0'; return; }
     // 羁绊解锁音效：仅当新增了此前未激活的羁绊档位 / 新呼应对时触发（首帧/清空不触发）
     const newKeys = active.map(b => b.axis + '|' + b.value + '|' + b.tier);
+    const freshKeys = new Set(G._activeBondKeys ? newKeys.filter(k => G._activeBondKeys.indexOf(k) < 0) : []);
     reso.forEach(p => newKeys.push('reso|' + p.a + '|' + p.b));
     // —— v2.4 演出层：capstone / deep 深度阶解锁时全屏横幅（普通 tier 升级只播轻音效）——
     if (G._activeBondKeys && window.AUDIO) {
-      newKeys.forEach(k => {
-        if (G._activeBondKeys.indexOf(k) < 0) {
+      freshKeys.forEach(k => {
+        if (1) {
           AUDIO.play('strategic/bond_unlock');
+          try { const pp = k.split('|'); if (pp.length === 3 && typeof window !== 'undefined' && window.innerWidth) { FX.floatText(window.innerWidth / 2, 120, pp[0] + '·' + pp[1] + ' ' + pp[2] + '阶激活！', 'gold'); FX.shake(120, 3); } } catch (e) {}
           const parts = k.split('|');
           if (parts.length === 3 && parts[0] === '阵营') {
             const v = parts[1], tier = parseInt(parts[2], 10);
@@ -1902,7 +1989,7 @@
       // 叙事 flavor：悬浮提示用阵营 capstone（剥离【台词出处】角标，保持 UI 干净）
       const flav = (typeof BONDS_FLAVOR !== 'undefined' && BONDS_FLAVOR.faction) ? BONDS_FLAVOR.faction[b.value] : null;
       const tip = (flav && flav.cap) ? flavorText(flav.cap).slice(0, 46) : '点击查看羁绊详情';
-      return '<div class="bond" data-axis="' + b.axis + '" data-value="' + b.value + '" data-tier="' + b.tier + '" title="' + tip.replace(/"/g, '&quot;') + '"><b>' + b.axis + '·' + b.value + '</b> <span class="tier">' + b.tier + '阶 (' + b.count + ')</span> ' + parts.join(' ') + '</div>';
+      return '<div class="bond' + (freshKeys.has(b.axis + '|' + b.value + '|' + b.tier) ? ' fresh' : '') + '" data-axis="' + b.axis + '" data-value="' + b.value + '" data-tier="' + b.tier + '" title="' + tip.replace(/"/g, '&quot;') + '"><b>' + b.axis + '·' + b.value + '</b> <span class="tier">' + b.tier + '阶 (' + b.count + ')</span> ' + parts.join(' ') + '</div>';
     }).join('');
     // 呼应 chips：独立于普通羁绊，青色标识，点击看呼应详情
     html += reso.map(p => {
@@ -2305,9 +2392,27 @@
 
   // —— 市场节点（每阶段 1 次）：10 干员 + 5 装备 任选购买，补强后开战 ——
   function showMarketScreen(node) {
-    // 生成补给池（干员：按当前商店档位 10 名；装备：全类型 5 件，稀有度随等级解锁）
+    // 生成补给池（干员：随机 5 + 定向 5——按玩家已有小阵营补缺；装备：全类型 5 件，稀有度随等级解锁）
     if (!G._marketUnits || !G._marketUnits.length) {
-      G._marketUnits = shuffle(DATA.operators.filter(o => o.stats.cost <= maxShopCost(G.level))).slice(0, 10);
+      const lv = maxShopCost(G.level);
+      const cand = DATA.operators.filter(o => o.stats.cost <= lv);
+      // 随机 5：全池
+      const rnd5 = shuffle(cand.slice()).slice(0, 5);
+      // 定向 5：玩家已有小阵营（池≤5）的干员补缺（v2.4 方案B）
+      const track = factionTrackBias();
+      let target = [];
+      Object.keys(track).forEach(f => {
+        const got = new Set();
+        Object.values(G.board).forEach(u => { if (u.op.bonds && u.op.bonds['阵营'] === f) got.add(u.op.name); });
+        G.bench.forEach(u => { if (u.op.bonds && u.op.bonds['阵营'] === f) got.add(u.op.name); });
+        cand.filter(o => o.bonds && o.bonds['阵营'] === f && !got.has(o.name)).forEach(o => target.push(o));
+      });
+      const dir5 = target.length ? shuffle(target).slice(0, 5) : shuffle(cand.slice()).slice(0, 5);
+      // 去重合并（避免随机与定向重复），补足 10 个
+      const seen = new Set(); const merged = [];
+      rnd5.concat(dir5).forEach(o => { if (!seen.has(o.id)) { seen.add(o.id); merged.push(o); } });
+      while (merged.length < 10) { const o = cand[Math.floor(Math.random() * cand.length)]; if (!seen.has(o.id)) { seen.add(o.id); merged.push(o); } }
+      G._marketUnits = merged.slice(0, 10);
     }
     if (!G._marketEquips || !G._marketEquips.length) {
       const mr = maxEquipRarity(G.level);
@@ -2434,17 +2539,74 @@
     G.gold -= c; G.shop[i] = null;
     G.bench.push({ uid: uidc++, op, star: 1 });
     if (window.SFX) SFX.play('buy');
+    // v2.4 购买飞卡：卡片位置金色光粒爆散
+    try { const _sc = document.querySelector('.shop-card[data-shop="' + i + '"]'); if (_sc) { const _r = _sc.getBoundingClientRect(); if (_r && _r.width) FX.burst(_r.left + _r.width / 2, _r.top + _r.height / 2, 8); } } catch (e) {}
     tryCombine();
     renderAll();
     saveGame();
   }
 
+  // v2.4 升星动画（用户拍板：棋盘作主体 / 回主体原位 / 状态先落+演出）：
+  // 棋盘上同名同星优先作主体；结果回主体原位（主体在备战席才留备战席）；光流演出纯叠加、不阻塞、连升依次播。
+  function cardCenter(uid) {
+    if (typeof document === 'undefined') return null;
+    const el = document.querySelector('.ucard[data-uid="' + uid + '"]');
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    if (!r || (!r.width && !r.height)) return null;
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+  function sparkFly(fx) {
+    if (typeof document === 'undefined' || !fx) return;
+    const to = cardCenter(fx.uid);
+    if (!to) return;
+    const body = document.body;
+    const srcs = (fx.from || []).filter(Boolean);
+    if (!srcs.length) srcs.push({ x: to.x - 90, y: to.y - 26 }, { x: to.x + 90, y: to.y - 26 });
+    const sparks = [];
+    srcs.forEach(s => {
+      for (let i = 0; i < 4; i++) {
+        const sp = document.createElement('div');
+        sp.className = 'combine-spark';
+        const sx = s.x + (Math.random() * 26 - 13), sy = s.y + (Math.random() * 26 - 13);
+        const tx = to.x + (Math.random() * 22 - 11), ty = to.y + (Math.random() * 22 - 11);
+        sp.style.left = sx + 'px'; sp.style.top = sy + 'px';
+        sp.style.width = sp.style.height = (3 + Math.random() * 4) + 'px';
+        body.appendChild(sp); sparks.push(sp);
+        requestAnimationFrame(function () {
+          sp.style.transform = 'translate(' + (tx - sx) + 'px,' + (ty - sy) + 'px)';
+          sp.style.opacity = '0';
+        });
+      }
+    });
+    const ring = document.createElement('div');
+    ring.className = 'combine-ring';
+    ring.style.left = (to.x - 26) + 'px'; ring.style.top = (to.y - 26) + 'px';
+    body.appendChild(ring);
+    const txt = document.createElement('div');
+    txt.className = 'combine-txt';
+    txt.textContent = '升星 ★' + (fx.star || 2);
+    txt.style.left = to.x + 'px'; txt.style.top = (to.y - 44) + 'px';
+    body.appendChild(txt);
+    setTimeout(function () { sparks.forEach(x => x.remove()); ring.remove(); txt.remove(); }, 1000);
+  }
+  function playCombineFx(q) {
+    if (!q || !q.length) return;
+    let i = 0;
+    const next = function () {
+      if (i >= q.length) return;
+      const fx = q[i++];
+      sparkFly(fx);
+      setTimeout(next, 1000);
+    };
+    next();
+  }
   function tryCombine() {
     let changed = true;
     while (changed) {
       changed = false;
       const groups = {};
-      G.bench.concat(Object.values(G.board)).forEach(u => {
+      Object.values(G.board).concat(G.bench).forEach(u => {
         const k = u.op.name + '#' + u.star;
         (groups[k] = groups[k] || []).push(u);
       });
@@ -2454,7 +2616,7 @@
         if (star >= 3) continue;
         if (arr.length >= 3) {
           const three = arr.slice(0, 3);
-          const onBoard = three.filter(u => slotOf(u.uid) != null);
+          const mainSlot = slotOf(three[0].uid); // 棋盘作主体：删前记录原位
           // v2 装备：三合一后新单位继承第一件（arr[0]）的 2 槽装备，其余两件的装备回背包
           let inheritEq = [];
           if (G.equipState && G.equipState.slots) {
@@ -2465,18 +2627,28 @@
             });
             delete G.equipState.slots[three[0].uid];
           }
+          // 升星动画：先记录被吸收卡与主体的位置（DOM 尚未刷新；主体目标用新 uid 定位）
+          const up = { uid: uidc++, op: arr[0].op, star: star + 1 };
+          (G._combineFx = G._combineFx || []).push({
+            uid: up.uid,
+            from: [three[1].uid, three[2].uid].map(u => cardCenter(u.uid)),
+            star: star + 1
+          });
           three.forEach(u => {
             G.bench = G.bench.filter(x => x.uid !== u.uid);
             for (const kk in G.board) if (G.board[kk].uid === u.uid) delete G.board[kk];
           });
-          const up = { uid: uidc++, op: arr[0].op, star: star + 1 };
           if (G.equipState) G.equipState.slots[up.uid] = inheritEq; // 装备继承（新 uid）
-          if (onBoard.length >= 2) { const c = firstFreeSlot(); if (c != null) G.board[c] = up; else G.bench.push(up); }
-          else G.bench.push(up);
+          if (mainSlot != null) G.board[mainSlot] = up; else G.bench.push(up); // 回主体原位；主体在备战席才留备战席
           changed = true;
           break;
         }
       }
+    }
+    // 状态已落（调用方随后渲染 DOM），延迟 40ms 播放动画；连升依次排队
+    if (G._combineFx && G._combineFx.length) {
+      const q = G._combineFx; G._combineFx = [];
+      setTimeout(function () { playCombineFx(q); }, 40);
     }
   }
 
@@ -2761,6 +2933,7 @@
     if (!s.alive) {
       if (el.dataset.alive !== 'dead') {
         el.dataset.alive = 'dead';
+        try { const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null; if (_r && _r.width) { FX.burst(_r.left + _r.width / 2, _r.top + _r.height / 2, 10, '#ffb3b3'); FX.shake(100, 3); } } catch (e) {}
         if (!G._audioSkip && window.AUDIO) {
           // v2.1：召唤物死亡播专属"兽落"音，普通单位播通用 combat/death
           if (el.dataset.summon === '1') AUDIO.play('summon/death', { side: el.dataset.side });
@@ -2771,7 +2944,27 @@
       el.dataset.alive = 'alive';
     }
     const hp = el.querySelector('.hpbar i');
-    if (hp) hp.style.width = (s.max ? Math.max(0, s.hp / s.max * 100) : 0) + '%';
+    const prevPct = el.dataset.prevHp != null ? parseFloat(el.dataset.prevHp) : null;
+    const curPct = s.max ? Math.max(0, s.hp / s.max * 100) : 0;
+    if (prevPct != null && hp) {
+      const diff = curPct - prevPct;
+      if (diff < -0.5) {
+        el.classList.remove('fx-hit'); void el.offsetWidth; el.classList.add('fx-hit');
+        G._fxHitsThisFrame = (G._fxHitsThisFrame || 0);
+        if (G._fxHitsThisFrame < 4) {
+          G._fxHitsThisFrame++;
+          const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null;
+          if (_r && _r.width) FX.floatText(_r.left + _r.width / 2, _r.top - 4, '-' + Math.round(s.max * Math.abs(diff) / 100), 'red');
+        }
+        if (diff < -25) FX.shake(110, 4);
+      } else if (diff > 0.5) {
+        el.classList.remove('fx-heal'); void el.offsetWidth; el.classList.add('fx-heal');
+        const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null;
+        if (_r && _r.width) FX.floatText(_r.left + _r.width / 2, _r.top - 6, '+' + Math.round(s.max * diff / 100), 'green');
+      }
+    }
+    el.dataset.prevHp = curPct;
+    if (hp) hp.style.width = curPct + '%';
     const sp = el.querySelector('.spbar i');
     if (sp) sp.style.width = (s.spMax ? Math.max(0, Math.min(100, s.sp / s.spMax * 100)) : 0) + '%';
     if (s.shield > 0) el.classList.add('has-shield'); else el.classList.remove('has-shield');
@@ -2789,6 +2982,7 @@
 
   function applyFrame(fr) {
     try {
+      G._fxHitsThisFrame = 0;
       if (fr.sys) {
         const log = $('battleLog');
         const div = document.createElement('div');
@@ -2952,6 +3146,10 @@
     b.onclick = () => { if (window.SFX) SFX.play('click'); cb(); };
     $('resultScreen').classList.remove('hidden');
     $('battleScreen').classList.add('hidden');
+    // v2.4 结算粒子：胜利/告捷时标题处金色光点
+    if (/胜利|通关|晋升|告捷/.test(title)) {
+      try { const tr = $('resultTitle').getBoundingClientRect(); if (tr && tr.width) FX.burst(tr.left + tr.width / 2, tr.top + 4, 12); } catch (e) {}
+    }
   }
 
   function nextNode() {
@@ -3294,35 +3492,38 @@
   }
 
   function dropOnCell(d, idx) {
-    if (!isLeftSlot(idx)) { flash('右侧为敌方站位预览，无法部署'); return; }
+    const cellEl = function () { return document.querySelector('.board-cell[data-slot="' + idx + '"]'); };
+    const reject = function (msg) { flash(msg); const ce = cellEl(); if (ce) { ce.classList.add('drop-reject'); setTimeout(function () { ce.classList.remove('drop-reject'); }, 450); } FX.shake(120, 4); };
+    const okFx = function () { const ce = cellEl(); if (ce) { ce.classList.add('drop-ok'); setTimeout(function () { ce.classList.remove('drop-ok'); }, 600); } };
+    if (!isLeftSlot(idx)) { reject('右侧为敌方站位预览，无法部署'); return; }
     const occU = G.board[idx];
     const curCount = boardCount();
 
     if (d.from === 'shop') {
       const op = d.op, c = effCost(op);
-      if (G.gold < c) { flash('金币不足'); return; }
+      if (G.gold < c) { reject('金币不足'); return; }
       if (occU) {
-        if (G.bench.length >= BENCH_CAP) { flash('备战席已满'); return; }
+        if (G.bench.length >= BENCH_CAP) { reject('备战席已满'); return; }
         const old = occU;
         G.board[idx] = { uid: uidc++, op, star: 1 };
         G.bench.push(old);
         G.shop[d.shopIdx] = null; G.gold -= c;
       } else {
-        if (curCount >= boardCap()) { flash('人口已满（' + curCount + '/' + boardCap() + '），请升级或下场干员'); return; }
+        if (curCount >= boardCap()) { reject('人口已满（' + curCount + '/' + boardCap() + '），请升级或下场干员'); return; }
         G.board[idx] = { uid: uidc++, op, star: 1 };
         G.shop[d.shopIdx] = null; G.gold -= c;
       }
     } else if (d.from === 'bench') {
       const u = d.unit;
       if (occU) {
-        if (G.bench.length >= BENCH_CAP) { flash('备战席已满'); return; }
+        if (G.bench.length >= BENCH_CAP) { reject('备战席已满'); return; }
         const old = occU;
         delete G.board[idx];
         G.board[idx] = { uid: u.uid, op: u.op, star: u.star };
         G.bench = G.bench.filter(x => x.uid !== u.uid);
         G.bench.push(old);
       } else {
-        if (curCount >= boardCap()) { flash('人口已满（' + curCount + '/' + boardCap() + '），请升级或下场干员'); return; }
+        if (curCount >= boardCap()) { reject('人口已满（' + curCount + '/' + boardCap() + '），请升级或下场干员'); return; }
         G.bench = G.bench.filter(x => x.uid !== u.uid);
         G.board[idx] = { uid: u.uid, op: u.op, star: u.star };
       }
@@ -3340,6 +3541,7 @@
         G.board[idx] = { uid: u.uid, op: u.op, star: u.star };
       }
     }
+    okFx();
     tryCombine();
   }
 
@@ -3486,11 +3688,11 @@
     const coinsEl = $('metaCoins'); if (coinsEl) coinsEl.textContent = m.coins || 0;
     const wrap = $('metaChoices');
     if (wrap) {
-      wrap.innerHTML = Object.keys(META_UPGRADES).map(id => {
+      wrap.innerHTML = Object.keys(META_UPGRADES).map((id, idx) => {
         const up = META_UPGRADES[id];
         const owned = !!m.unlocks[id];
         const can = !owned && (m.coins || 0) >= up.cost;
-        return '<div class="env-card tier-gold ' + (owned ? 'owned' : (can ? '' : 'locked')) + '" data-meta="' + id + '">' +
+        return '<div class="env-card tier-gold ' + (owned ? 'owned' : (can ? '' : 'locked')) + '" data-meta="' + id + '" style="animation-delay:' + (idx * 60) + 'ms">' +
           '<h4>' + up.name + (owned ? ' ✓' : '') + '</h4><p>' + up.desc + '</p>' +
           '<div class="mc-cost">' + (owned ? '已解锁' : ('💎 ' + up.cost)) + '</div></div>';
       }).join('');
@@ -3624,7 +3826,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen };
+  if (typeof window !== 'undefined') window.__RH = { FX, G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop };
 
   /* ---- 启动 ---- */
   buildNodes();
