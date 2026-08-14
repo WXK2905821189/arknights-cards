@@ -179,6 +179,64 @@
     { id: 'e_m_rhine',    name: '莱茵生命铭牌', icon: '🧪', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '莱茵生命', desc: '视为莱茵生命（阵营羁绊计数）', flavor: '莱茵生命研发现场的员工铭牌，藏着这家哥伦比亚巨企对“生命”二字近乎偏执的执念。' },
     { id: 'e_m_siracusa', name: '叙拉古家徽', icon: '💼', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '叙拉古',   desc: '视为叙拉古（阵营羁绊计数）', flavor: '十二家族中某一支的微型家徽。在叙拉古，血统与忠诚写在族谱上——而族谱，承认你。' },
     { id: 'e_m_laterano', name: '拉特兰圣铳', icon: '🔫', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '拉特兰',   desc: '视为拉特兰（阵营羁绊计数）', flavor: '拉特兰教廷制式的微型圣铳铭刻。在这座以“铳”为信仰的城市，持铳者便被视作信众的一员。' },
+
+    // —— 阵营签名装备（C 类目录落地 · 2026-08-14 内容叙事设计师补全 24 阵营）——
+    //   红线：attr 仅消费 atk/hp/aspd/def/crit（magicAmp/spInit 不在 fold，改用近似 attr 或 mech）；
+    //        mech 仅 counter/revive/lifesteal/pierce/regenShield/quickStart/splash/berzerk。
+    //        16 个有 BONDS 轴的阵营按自身属性轴落 attr；8 个走 __default__ 的阵营仅作风味掉落。
+    // —— 罗德岛（医疗理念：治疗量+生存 → 取 hp）——
+    { id: 'e_f_rhodes',   name: '罗德岛制式铳刃', icon: '⚔', type: 'attr', cat4: 'weapon', rarity: 2, cost: 8, attr: { hp: 0.12 }, desc: '生命 +12%', flavor: '罗德岛工坊按干员手型调过的制式铳刃，朴素、顺手，刃口还留着源石碎屑的冷光——和甲板上的每一个人一样。' },        // [PLACEHOLDER]
+    // —— 龙门（近卫局：攻击+防御）——
+    { id: 'e_f_longmen',  name: '近卫局智能枪械', icon: '🛡', type: 'attr', cat4: 'weapon', rarity: 2, cost: 8, attr: { atk: 0.08, def: 0.08 }, desc: '攻击 +8% 防御 +8%', flavor: '龙门近卫局列装的智能枪械，瞄准辅助与城防模块同源。在龙门，治安与战备只有一线之隔。' },        // [PLACEHOLDER]
+    // —— 炎（岁兽/炎国：生命+防御）——
+    { id: 'e_f_yan',      name: '炎国古武·戟', icon: '🗡', type: 'attr', cat4: 'weapon', rarity: 3, cost: 12, attr: { hp: 0.10, def: 0.06 }, desc: '生命 +10% 防御 +6%', flavor: '炎国古武谱上的制式戟，龙脉的余温在金属里流动，沉而厚重，像一座不肯被轻易撼动的城。' },        // [PLACEHOLDER]
+    // —— 拉特兰（枪之城：攻击+暴击）——
+    { id: 'e_f_latran',   name: '教廷制式铳', icon: '🔫', type: 'attr', cat4: 'weapon', rarity: 3, cost: 12, attr: { crit: 0.12, atk: 0.06 }, desc: '暴击 +12% 攻击 +6%', flavor: '拉特兰人出生时领到的不是名字，是一把铳。教廷制式的铳比祈祷更让人安心——前提是弹槽里有信。' },        // [PLACEHOLDER]
+    // —— 维多利亚（骑士王国：攻防兼备）——
+    { id: 'e_f_victoria', name: '蒸汽Royal军械', icon: '⚙', type: 'attr', cat4: 'weapon', rarity: 3, cost: 12, attr: { atk: 0.08, def: 0.08 }, desc: '攻击 +8% 防御 +8%', flavor: '维多利亚王家军械匠的蒸汽发条作品，骑士冲锋时，齿轮与荣誉一同转动，铆钉里嵌着旧大陆的体面。' },        // [PLACEHOLDER]
+    // —— 莱茵生命（科研机构：术法+起手技力 → 二者均不在 attr fold，改用 mech regenShield 贴合“生命”主题）——
+    { id: 'e_f_rhine',    name: '莱茵生命源生护场', icon: '♻', type: 'mech', cat4: 'armor', rarity: 3, cost: 12, kw: 'regenShield', params: { period: 5, frac: 0.08 }, desc: '每 5s 生成 8% 生命护盾', flavor: '莱茵生命对“生命”二字的执念，凝成一片持续再生的力场——他们连护盾都要做成活的组织。' },        // [PLACEHOLDER]
+    // —— 叙拉古（家族：暴击+攻速）——
+    { id: 'e_f_siracusa', name: '家族定制配枪', icon: '🤵', type: 'attr', cat4: 'weapon', rarity: 3, cost: 12, attr: { crit: 0.10, aspd: 0.08 }, desc: '暴击 +10% 攻速 +8%', flavor: '十二家族中某一支的定制配枪，枪柄刻着族徽。在叙拉古，忠诚先写在武器上，再刻进族谱。' },        // [PLACEHOLDER]
+    // —— 莱塔尼亚（源石技艺帝国：术法+起手技力 → 取 atk 作术式威力近似）——
+    { id: 'e_f_laterano', name: '浮空源石法杖', icon: '🔮', type: 'attr', cat4: 'weapon', rarity: 3, cost: 12, attr: { atk: 0.10 }, desc: '攻击 +10%', flavor: '莱塔尼亚源石技艺帝国的浮空法杖，源石在杖首低吟。术式的重量，压过一切修辞。' },        // [PLACEHOLDER]
+    // —— 萨尔贡（荒野战士：攻击+生命）——
+    { id: 'e_f_sargon',   name: '荒野战斧', icon: '🪓', type: 'attr', cat4: 'weapon', rarity: 2, cost: 8, attr: { atk: 0.10, hp: 0.06 }, desc: '攻击 +10% 生命 +6%', flavor: '萨尔贡荒野战士的宽刃战斧，刃口磨得能劈开沙暴里的兽骨。荒野不教战术，只教活着。' },        // [PLACEHOLDER]
+    // —— 企鹅物流（物流速度：起手技力+技力回复 → 取 aspd 作“快”的近似）——
+    { id: 'e_f_penguin',  name: '改装快递箱', icon: '📦', type: 'attr', cat4: 'device', rarity: 2, cost: 8, attr: { aspd: 0.15 }, desc: '攻速 +15%', flavor: '企鹅物流的改装配送箱，能塞下一切，也能让持箱人快得像赶着送最后一单。能天使说这玩意比源石技艺还好用。' },        // [PLACEHOLDER]
+    // —— 巴别塔（起源：生存向 hp+def）——
+    { id: 'e_f_babel',    name: '旧式巴别塔军械', icon: '⚒', type: 'attr', cat4: 'armor', rarity: 2, cost: 8, attr: { hp: 0.10, def: 0.06 }, desc: '生命 +10% 防御 +6%', flavor: '巴别塔旧制的军械，样式已经过时，却仍带着那个理想主义年代的余温。被遗忘的，未必不曾被相信。' },        // [PLACEHOLDER]
+    // —— 谢拉格（雪境信仰：生命+防御）——
+    { id: 'e_f_sierg',    name: '雪境登山具', icon: '🏔', type: 'attr', cat4: 'armor', rarity: 2, cost: 8, attr: { hp: 0.10, def: 0.06 }, desc: '生命 +10% 防御 +6%', flavor: '谢拉格雪境的登山制式具，寒风里攀行的人，靠它把体温与信念一起护住。山不语，但记得每一个向上的人。' },        // [PLACEHOLDER]
+    // —— 深海猎人（攻击+生命）——
+    { id: 'e_f_abyssal',  name: '深海猎人三叉戟', icon: '🔱', type: 'attr', cat4: 'weapon', rarity: 3, cost: 12, attr: { atk: 0.10, hp: 0.06 }, desc: '攻击 +10% 生命 +6%', flavor: '深海猎人的制式三叉戟，刃身凝着海嗣的血锈。猎杀者的孤独，藏在每一次掷出的弧线里。' },        // [PLACEHOLDER]
+    // —— 乌萨斯（寒冬帝国：攻击+防御）——
+    { id: 'e_f_ursus',    name: '寒霜重装甲', icon: '❄', type: 'attr', cat4: 'armor', rarity: 3, cost: 12, attr: { atk: 0.08, def: 0.08 }, desc: '攻击 +8% 防御 +8%', flavor: '乌萨斯寒冬帝国的制式重装甲，钢层里冻着西伯利亚的风，硬扛每一次重击，像帝国扛过每一次寒冬。' },        // [PLACEHOLDER]
+    // —— 伊比利亚（深海外交：术法+生命 → 取 hp 作生存近似）——
+    { id: 'e_f_iberia',   name: '深海声呐装置', icon: '📡', type: 'attr', cat4: 'device', rarity: 3, cost: 12, attr: { hp: 0.12 }, desc: '生命 +12%', flavor: '伊比利亚深海外交部队的声呐装置，潮汐的频率在金属里回响，提醒佩戴者海面下还压着什么。海潮之下，旧事未央。' },        // [PLACEHOLDER]
+    // —— 卡兹戴尔（萨卡兹故土：防御+生存）——
+    { id: 'e_f_kazdel',   name: '源石诅咒兵装', icon: '☠', type: 'attr', cat4: 'armor', rarity: 3, cost: 12, attr: { def: 0.10, hp: 0.06 }, desc: '防御 +10% 生命 +6%', flavor: '萨卡兹故土的源石诅咒兵装，诅咒是胎记也是铠甲。卡兹戴尔不愿被征服的人，把诅咒穿在身上。' },        // [PLACEHOLDER]
+    // —— 哥伦比亚（非 BONDS 轴，__default__ 通用攻血；仅风味掉落）——
+    { id: 'e_f_columbia', name: '哥伦比亚量产步枪', icon: '🔫', type: 'attr', cat4: 'weapon', rarity: 2, cost: 8, attr: { atk: 0.10, crit: 0.06 }, desc: '攻击 +10% 暴击 +6%', flavor: '哥伦比亚流水线上的量产步枪，现代企业把战争也做成了标准件，喷漆是按季度更新的。' },        // [PLACEHOLDER]
+    // —— 卡西米尔（非 BONDS 轴；骑士团/竞技）——
+    { id: 'e_f_casimir',  name: '骑士铠', icon: '🛡', type: 'attr', cat4: 'armor', rarity: 2, cost: 8, attr: { atk: 0.08, def: 0.06 }, desc: '攻击 +8% 防御 +6%', flavor: '卡西米尔竞技场的骑士铠，荣耀与奖金都写在甲片反光里。披上它，你先是选手，才是自己。' },        // [PLACEHOLDER]
+    // —— 阿戈尔（非 BONDS 轴；海面下文明，有 RESONANCE 键）——
+    { id: 'e_f_agogo',    name: '阿戈尔水压装甲', icon: '🌊', type: 'attr', cat4: 'armor', rarity: 3, cost: 12, attr: { atk: 0.10, hp: 0.06 }, desc: '攻击 +10% 生命 +6%', flavor: '海面之下另有一座文明的制式装甲，水压与寂静一同锻成，不为任何城邦的旗号而造。' },        // [PLACEHOLDER]
+    // —— 喀兰贸易（非 BONDS 轴；杜林工坊精品）——
+    { id: 'e_f_kerr',     name: '杜林工坊精品', icon: '🔧', type: 'attr', cat4: 'weapon', rarity: 2, cost: 8, attr: { atk: 0.10 }, desc: '攻击 +10%', flavor: '喀兰贸易旗下杜林工坊的精品武装，雇佣兵的信条是：东西好用，比旗号重要。' },        // [PLACEHOLDER]
+    // —— 使徒（非 BONDS 轴；SPECIAL hp，天使主题/神恩）——
+    { id: 'e_f_apostle',  name: '十字枪', icon: '✝', type: 'attr', cat4: 'weapon', rarity: 3, cost: 12, attr: { hp: 0.10 }, desc: '生命 +10%', flavor: '使徒的十字枪，羽翼与神恩的意象铸进枪身。离开故土的萨卡兹，仍带着信仰的重量。' },        // [PLACEHOLDER]
+    // —— 雷姆必拓（非 BONDS 轴；SPECIAL 减伤，矿工伤痕）——
+    { id: 'e_f_rim',      name: '矿脉护体装置', icon: '⛏', type: 'attr', cat4: 'armor', rarity: 2, cost: 8, attr: { def: 0.10 }, desc: '防御 +10%', flavor: '雷姆必拓矿工代代相传的护体装置，矿工伤痕里长出的不是怨，是硬扛落石的本能。' },        // [PLACEHOLDER]
+    // —— 塔拉（非 BONDS 轴；SPECIAL 攻速，战歌）——
+    { id: 'e_f_tara',     name: '战歌图腾', icon: '🥁', type: 'attr', cat4: 'device', rarity: 2, cost: 8, attr: { aspd: 0.12 }, desc: '攻速 +12%', flavor: '塔拉游吟者的战歌图腾，鼓点一起，连脚步都跟着快了半拍。歌里唱的，是还没回家的那些人。' },        // [PLACEHOLDER]
+    // —— 鲤氏侦探事务所（非 BONDS 轴；SPECIAL 暴击，推理/洞察）——
+    { id: 'e_f_li',       name: '侦探礼装', icon: '🎩', type: 'attr', cat4: 'armor', rarity: 3, cost: 12, attr: { crit: 0.10 }, desc: '暴击 +10%', flavor: '鲤氏侦探事务所的礼装，推理与洞察织进衣褶。真相，往往藏在最体面的那一层。' },        // [PLACEHOLDER]
+
+    // —— 战术装置（B 类目录落地 · 仅取当前机制支持的 kw/attr；spInit/dodge/taunt 类暂缺 kw，待机制扩展）——
+    { id: 'e_g_reactor',  name: '源石反应堆', icon: '🔋', type: 'attr', cat4: 'device', rarity: 2, cost: 8, attr: { atk: 0.08, hp: 0.08 }, desc: '攻击 +8% 生命 +8%', flavor: '驱动核心级的源石反应堆，把澎湃的源石能同时灌进攻击与体魄——前提是你扛得住它的温度。' },        // [PLACEHOLDER]
+    { id: 'e_g_anchor',   name: '源石稳定锚', icon: '🧲', type: 'mech', cat4: 'device', rarity: 2, cost: 8, kw: 'regenShield', params: { period: 5, frac: 0.08 }, desc: '每 5s 生成 8% 生命护盾', flavor: '莱塔尼亚源石技艺稳定技术的便携版，像船锚一样把失控的术式压回正轨，也把佩戴者的体表凝出一层薄盾。' },        // [PLACEHOLDER]
+    { id: 'e_g_drone',    name: '工程无人机', icon: '🛸', type: 'attr', cat4: 'device', rarity: 1, cost: 5, attr: { aspd: 0.10 }, desc: '攻速 +10%', flavor: '可露希尔说它比某些干员听话。工程部的无人机绕着你转，把补给与节奏一起递到手上。' },        // [PLACEHOLDER]
   ];
   const EQUIP_BY_ID = {}; EQUIP_POOL.forEach(e => EQUIP_BY_ID[e.id] = e);
 
@@ -1503,7 +1561,8 @@
           }).join('') + '</span>';
       }
     } catch (err) {}
-    return '<div class="ucard c' + cost + sel + '" data-uid="' + u.uid + '" data-where="' + where + '">' +
+    const _cls = 'ucard c' + cost + sel + (where === 'board' ? ' board-lite' : '');
+    return '<div class="' + _cls + '" data-uid="' + u.uid + '" data-where="' + where + '">' +
       '<img class="avatar" src="' + op.avatar + '" alt="" onerror="this.style.background=\'#222\'">' +
       '<div class="card-fade"></div>' +
       '<div class="card-tags">' +
@@ -1977,6 +2036,23 @@
     }
     const skEl = $('ubSkill');
     if (skEl) { skEl.innerHTML = renderSkillBlock(op); bindSkillToggle(); }
+    // v2.3 装备详情条（方案C：棋盘卡信息下沉，装备在此完整展示/卸下；复用 data-eq-unequip 委托）
+    const eqEl = $('ubEquip');
+    if (eqEl) {
+      const slots = (G.equipState && G.equipState.slots && G.equipState.slots[u.uid]) || [];
+      eqEl.innerHTML = (slots && slots.length) ?
+        '<div class="ub-equip-title">装备</div>' +
+        '<div class="ub-equip-row">' +
+        [0, 1].map(i => {
+          const eqId = slots[i];
+          const e = eqId ? EQUIP_BY_ID[eqId] : null;
+          return '<span class="ub-eq' + (e ? ' rarity' + e.rarity : ' empty') + '" data-eq-unequip="' + u.uid + '" data-eq-slot="' + i + '" title="' + (e ? (e.name || e.id) + '：' + e.desc + '（点击卸下）' : '空槽（暂无装备）') + '">' +
+            '<b>' + (e ? (e.icon || (e.type === 'engraving' ? '◎' : e.type === 'attr' ? '⬆' : '✦')) : '+') + '</b>' +
+            '<i>' + (e ? (e.name || e.id) : '空槽') + '</i>' +
+          '</span>';
+        }).join('') + '</div>'
+        : '';
+    }
   }
 
   /* ---- 技能描述（简略/详细切换，board/bench 卡与商店弹窗共用） ---- */
@@ -3202,8 +3278,8 @@
         }
         if (e.target.closest('#bench')) { if (u) dropOnBench({ from: G.bench.some(x => x.uid === u.uid) ? 'bench' : 'board', uid: u.uid, unit: u, op: u.op }); G.selected = null; renderAll(); return; }
         if (e.target.closest('#sellZone')) { sellUnit(G.selected); G.selected = null; renderAll(); return; }
-        // 点击已选单位本身或空白处：取消选择
-        if (e.target.closest('.ucard[data-uid="' + G.selected + '"]') || !e.target.closest('.ucard')) { selectUnit(G.selected); return; }
+        // 点击已选单位本身或空白处：取消选择（装备槽点击放行，走下方卸下逻辑）
+        if (!e.target.closest('[data-eq-unequip]') && (e.target.closest('.ucard[data-uid="' + G.selected + '"]') || !e.target.closest('.ucard'))) { selectUnit(G.selected); return; }
       }
       const sc = e.target.closest('[data-shop]');
       if (sc) { const i = parseInt(sc.dataset.shop, 10); buy(i); return; }
@@ -3405,7 +3481,11 @@
   }
 
   function showStartScreen(sv) {
+    // 防御：旧存档 nodeIdx 可能超出当前节点图（版本更新后 buildNodes 结构变化）。
+    // 越界时若直接 G.nodes[sv.nodeIdx].type 会抛 TypeError 中断启动，留下空白 overlay。
+    // 处理：视为无效存档 → 清档走新游戏流程（reset 内部会重新 buildNodes 并渲染难度/环境卡）。
     const node = G.nodes[sv.nodeIdx];
+    if (!node) { clearSave(); reset(); return; }
     const envName = sv.env ? ((ENV_POOL.find(e => e.id === sv.env) || {}).name || '未选择') : '未选择';
     $('startInfo').innerHTML = '检测到存档：进度 <b>节点 ' + (sv.nodeIdx + 1) + ' / ' + G.nodes.length +
       '</b>（' + (NODE_LABEL[node.type] || node.type) + '）　·　环境：' + envName +

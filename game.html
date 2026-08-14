@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>罗德岛棋局 · 货币战争</title>
-  <link rel="stylesheet" href="tokens.css?v=20260812d" />
-  <link rel="stylesheet" href="game.css?v=20260812d" />
+  <link rel="stylesheet" href="tokens.css?v=20260814e" />
+  <link rel="stylesheet" href="game.css?v=20260814e" />
 </head>
 <body>
   <header class="topbar">
@@ -40,7 +40,7 @@
     </section>
 
     <!-- 难度选择（数字 1-5，由易到难） -->
-    <section id="diffScreen" class="overlay">
+    <section id="diffScreen" class="overlay hidden">
       <div class="panel" role="dialog" aria-modal="true">
         <h2>选择难度</h2>
         <p class="hint">数字越大越难：敌方更强、数量更多，但奖励也更丰厚。建议从「普通(2)」起步，由易到难。</p>
@@ -49,7 +49,7 @@
     </section>
 
     <!-- 投资环境选择 -->
-    <section id="envScreen" class="overlay">
+    <section id="envScreen" class="overlay hidden">
       <div class="panel" role="dialog" aria-modal="true">
         <h2>选择投资环境</h2>
         <p class="hint">进入棋局前，先押注一项全局增益。高风险高回报，决定你这一局的运营风格。</p>
@@ -220,6 +220,7 @@
       </div>
     </div>
     <div id="ubBonds" class="ub-bonds"></div>
+    <div id="ubEquip" class="ub-equip"></div>
     <div id="ubSkill" class="ub-skill"></div>
     <div class="ub-actions">
       <button id="ubSell" class="btn small danger">售出</button>
@@ -227,13 +228,13 @@
   </div>
 
   <!-- 缓存戳：每次发版/改数据后修改 ?v= 即可强制浏览器刷新 -->
-  <script src="data.js?v=20260812d"></script>
-  <script src="signatures.js?v=20260812d"></script>
-  <script src="audio_assets.js?v=20260812d"></script>
-  <script src="audio.js?v=20260812d"></script>
-  <script src="resonance.js?v=20260812d"></script>
-  <script src="bonds_flavor.js?v=20260812d"></script>
-  <script src="game.js?v=20260812d"></script>
+  <script src="data.js?v=20260814e"></script>
+  <script src="signatures.js?v=20260814e"></script>
+  <script src="audio_assets.js?v=20260814e"></script>
+  <script src="audio.js?v=20260814e"></script>
+  <script src="resonance.js?v=20260814e"></script>
+  <script src="bonds_flavor.js?v=20260814e"></script>
+  <script src="game.js?v=20260814e"></script>
   <!-- 脚本加载容错：延迟检测 + 自动重试 + data.json fallback + 强制进入 -->
   <script>(function(){
     var CHECKS = 0, MAX = 24;       // 24 次 × 500ms = 12 秒（data.js 近 1MB，给慢机器/杀毒留时间）
