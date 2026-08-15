@@ -4,20 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>罗德岛棋局 · 货币战争</title>
-  <link rel="stylesheet" href="tokens.css?v=20260815c" />
-  <link rel="stylesheet" href="game.css?v=20260815c" />
+  <link rel="stylesheet" href="tokens.css?v=20260815i" />
+  <link rel="stylesheet" href="game.css?v=20260815i" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand">罗德岛棋局 <span class="sub">// 货币战争</span></div>
     <div class="stats">
-      <span class="stat gold">💰 <b id="gold">0</b></span>
+      <span class="stat gold">💰 <b id="gold">0</b><span id="goldNext" class="gold-next"></span></span>
       <span class="stat lvl">Lv.<b id="level">1</b> <span id="expbar" class="expbar"><i id="expfill"></i></span> <b id="expText" class="exp-text"></b></span>
       <span class="stat hp">❤ <b id="hp">100</b></span>
       <span class="stat node">节点 <b id="nodeIdx">0</b>/<b id="nodeTotal">0</b></span>
       <span class="stat diff" id="diffChip"></span>
       <span class="stat streak" id="streak"></span>
     </div>
+    <button id="themeBtn" class="sfx-btn" title="切换主题（基建风/战场简报风）" aria-label="切换主题">🌓</button>
     <button id="sfxBtn" class="sfx-btn" title="音效开关" aria-label="切换音效">🔊</button>
     <a class="codex-link" href="index.html" target="_blank">← 图鉴</a>
   </header>
@@ -59,22 +60,7 @@
 
     <!-- 主对局 -->
     <section id="arena" class="arena hidden">
-      <div class="arena-main">
-          <div class="board-wrap">
-            <div class="board-label">战斗部署区 · 把卡牌拖入左侧区域任意格子上场（人口 <span id="boardCap"></span>，右侧为敌方站位预览；部署区与战斗场地均为 8×6 一一对应）</div>
-            <div class="board-battle">
-              <div id="board" class="board-grid"></div>
-              <div id="enemyOverlay" class="enemy-overlay" aria-hidden="true"></div>
-              <div class="board-vignette" aria-hidden="true"></div>
-            </div>
-            <div class="enemy-head">敌方编队 · <span id="enemyDesc"></span></div>
-            <div id="enemyTeam" class="mini-team"></div>
-            <div class="board-label">备战席 <span id="benchCap"></span> · 拖到上方格子即可上场；超过 10 名需先售出</div>
-            <div id="benchWarn" class="bench-warn hidden"></div>
-            <div id="bench" class="bench"></div>
-            <div id="sellZone" class="sell-zone">🗑 拖到此处售出</div>
-          </div>
-
+      <div class="arena-side">
           <div class="bonds-bar-wrap" id="bondsBarWrap">
             <button class="bonds-toggle" id="bondsToggle" type="button" aria-expanded="true" aria-controls="bondsBar">
               <span class="bt-ico">✦</span><span class="bt-label">羁绊</span><span class="bt-count" id="bondsCount">0</span><span class="bt-chev">▾</span>
@@ -109,6 +95,27 @@
               <div id="equipBagRow" class="equip-bag-row"></div>
               <div id="equipMsg" class="equip-msg"></div>
             </div>
+          </div>
+
+      </div>
+      <div class="arena-main">
+          <div class="board-wrap">
+            <div class="board-label">战斗部署区 · 把卡牌拖入左侧区域任意格子上场（人口 <span id="boardCap"></span>，右侧为敌方站位预览；部署区与战斗场地均为 8×6 一一对应）</div>
+            <div class="board-battle">
+              <div id="rosterRail" class="roster-rail" aria-label="上场角色">
+                <div class="rr-head">上场角色</div>
+                <div id="rosterList" class="roster-list"></div>
+              </div>
+              <div id="board" class="board-grid"></div>
+              <div id="enemyOverlay" class="enemy-overlay" aria-hidden="true"></div>
+              <div class="board-vignette" aria-hidden="true"></div>
+            </div>
+            <div class="enemy-head">敌方编队 · <span id="enemyDesc"></span></div>
+            <div id="enemyTeam" class="mini-team"></div>
+            <div class="board-label">备战席 <span id="benchCap"></span> · 拖到上方格子即可上场；超过 10 名需先售出</div>
+            <div id="benchWarn" class="bench-warn hidden"></div>
+            <div id="bench" class="bench"></div>
+            <div id="sellZone" class="sell-zone">🗑 拖到此处售出</div>
           </div>
 
           <div class="action-bar">
@@ -161,26 +168,50 @@
       </div>
     </section>
 
-    <!-- 战斗演出 -->
+    <!-- 战斗演出（方案A：全屏战场 + 左侧日志侧栏） -->
     <section id="battleScreen" class="overlay hidden">
       <div class="battle-stage">
-        <div class="bf-legend"><span class="ally">我方</span> ⚔ <span class="enemy">敌方</span> · 站位决定先手与射程，前排扛伤、后排输出</div>
-        <div class="bf-frame">
-          <div class="bf-grid" id="bfGrid"></div>
-          <div class="bf-scope" aria-hidden="true"></div>
+        <div class="bf-legend">
+          <span class="bf-legend-txt"><span class="ally">我方</span> ⚔ <span class="enemy">敌方</span> · 站位决定先手与射程，前排扛伤、后排输出</span>
+          <span class="bf-actions">
+            <button id="btnPause" class="btn small">⏸ 暂停</button>
+            <button id="btnSkip" class="btn small">跳过演出</button>
+          </span>
+        </div>
+        <div class="bf-layout">
+          <div class="bf-side">
+            <div class="bf-side-head">⚔ 战斗记录</div>
+            <div class="battle-log" id="battleLog"></div>
+          </div>
+          <div class="bf-frame">
+            <div class="bf-grid" id="bfGrid"></div>
+            <div class="bf-scope" aria-hidden="true"></div>
+          </div>
         </div>
       </div>
-      <div class="battle-log" id="battleLog"></div>
-      <button id="btnSkip" class="btn small">跳过演出</button>
     </section>
 
     <!-- 结算 -->
+    <!-- 新手引导（首局：目标高亮 + 气泡步骤，不阻塞操作） -->
+    <div id="tutorial" class="overlay hidden" aria-hidden="true">
+      <div class="tut-pop" id="tutPop">
+        <div class="tut-step" id="tutStep"></div>
+        <div class="tut-actions">
+          <button id="tutSkip" class="btn small" type="button">跳过引导</button>
+          <button id="tutNext" class="btn primary small" type="button">下一步 →</button>
+        </div>
+      </div>
+    </div>
+
     <section id="resultScreen" class="overlay hidden">
       <div class="panel" role="dialog" aria-modal="true">
         <h2 id="resultTitle"></h2>
         <p id="resultBody" class="hint"></p>
         <div id="resultRecap" class="hidden" style="margin:12px 0;padding:10px 12px;background:#fff7e6;border:1px solid #f0c674;border-radius:8px;font-size:13px;color:#6b4e16;text-align:left;"></div>
-        <button id="btnResult" class="btn primary"></button>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:10px">
+          <button id="btnReplay" class="btn small">↻ 回放战斗</button>
+          <button id="btnResult" class="btn primary"></button>
+        </div>
       </div>
     </section>
 
@@ -233,13 +264,13 @@
   </div>
 
   <!-- 缓存戳：每次发版/改数据后修改 ?v= 即可强制浏览器刷新 -->
-  <script src="data.js?v=20260815c"></script>
-  <script src="signatures.js?v=20260815c"></script>
-  <script src="audio_assets.js?v=20260815c"></script>
-  <script src="audio.js?v=20260815c"></script>
-  <script src="resonance.js?v=20260815c"></script>
-  <script src="bonds_flavor.js?v=20260815c"></script>
-  <script src="game.js?v=20260815c"></script>
+  <script src="data.js?v=20260815i"></script>
+  <script src="signatures.js?v=20260815i"></script>
+  <script src="audio_assets.js?v=20260815i"></script>
+  <script src="audio.js?v=20260815i"></script>
+  <script src="resonance.js?v=20260815i"></script>
+  <script src="bonds_flavor.js?v=20260815i"></script>
+  <script src="game.js?v=20260815i"></script>
   <!-- 脚本加载容错：延迟检测 + 自动重试 + data.json fallback + 强制进入 -->
   <script>(function(){
     var CHECKS = 0, MAX = 24;       // 24 次 × 500ms = 12 秒（data.js 近 1MB，给慢机器/杀毒留时间）

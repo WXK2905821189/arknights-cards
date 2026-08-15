@@ -27,7 +27,7 @@ a{color:var(--gold-strong);text-decoration:none}
 .sfx-btn.muted{opacity:.55}
 
 /* arena */
-.arena{padding:14px 18px 90px;max-width:1100px;margin:0 auto;position:relative}
+.arena{display:flex;flex-direction:column;padding:14px 18px 90px;max-width:1100px;margin:0 auto;position:relative}
 .arena::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;background:var(--vignette);opacity:.55}
 .enemy-head{font-size:13px;color:var(--enemy);margin:10px 0 8px;font-weight:700;
   font-family:var(--font-display);letter-spacing:.3px}
@@ -60,7 +60,7 @@ a{color:var(--gold-strong);text-decoration:none}
 .board-label #boardCap,.board-label #benchCap{color:var(--gold-strong);font-weight:700}
 .board-grid{display:grid;grid-template-columns:repeat(8,80px);grid-template-rows:repeat(6,80px);
   gap:4px;justify-content:center;padding:10px;background:#0c0f14;border:1px solid var(--line);border-radius:8px}
-.board-cell{width:80px;height:80px;border:1px dashed #2a3340;border-radius:8px;display:flex;align-items:center;
+.board-cell{width:100%;height:100%;border:1px dashed #2a3340;border-radius:8px;display:flex;align-items:center;
   justify-content:center;background:#10141b;position:relative}
 /* 部署区卡面适配 8×6 大格子 */
 .board-cell .ucard{width:100%;height:100%}
@@ -146,6 +146,10 @@ a{color:var(--gold-strong);text-decoration:none}
 .bond:hover{border-color:var(--gold);background:#222c38}
 .bond b{color:var(--gold-strong)}
 .bond .tier{color:var(--text-2);font-size:11px}
+.bond .beh{color:#e8c86a;font-size:11px;border:1px solid rgba(232,200,106,.35);border-radius:4px;
+  padding:0 4px;margin-left:4px;background:rgba(232,200,106,.08);white-space:nowrap}
+.ub-solo{color:#b482f0;font-size:11px;margin-top:4px;border-left:2px solid #b482f0;padding-left:6px;cursor:help}
+.ub-solo-desc{color:var(--text-3);font-size:10px}
 /* 跨阵营呼应 chips：青色标识，区别于普通羁绊（金） */
 .reso{background:linear-gradient(135deg,#16242b,#13202a);border:1px solid #2c8f86;border-left:3px solid #4fd1c5;padding:4px 9px;border-radius:7px;cursor:pointer;font-size:12px;transition:border-color var(--dur-fast),background var(--dur-fast)}
 .reso:hover{border-color:#4fd1c5;background:#1a2b33}
@@ -266,7 +270,7 @@ a{color:var(--gold-strong);text-decoration:none}
 /* 战斗全屏化：上下结构（战场在上、信息框在下） */
 #battleScreen{flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;background:rgba(6,8,12,.98);z-index:46}
 #battleScreen .battle-stage{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;max-width:none;width:100%;border:none;border-radius:0;background:transparent;padding:22px 16px}
-#battleScreen .bf-grid{width:min(92vw,68vh,640px);height:calc(min(92vw,68vh,640px) * 0.75)}
+#battleScreen .bf-grid{width:min(92vw,84vh,720px);aspect-ratio:8/6;height:auto}
 #battleScreen .battle-log{height:clamp(120px,24vh,260px);max-width:none;width:100%;margin:0;border-radius:0;border-left:none;border-right:none}
 #battleScreen #btnSkip{position:fixed;top:14px;right:18px;z-index:48}
 
@@ -521,7 +525,8 @@ a{color:var(--gold-strong);text-decoration:none}
 .ec-reward{margin-top:8px;font-size:12px;color:var(--gold-strong)}
 
 /* ============ 左侧羁绊面板已整合进顶部「可折叠羁绊条」(.bonds-bar-wrap)，原 .bonds-panel/.bp-* 弃用 ============ */
-.arena-main{flex:1;min-width:0}
+.arena-main{flex:1;min-width:0;order:1}
+.arena-side{order:2}
 
 /* ============ 卡面 / 弹窗通用羁绊标签（单列左对齐，唯一来源） ============ */
 .card-tags{display:flex;flex-direction:column;gap:2px;align-items:flex-start;justify-content:flex-start;padding:2px 0}
@@ -688,3 +693,158 @@ a{color:var(--gold-strong);text-decoration:none}
 .bf-range-cell{position:absolute;border:1px dashed rgba(232,184,75,.35);background:rgba(232,184,75,.06);border-radius:4px}
 .bf-range-cell.near{border-color:rgba(232,184,75,.7);background:rgba(232,184,75,.13)}
 .bf-range-tag{position:absolute;transform:translateX(-50%);font-size:11px;color:#ffd76a;background:rgba(10,14,20,.88);padding:2px 8px;border-radius:999px;border:1px solid rgba(232,184,75,.5);white-space:nowrap;pointer-events:none;z-index:6}
+
+/* ============ v2.4 商店/市场防纵向溢出加固 ============ */
+/* 补给市场：显式宽度 + 面板内滚动兜底 + 网格紧凑（任何视口不溢出页面） */
+#marketScreen .panel{width:min(960px,94vw);max-width:none;max-height:88vh;overflow:auto}
+#marketScreen .mk-units{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;justify-items:center;align-items:start}
+#marketScreen .mk-equips{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;justify-items:center;align-items:start}
+#marketScreen .shop-card{width:96px;height:118px;flex:none}
+#marketScreen .equip-card{min-width:120px;max-width:none;padding:8px 10px;flex:none}
+#marketScreen .slot.empty{width:96px;height:118px}
+/* 主界面商店：5 卡固定网格不换行（窄屏降列，绝不纵向堆叠） */
+#arena .shop-cards{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:10px;justify-items:center;align-items:start}
+#arena .shop-cards .shop-card{width:100%;max-width:132px}
+@media (max-width:900px){
+  #arena .shop-cards{grid-template-columns:repeat(3,minmax(100px,1fr))}
+  #marketScreen .mk-units,#marketScreen .mk-equips{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:560px){
+  #arena .shop-cards{grid-template-columns:repeat(2,minmax(90px,1fr))}
+  #marketScreen .mk-units,#marketScreen .mk-equips{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* ============ v2.4 商店升星提示：能升星 → 卡面闪烁星星 ============ */
+.shop-card .star-hint{position:absolute;top:6px;right:8px;z-index:4;font-size:14px;font-weight:800;letter-spacing:1px;color:#ffd76a;
+  text-shadow:0 0 10px rgba(255,215,106,.95),0 0 4px rgba(255,200,80,.8),0 1px 2px rgba(0,0,0,.9);
+  animation:starBlink 1s ease-in-out infinite;pointer-events:none}
+.shop-card .star-hint.s3{font-size:16px}
+@keyframes starBlink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.22)}}
+
+
+/* ============ v2.5 无滚动一屏布局（宽屏横排：左收纳栏 + 右主棋盘） ============ */
+@media (min-width:1200px){
+  .arena{flex-direction:row;align-items:flex-start;gap:14px;max-width:none;padding:12px 16px 16px}
+  .arena-side{order:1;width:min(300px,25vw);flex:none;display:flex;flex-direction:column;gap:12px;
+    max-height:calc(100vh - 118px);overflow-y:auto}
+  .arena-main{order:2;flex:1;min-width:0}
+  .board-wrap{margin-bottom:12px}
+  .action-bar{margin-top:12px}
+  /* 棋盘格子随视口放大：9vh 格 × 6 行 = 54vh，整局一屏无滚动 */
+  .board-grid{grid-template-columns:repeat(8,minmax(56px,9vh));grid-template-rows:repeat(6,minmax(56px,9vh))}
+  .board-battle{width:fit-content;max-width:100%}
+  .bench{max-height:66px;overflow-y:hidden}
+  .mini-team{flex-wrap:nowrap;overflow-x:auto}
+  /* 侧栏商店：3 列紧凑网格（3+2 排 5 卡） */
+  .arena-side .shop-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .arena-side .shop-card{width:100%;max-width:96px;height:118px}
+  .arena-side .shop-card .card-tags{display:none}
+  .arena-side .shop-card:hover .card-tags{display:flex}
+  .arena-side .shop-card .card-tags{background:rgba(10,14,20,.88);padding:2px 5px;border-radius:5px;font-size:10px}
+  .arena-side .shop-card .cf-name{font-size:10px;max-width:64px}
+  .arena-side .shop-card .cf-cost{font-size:10px}
+  .arena-side .shop-card .card-fade{height:46%}
+}
+
+/* ============ v2.5 拖拽体验：落格弹跳 / 不可部署红闪 ============ */
+.card-settle{animation:cardSettle .34s cubic-bezier(.34,1.56,.64,1)}
+@keyframes cardSettle{0%{transform:scale(.84)}60%{transform:scale(1.07)}100%{transform:scale(1)}}
+.board-cell.drop-bad{border-color:#e24b4a !important;box-shadow:0 0 0 2px rgba(226,75,74,.5) inset !important;animation:cellReject .4s ease}
+
+/* ============ v2.5 战斗舞台化：半场背景分层 + 远程弹道光弹 ============ */
+#battleScreen .bf-grid::before{content:"";position:absolute;left:0;top:0;bottom:0;width:50%;z-index:0;pointer-events:none;
+  background:linear-gradient(90deg,rgba(70,110,180,.10),rgba(70,110,180,.02))}
+#battleScreen .bf-grid::after{content:"";position:absolute;right:0;top:0;bottom:0;width:50%;z-index:0;pointer-events:none;
+  background:linear-gradient(90deg,rgba(200,70,70,.07),rgba(200,70,70,.02))}
+.bf-bolt{position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:85;opacity:1;
+  background:radial-gradient(circle,#fff 0%,#ffd76a 55%,rgba(255,215,106,0) 100%);
+  box-shadow:0 0 10px 2px rgba(255,215,106,.6);
+  transition:transform .2s cubic-bezier(.4,.6,.5,1),opacity .2s ease}
+.bf-bolt.go{transform:translate(var(--bx,0px),var(--by,0px)) scale(.35);opacity:.1}
+
+/* ============ v2.5 经济可视化 + 羁绊规划器 ============ */
+.gold-next{margin-left:6px;font-size:11px;color:#8be3a0;background:rgba(60,160,90,.12);border:1px solid rgba(90,200,140,.25);padding:1px 6px;border-radius:999px;font-weight:700;vertical-align:1px}
+.bond-next{font-size:10px;color:#ffd76a;background:rgba(255,215,106,.1);border:1px solid rgba(255,215,106,.35);padding:0 5px;border-radius:999px;margin-left:4px;white-space:nowrap}
+.bond.pending{opacity:.75;border-style:dashed}
+.bond.pending b{color:var(--text-2)}
+.bond.pending .tier{color:#9aa7b8}
+.bond.pending:hover{border-color:var(--gold);opacity:1}
+
+/* ============ v2.5 节点地图化：路标徽章 + 分叉标记 + 箭头连线 ============ */
+.nf-node{position:relative}
+.nf-node .nf-ico{width:30px;height:30px;line-height:30px;text-align:center;border-radius:50%;background:#1b2737;
+  border:1px solid #2c3b52;font-size:15px;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.nf-node.done .nf-ico{background:#14301f;border-color:#2f8f52}
+.nf-node.done .nf-ico::after{content:''}
+.nf-node.done .nf-tag::after{content:' ✓';color:#5fd08a}
+.nf-node.current .nf-ico{border-color:#e8b84b;background:#33290f;
+  box-shadow:0 0 0 3px rgba(232,184,75,.25),0 0 14px rgba(232,184,75,.35)}
+.nf-node.current .nf-num{color:#ffd76a}
+.nf-node.fork{border-color:#8b5cf6;background:#1e1830;color:#d0c4ff}
+.nf-node.fork .nf-ico{background:#241d3d;border-color:#8b5cf6}
+.nf-node.fork::after{content:'↔';position:absolute;top:2px;right:3px;font-size:9px;color:#a78bfa}
+.nf-link{position:relative}
+.nf-link::after{content:'▸';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#e8b84b;font-size:9px;line-height:1}
+.nf-link:not(.passed)::after{color:#44556e}
+
+/* ============ v2.5 主题皮肤：战场简报风（body[data-theme="brief"] 覆盖核心令牌） ============ */
+body[data-theme="brief"]{
+  --bg:#10141c; --bg-sunk:#0b0e14; --panel:#151b25; --panel-2:#1d2532; --line:#33415a; --line-soft:#262f40;
+  --text:#eef3fa; --text-2:#a8b6c9; --text-3:#78879c;
+  --gold:#f0c35c; --gold-strong:#f7d98a; --gold-deep:#d9a83a; --gold-soft:rgba(240,195,92,.14);
+  --ally:#6fd4ec; --enemy:#ef8a68; --hp:#ef6a6a;
+}
+
+/* ============ v2.5 新手引导：目标高亮 + 气泡（不拦截操作） ============ */
+#tutorial{background:transparent;pointer-events:none;z-index:60}
+#tutorial[aria-hidden="true"]{display:none}
+.tut-pop{position:fixed;z-index:61;max-width:300px;background:rgba(14,18,24,.96);border:1px solid var(--gold);
+  border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text);pointer-events:auto;
+  box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.tut-step{line-height:1.55}
+.tut-actions{display:flex;justify-content:space-between;align-items:center;margin-top:9px;gap:8px}
+.tut-hl{outline:2px solid var(--gold) !important;outline-offset:2px;animation:tutGlow 1.2s ease-in-out infinite}
+@keyframes tutGlow{0%,100%{box-shadow:0 0 0 3px rgba(232,184,75,.28)}50%{box-shadow:0 0 0 8px rgba(232,184,75,.06)}}
+
+/* ============ v2.6 全屏战场（方案A：左侧日志栏 + 中央棋盘最大化 + 战场环境） ============ */
+#battleScreen{flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;background:rgba(6,8,12,.98);z-index:46}
+#battleScreen .battle-stage{flex:1;display:flex;flex-direction:column;min-height:0;width:100%;border:none;border-radius:0;padding:0;
+  background:radial-gradient(1100px 520px at 24% 18%, rgba(70,110,180,.10), transparent 62%),
+    radial-gradient(1100px 520px at 76% 82%, rgba(200,70,70,.08), transparent 62%), #0a0d12}
+#battleScreen .bf-legend{flex:none;display:flex;align-items:center;justify-content:space-between;height:42px;margin:0;
+  padding:0 16px;background:rgba(12,15,20,.9);border-bottom:1px solid var(--line);font-size:12px;text-align:left}
+#battleScreen .bf-actions{display:flex;gap:8px}
+#battleScreen .bf-layout{flex:1;display:flex;gap:12px;min-height:0;padding:12px 14px}
+#battleScreen .bf-side{flex:none;width:214px;display:flex;flex-direction:column;min-height:0;
+  background:rgba(12,15,20,.85);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+#battleScreen .bf-side-head{flex:none;padding:8px 12px;font-size:12px;font-weight:700;color:var(--gold-strong);
+  border-bottom:1px solid var(--line);background:rgba(20,26,34,.8)}
+#battleScreen .battle-log{flex:1;min-height:0;height:auto;max-width:none;width:auto;margin:0;padding:8px 12px;
+  border:none;border-radius:0;background:transparent;overflow-y:auto}
+#battleScreen .bf-frame{flex:1;min-width:0;display:flex;align-items:center;justify-content:center}
+#battleScreen .bf-grid{width:min(100%, calc((100vh - 84px) * 8 / 6));aspect-ratio:8/6;height:auto;max-width:100%}
+@media (max-width:1100px){
+  #battleScreen .bf-side{width:170px}
+}
+
+/* ============ v3.0 部署区左侧「上场角色栏」Roster Rail ============ */
+.board-battle{display:flex;gap:10px;align-items:stretch}
+.roster-rail{width:112px;flex:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:8px;display:flex;flex-direction:column;gap:6px;max-height:480px;overflow:hidden}
+.rr-head{font-size:12px;color:var(--text-2);text-align:center;padding-bottom:4px;border-bottom:1px solid var(--line);flex:none}
+.roster-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex:1;padding-right:2px}
+.roster-mini{position:relative;width:94px;height:auto;border-radius:8px;border:1px solid var(--line);
+  overflow:hidden;background:var(--panel-2);cursor:pointer;transition:border-color var(--dur-fast)}
+.roster-mini:hover{border-color:var(--gold);transform:translateY(-1px)}
+.roster-mini.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+.roster-mini .avatar{width:100%;height:52px;object-fit:cover;display:block;background:#222}
+.roster-mini .star{position:absolute;top:2px;right:2px;font-size:9px;color:var(--gold);text-shadow:0 1px 2px rgba(0,0,0,.8)}
+.roster-mini .rm-name{font-size:10px;color:var(--text-1);text-align:center;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.roster-mini .rm-eq{display:flex;gap:4px;justify-content:center;padding:2px 0 4px}
+.roster-mini .eq-slot{width:20px;height:20px;border-radius:4px;border:1px solid var(--line);display:flex;
+  align-items:center;justify-content:center;font-size:10px;color:var(--text-2);background:var(--panel)}
+.roster-mini .eq-slot.empty{color:var(--text-3);border-style:dashed}
+.roster-mini .eq-slot.rarity1{border-color:#85b7eb}
+.roster-mini .eq-slot.rarity2{border-color:#f0997b}
+.roster-mini .eq-slot.rarity3{border-color:#ef9f27}
+@media (max-width:900px){.roster-rail{display:none}}

@@ -3830,8 +3830,32 @@
     }
   }
 
+  // v3.0 部署区左侧「上场角色栏」：场上（按位序）+ 备战席全部角色小卡
+  // 复用 .ucard 类名 → 点击/拖拽/穿戴/卸下全走现有 body 委托，零新事件系统；装备槽常驻显示（空槽可见）
+  function renderRoster() {
+    const list = $('rosterList');
+    if (!list) return;
+    const rows = [];
+    for (let i = 0; i < 48; i++) { if (G.board[i]) rows.push({ u: G.board[i], where: 'board' }); }
+    G.bench.forEach(u => rows.push({ u, where: 'bench' }));
+    list.innerHTML = rows.map(function (r) {
+      const u = r.u, op = u.op;
+      const sel = G.selected === u.uid ? ' sel' : '';
+      const slots = (G.equipState && G.equipState.slots && G.equipState.slots[u.uid]) || [];
+      const eq = '<span class="rm-eq">' + [0, 1].map(function (i) {
+        const eqId = slots[i], e = eqId ? EQUIP_BY_ID[eqId] : null;
+        return '<span class="eq-slot' + (e ? ' rarity' + e.rarity : ' empty') + '" data-eq-unequip="' + u.uid + '" data-eq-slot="' + i + '" title="' + (e ? (e.name || e.id) + '：' + e.desc + '（点击卸下）' : '空槽（点背包装备后点干员穿戴）') + '">' + (e ? (e.icon || (e.type === 'engraving' ? '◎' : e.type === 'attr' ? '⬆' : '✦')) : '+') + '</span>';
+      }).join('') + '</span>';
+      return '<div class="ucard roster-mini c' + op.stats.cost + sel + '" data-uid="' + u.uid + '" data-where="' + r.where + '">' +
+        '<img class="avatar" src="' + op.avatar + '" alt="" loading="lazy" decoding="async" onerror="this.style.background=\'#222\'">' +
+        (u.star > 1 ? '<span class="star">' + starStr(u.star) + '</span>' : '') +
+        '<span class="rm-name">' + op.name + '</span>' + eq +
+      '</div>';
+    }).join('');
+  }
+
   function renderAll() {
-    renderTop(); renderBoard(); renderShop(); renderBonds(); renderUnitBar(); showEnemyPreview();
+    renderTop(); renderBoard(); renderShop(); renderBonds(); renderUnitBar(); showEnemyPreview(); renderRoster();
   }
 
   /* ---- 投资环境 ---- */
@@ -4611,7 +4635,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { FX, G, buy, startTutorial, drawRangeLayer, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, showStrategyScreen, renderUnitBar, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
+  if (typeof window !== 'undefined') window.__RH = { FX, G, buy, startTutorial, drawRangeLayer, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, showStrategyScreen, renderUnitBar, renderRoster, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
 
   /* ---- 启动 ---- */
   buildNodes();
