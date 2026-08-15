@@ -266,7 +266,7 @@ a{color:var(--gold-strong);text-decoration:none}
 /* 战斗全屏化：上下结构（战场在上、信息框在下） */
 #battleScreen{flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;background:rgba(6,8,12,.98);z-index:46}
 #battleScreen .battle-stage{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;max-width:none;width:100%;border:none;border-radius:0;background:transparent;padding:22px 16px}
-#battleScreen .bf-grid{width:min(96vw,84vh,720px);height:calc(min(96vw,84vh,720px) * 0.75)}
+#battleScreen .bf-grid{width:min(92vw,68vh,640px);height:calc(min(92vw,68vh,640px) * 0.75)}
 #battleScreen .battle-log{height:clamp(120px,24vh,260px);max-width:none;width:100%;margin:0;border-radius:0;border-left:none;border-right:none}
 #battleScreen #btnSkip{position:fixed;top:14px;right:18px;z-index:48}
 
@@ -587,3 +587,104 @@ a{color:var(--gold-strong);text-decoration:none}
 .ub-eq.rarity2{border-color:#8b5cf6;color:#d0a5ff}
 .ub-eq.rarity3{border-color:#e8a33d;color:#ffd76a}
 .ub-eq:hover{transform:translateY(-1px);border-color:var(--gold)}
+
+/* ============ v2.4 装备拖拽：装备卡拖动 + 干员卡可穿戴高亮 ============ */
+[data-eq-bag]{cursor:grab}
+[data-eq-bag].dragging{opacity:.35}
+.ucard.eq-drop-target{
+  outline:2px dashed var(--gold-strong);outline-offset:2px;
+  box-shadow:0 0 0 3px rgba(232,184,75,.28),0 0 18px rgba(232,184,75,.35);
+  animation:eqTargetPulse .8s ease-in-out infinite;
+}
+@keyframes eqTargetPulse{0%,100%{outline-color:var(--gold-strong)}50%{outline-color:rgba(232,184,75,.35)}}
+
+/* ============ v2.4 升星动画：两张卡化作光流汇聚到主体卡 ============ */
+.combine-spark{position:fixed;width:5px;height:5px;border-radius:50%;
+  background:radial-gradient(circle,#fff 0%,#ffd76a 55%,rgba(255,215,106,0) 100%);
+  box-shadow:0 0 8px 2px rgba(255,200,80,.75);pointer-events:none;z-index:80;
+  opacity:1;transition:transform .55s cubic-bezier(.3,.7,.4,1),opacity .55s ease-out}
+.combine-ring{position:fixed;width:52px;height:52px;border-radius:50%;border:2px solid rgba(255,215,106,.9);
+  pointer-events:none;z-index:80;animation:combineRing .7s ease-out forwards}
+.combine-txt{position:fixed;transform:translateX(-50%);color:#ffd76a;font-size:20px;font-weight:800;
+  pointer-events:none;z-index:81;text-shadow:0 0 12px rgba(255,200,80,.9),0 1px 3px rgba(0,0,0,.8);
+  animation:combineTxt .9s ease-out forwards}
+@keyframes combineRing{0%{transform:scale(.4);opacity:1}100%{transform:scale(1.9);opacity:0}}
+@keyframes combineTxt{0%{transform:translateX(-50%) translateY(6px);opacity:0}25%{opacity:1}75%{opacity:1}100%{transform:translateX(-50%) translateY(-14px);opacity:0}}
+
+/* ============ v2.4 统一动效系统（FX） ============ */
+.fx-float{position:fixed;transform:translateX(-50%);pointer-events:none;z-index:90;font-weight:800;font-size:15px;color:#ffd76a;
+  text-shadow:0 0 10px rgba(255,200,80,.8),0 1px 2px rgba(0,0,0,.8);animation:fxFloat 1.1s ease-out forwards;font-variant-numeric:tabular-nums}
+.fx-float.gold{color:#ffd76a}.fx-float.red{color:#ff8b8b}.fx-float.green{color:#7fe3a0}.fx-float.blue{color:#7fdff0}
+@keyframes fxFloat{0%{transform:translateX(-50%) translateY(4px);opacity:0}12%{opacity:1}70%{opacity:1}100%{transform:translateX(-50%) translateY(-26px);opacity:0}}
+.fx-particle{position:fixed;width:6px;height:6px;border-radius:50%;background:#ffd76a;pointer-events:none;z-index:89;
+  animation:fxParticle .7s ease-out forwards}
+@keyframes fxParticle{0%{transform:translate(0,0);opacity:1}100%{transform:translate(var(--dx,20px),var(--dy,20px));opacity:0}}
+.fx-ripple{position:fixed;width:32px;height:32px;border-radius:50%;border:2px solid rgba(255,215,106,.85);pointer-events:none;z-index:89;
+  animation:fxRipple .6s ease-out forwards}
+@keyframes fxRipple{0%{transform:scale(.3);opacity:1}100%{transform:scale(2.2);opacity:0}}
+.fx-shake{animation:fxShake var(--shake-ms,130ms) linear}
+@keyframes fxShake{0%,100%{transform:translateX(0)}20%{transform:translateX(calc(var(--shake-dist,6px) * -1))}40%{transform:translateX(var(--shake-dist,6px))}60%{transform:translateX(calc(var(--shake-dist,6px) * -.6))}80%{transform:translateX(calc(var(--shake-dist,6px) * .5))}}
+/* 顶栏数字跳动 */
+#gold.num-pop,.stat.gold b.num-pop{animation:numPop .35s ease-out}
+@keyframes numPop{0%{transform:scale(1.45);color:#ffd76a}100%{transform:scale(1)}}
+/* 商店卡刷新错峰入场 */
+.shop-card{animation:cardPop .35s ease-out backwards}
+@keyframes cardPop{0%{transform:translateY(14px) scale(.9);opacity:0}100%{transform:none;opacity:1}}
+/* 落格涟漪 + 拒绝抖动 */
+.board-cell.drop-ok::after{content:"";position:absolute;inset:0;border-radius:8px;border:2px solid rgba(255,215,106,.8);animation:cellRipple .5s ease-out forwards;pointer-events:none;z-index:5}
+.board-cell.drop-reject{border-color:#e24b4a !important;box-shadow:0 0 0 2px rgba(226,75,74,.5) inset !important;animation:cellReject .4s ease}
+@keyframes cellRipple{0%{transform:scale(.6);opacity:1}100%{transform:scale(1.25);opacity:0}}
+@keyframes cellReject{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}50%{transform:translateX(3px)}75%{transform:translateX(-2px)}}
+/* 羁绊新激活 chip 弹入 */
+.bond.fresh{animation:chipPop .45s ease-out}
+.reso{animation:chipPop .4s ease-out backwards}
+@keyframes chipPop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+/* 战斗受击/治疗/护盾 */
+.bf-unit.fx-hit .av{animation:hitFlash .3s ease-out}
+@keyframes hitFlash{0%{filter:brightness(2.6) sepia(.4)}100%{filter:none}}
+.bf-unit.fx-heal .av{animation:healPulse .45s ease-out}
+@keyframes healPulse{0%{box-shadow:0 0 0 0 rgba(90,220,140,.9)}100%{box-shadow:0 0 0 12px rgba(90,220,140,0)}}
+.bf-unit.has-shield .av{animation:shieldPulse 1.6s ease-in-out infinite}
+@keyframes shieldPulse{0%,100%{box-shadow:0 0 0 2px #6fd3ff}50%{box-shadow:0 0 0 4px rgba(111,211,255,.55)}}
+/* 结算面板滑入 */
+#resultScreen .panel{animation:panelIn .45s cubic-bezier(.2,.8,.3,1)}
+@keyframes panelIn{0%{transform:translateY(26px) scale(.96);opacity:0}100%{transform:none;opacity:1}}
+/* 节点点亮 */
+.nf-node.current .nf-ico{animation:nodeOn .6s ease-out}
+.nf-link{transition:background .4s ease}
+@keyframes nodeOn{0%{transform:scale(.5);filter:brightness(2.2)}100%{transform:scale(1);filter:none}}
+/* Meta 解锁卡入场 */
+#metaChoices .env-card{animation:cardPop .4s ease-out backwards}
+/* 动效总开关：尊重系统减少动效偏好 */
+@media (prefers-reduced-motion: reduce){
+  .fx-float,.fx-particle,.fx-ripple,.fx-shake,.shop-card,.board-cell.drop-ok::after,.board-cell.drop-reject,
+  .bond.fresh,.reso,.bf-unit .av,#resultScreen .panel,.nf-node .nf-ico,#metaChoices .env-card{animation:none !important;transition:none !important}
+}
+
+/* ============ v2.4 补给市场网格化（解决整屏溢出） ============ */
+/* 根因：原 .mk-units/.mk-equips 无 CSS 默认块级单列 + 10/5 个高卡片 → 总高 ~2300px 溢出视口。
+   修复：网格铺开 + 紧凑卡 + 面板限高滚动。 */
+#marketScreen .panel{max-width:min(960px,94vw);max-height:88vh;overflow:auto;padding:20px 24px}
+#marketScreen .mk-sec{margin:14px 0 8px}
+#marketScreen .mk-sec-label{display:inline-block;padding:3px 10px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);font-size:12px;color:var(--text-2);font-weight:700;letter-spacing:.3px}
+#marketScreen .mk-units{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;justify-items:center}
+#marketScreen .mk-equips{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;justify-items:center}
+#marketScreen .mk-foot{margin-top:16px;text-align:center}
+#marketScreen .shop-card{width:96px;height:118px}
+#marketScreen .equip-card{min-width:120px;max-width:none;padding:8px 10px}
+#marketScreen .equip-card .eq-desc{font-size:10px;line-height:1.35}
+#marketScreen .slot.empty{width:96px;height:118px;background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.12);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#5f6b7a;font-size:11px}
+@media (max-width:680px){
+  #marketScreen .mk-units,#marketScreen .mk-equips{grid-template-columns:repeat(2,1fr)}
+  #marketScreen .shop-card,#marketScreen .slot.empty{width:108px;height:130px}
+}
+
+/* ============ v2.4 攻击范围完善：部署区射程高亮 + 战斗射程可视化 ============ */
+/* 部署区：hover/选中干员时高亮其射程覆盖格（原 .in-range 无样式，等于从未显示） */
+.board-cell.in-range{background:rgba(232,184,75,.13);border-color:var(--gold);box-shadow:0 0 0 1px rgba(232,184,75,.4) inset;z-index:1}
+.board-cell.in-range::after{content:attr(data-range);position:absolute;top:2px;right:2px;font-size:9px;color:var(--gold);background:rgba(0,0,0,.6);padding:0 4px;border-radius:4px;line-height:14px;pointer-events:none;font-variant-numeric:tabular-nums}
+/* 战斗：hover 单位显示射程覆盖格（金色近格 / 淡金远格） + 单位名·射程标签 */
+.bf-range-layer{position:absolute;inset:0;z-index:5;pointer-events:none}
+.bf-range-cell{position:absolute;border:1px dashed rgba(232,184,75,.35);background:rgba(232,184,75,.06);border-radius:4px}
+.bf-range-cell.near{border-color:rgba(232,184,75,.7);background:rgba(232,184,75,.13)}
+.bf-range-tag{position:absolute;transform:translateX(-50%);font-size:11px;color:#ffd76a;background:rgba(10,14,20,.88);padding:2px 8px;border-radius:999px;border:1px solid rgba(232,184,75,.5);white-space:nowrap;pointer-events:none;z-index:6}

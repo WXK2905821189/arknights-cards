@@ -2147,12 +2147,23 @@
   }
 
   // v2.4 演出层：capstone/deep 解锁全屏横幅（金色描边 + 2s 自动消失）
+  // v2.5 M4 叙事接线：deep 阶横幅优先用 BONDS_FLAWOR.awaken[阵营][tier].banner（叙事设计师交付），
+  //   缺失回退机制侧 SPECIAL.deep[tier].label；awaken:true 阶加紫色「✦ 创作推演」角标（同 resonance creative）。
   let _bannerTimer = null;
   function showBondBanner(faction, specialDesc, tier, isDeep) {
     const el = $('bondBanner'); if (!el) return;
     const txt = $('bondBannerText'); if (!txt) return;
-    const label = isDeep ? specialDesc : (specialDesc || '阵营特殊机制');
-    txt.textContent = '✦ ' + faction + ' · ' + tier + ' 阶 · ' + label + ' 已解锁';
+    let label = isDeep ? specialDesc : (specialDesc || '阵营特殊机制');
+    let awaken = false;
+    if (isDeep) {
+      const aw = (typeof BONDS_FLAVOR !== 'undefined' && BONDS_FLAVOR.awaken) ? BONDS_FLAVOR.awaken[faction] : null;
+      const awT = aw ? aw[tier] : null;
+      if (awT) {
+        if (awT.banner) label = awT.banner;          // 叙事横幅短句优先
+        if (awT.awaken) awaken = true;               // 最终觉醒阶
+      }
+    }
+    txt.textContent = '✦ ' + faction + ' · ' + tier + ' 阶 · ' + label + ' 已解锁' + (awaken ? '　✦创作推演' : '');
     el.classList.remove('hidden', 'bb-deep');
     if (isDeep) el.classList.add('bb-deep');
     void el.offsetWidth; // 重启动画
@@ -2244,14 +2255,20 @@
         html += '<div class="bm-thr">阵营特殊机制，' + sp.tier + '阶解锁</div>';
         html += '<h4>机制说明</h4><div class="bm-tier">' + describeSpecial(sp) + '</div>';
         if (sp.deep) { // 阵营多阶：深度阶（多阶进化）清单，按当前 tier 标注已解锁 / 待解锁
+          const aw = (typeof BONDS_FLAVOR !== 'undefined' && BONDS_FLAVOR.awaken) ? BONDS_FLAVOR.awaken[value] : null;
           html += '<h4>深度阶（多阶进化）</h4><div class="bm-tier">';
           Object.keys(sp.deep).map(Number).sort((a, b) => a - b).forEach(dk => {
             const dp = sp.deep[dk];
             const unlocked = tier >= dk;
             const kwDesc = (dp.kws || []).map(e => describeSpecial({ kw: e.kw, params: e.params })).join('；');
+            const awT = aw ? aw[dk] : null;
+            const flav = awT && awT.flavor ? flavorText(awT.flavor) : null;
             html += '<div style="' + (unlocked ? 'color:#e8b84b;font-weight:600' : 'opacity:.45') + '">' +
-              (unlocked ? '★ ' : '☆ ') + dp.label + '（' + dk + '阶' + (unlocked ? '·已解锁' : '·待解锁') + '）' +
-              (kwDesc ? '：' + kwDesc : '') + '</div>';
+              (unlocked ? '★ ' : '☆ ') + (awT && awT.name ? awT.name : dp.label) + '（' + dk + '阶' + (unlocked ? '·已解锁' : '·待解锁') + '）' +
+              (awT && awT.awaken ? ' <span class="bm-creative">✦创作推演</span>' : '') +
+              (kwDesc ? '：' + kwDesc : '') +
+              (flav ? '<div class="bm-fl bm-cap" style="font-weight:400">' + flav + '</div>' : '') +
+              '</div>';
           });
           html += '</div>';
         }
