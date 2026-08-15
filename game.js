@@ -83,6 +83,10 @@
   // P1-1：羁绊乘法叠乘软上限（[PLACEHOLDER · 数值需镜像对局 Monte Carlo 标定]）。
   // 压制满配三星签名核心的乘区爆炸（原可叠到 5–8×），保留 build 表达但杜绝一击秒杀。
   const MAX_ATK_MULT = 6.5, MAX_HP_MULT = 6.5;
+  // v2.5 标定：攻速软上限（与 MAX_ATK_MULT 同哲学，P1 已验证）。
+  // 攻速在模型里是最高效属性（dps 线性 + 快攒技力），叠乘无上限会制造「全员攻速」无解（标定 5v5 全员 100%）。
+  // 上限约束总乘数（含职业羁绊/签名/装备），开局光环在软上限之后仍可叠加但不再无限。[PLACEHOLDER 待精标定]
+  const MAX_ASPD_MULT = 2.5;
 
   // ② 5费干员「签名羁绊」——每个 cost=5 干员一个独立被动，上场即生效（无需凑人数），叠加在职业+阵营之上。
   //    attr 为属性乘数（复用 BOND_KEYS 机制，并入 mult）；kw 为单位级行为关键字（见 makeCombatUnit/applyKw）。
@@ -693,7 +697,8 @@
     };
     const sk = pickSkillByStar();
     const spMax = sk ? sk.spMax : 24;
-    const aspd = m.aspd || 1;
+    // v2.5 标定：攻速软上限——aspd 乘数收口（防攻速无限叠乘超模）
+    const aspd = Math.min(m.aspd || 1, MAX_ASPD_MULT);
     const u = {
       op, name: op.name, cls: op.class, avatar: op.avatar, traits: op.traits || [],
       dmgType: op.stats.dmgType, range: rangeOf(op), cost: op.stats.cost, star,
