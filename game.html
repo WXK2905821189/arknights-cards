@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>罗德岛棋局 · 货币战争</title>
-  <link rel="stylesheet" href="tokens.css?v=20260815i" />
-  <link rel="stylesheet" href="game.css?v=20260815i" />
+  <link rel="stylesheet" href="tokens.css?v=20260815n" />
+  <link rel="stylesheet" href="game.css?v=20260815n" />
 </head>
 <body>
   <header class="topbar">
@@ -24,8 +24,12 @@
   </header>
 
   <main id="stage">
-    <!-- 进度流程条（页面上方） -->
-    <div id="nodeFlow" class="node-flow hidden"></div>
+    <!-- 顶部行：商店按钮 | 流程节点 | 售出区 -->
+    <div class="top-row hidden" id="topRow">
+      <button id="btnShopToggle" class="shop-btn-toggle" type="button">🛒 商店</button>
+      <div id="nodeFlow" class="node-flow"></div>
+      <div id="sellZone" class="sell-zone top-sell">🗑 售出</div>
+    </div>
 
     <!-- 开始 / 继续 -->
     <section id="startScreen" class="overlay hidden">
@@ -60,7 +64,24 @@
 
     <!-- 主对局 -->
     <section id="arena" class="arena hidden">
+      <div id="shopPopover" class="shop-popover hidden" aria-hidden="true">
+        <div class="shop-popover-head">
+          <h3>🛒 商店 · Lv.<span id="shopLv">1</span></h3>
+          <button id="btnShopClose" class="btn small" type="button">× 关闭 (ESC)</button>
+        </div>
+        <div id="shopProbRow" class="shop-prob-row"></div>
+        <div id="shopCards" class="shop-popover-cards"></div>
+        <div class="shop-popover-actions">
+          <span class="shop-cap" id="shopCapHint" style="flex:1;color:var(--text-2);font-size:12px;align-self:center"></span>
+          <button id="btnRefresh" class="btn small" type="button">↻ 刷新 (<span id="refreshCost">2</span>💰)</button>
+          <button id="btnExp" class="btn small" type="button">⤴ 买经验 (4💰)</button>
+        </div>
+      </div>
       <div class="arena-side">
+          <div class="enemy-info">
+            <div class="enemy-info-head">敌方编队 · <span id="enemyDesc"></span></div>
+            <div id="enemyTeam" class="enemy-info-team"></div>
+          </div>
           <div class="bonds-bar-wrap" id="bondsBarWrap">
             <button class="bonds-toggle" id="bondsToggle" type="button" aria-expanded="true" aria-controls="bondsBar">
               <span class="bt-ico">✦</span><span class="bt-label">羁绊</span><span class="bt-count" id="bondsCount">0</span><span class="bt-chev">▾</span>
@@ -68,33 +89,20 @@
             <div class="bonds-bar" id="bondsBar"></div>
           </div>
 
-          <div class="shop">
-            <div class="shop-head">
-              <span>商店<span class="shop-cap" id="shopCapHint"></span></span>
-              <span class="shop-actions">
-                <button id="btnRefresh" class="btn small">刷新 (<span id="refreshCost">2</span>💰)</button>
-                <button id="btnExp" class="btn small">买经验 (4💰)</button>
-              </span>
+          <div id="equipPanel" class="equip-panel hidden">
+            <div class="equip-head"><span class="equip-ico">⚒</span>装备 · 仅本场 <span class="equip-hint">点装备卡购买，点背包再点干员穿戴（2 槽）</span></div>
+            <div id="equipShopRow" class="equip-shop-row"></div>
+            <div id="equipBagRow" class="equip-bag-row"></div>
+            <div id="equipMsg" class="equip-msg"></div>
+          </div>
+          <div id="feedPanel" class="feed-panel hidden">
+            <div class="feed-head"><span id="feedForm" class="feed-form-ico">🐺</span>养狼 · 局内成长 <span id="feedLv" class="feed-lv"></span></div>
+            <div id="feedExpBar" class="feed-expbar"><div id="feedExpFill" class="feed-expfill"></div><span id="feedExpTxt" class="feed-exptxt"></span></div>
+            <div class="feed-actions">
+              <button id="btnFeedMeat" class="btn small" type="button">生肉 +30EXP (3💰)</button>
+              <button id="btnFeedRation" class="btn small" type="button">战前口粮 (5💰)</button>
             </div>
-            <div class="cost-legend">
-              <span class="cl c1">白·1费</span><span class="cl c2">绿·2费</span><span class="cl c3">蓝·3费</span><span class="cl c4">紫·4费</span><span class="cl c5">金·5费</span>
-            </div>
-            <div id="shopCards" class="shop-cards"></div>
-            <div id="feedPanel" class="feed-panel hidden">
-              <div class="feed-head"><span id="feedForm" class="feed-form-ico">🐺</span>养狼 · 局内成长 <span id="feedLv" class="feed-lv"></span></div>
-              <div id="feedExpBar" class="feed-expbar"><div id="feedExpFill" class="feed-expfill"></div><span id="feedExpTxt" class="feed-exptxt"></span></div>
-              <div class="feed-actions">
-                <button id="btnFeedMeat" class="btn small" type="button">生肉 +30EXP (3💰)</button>
-                <button id="btnFeedRation" class="btn small" type="button">战前口粮 (5💰)</button>
-              </div>
-              <div id="feedMsg" class="feed-msg"></div>
-            </div>
-            <div id="equipPanel" class="equip-panel hidden">
-              <div class="equip-head"><span class="equip-ico">⚒</span>装备 · 仅本场 <span class="equip-hint">点击装备卡购买，点背包再点干员穿戴（2 槽）</span></div>
-              <div id="equipShopRow" class="equip-shop-row"></div>
-              <div id="equipBagRow" class="equip-bag-row"></div>
-              <div id="equipMsg" class="equip-msg"></div>
-            </div>
+            <div id="feedMsg" class="feed-msg"></div>
           </div>
 
       </div>
@@ -102,24 +110,22 @@
           <div class="board-wrap">
             <div class="board-label">战斗部署区 · 把卡牌拖入左侧区域任意格子上场（人口 <span id="boardCap"></span>，右侧为敌方站位预览；部署区与战斗场地均为 8×6 一一对应）</div>
             <div class="board-battle">
-              <div id="rosterRail" class="roster-rail" aria-label="上场角色">
-                <div class="rr-head">上场角色</div>
-                <div id="rosterList" class="roster-list"></div>
-              </div>
               <div id="board" class="board-grid"></div>
               <div id="enemyOverlay" class="enemy-overlay" aria-hidden="true"></div>
               <div class="board-vignette" aria-hidden="true"></div>
             </div>
-            <div class="enemy-head">敌方编队 · <span id="enemyDesc"></span></div>
-            <div id="enemyTeam" class="mini-team"></div>
-            <div class="board-label">备战席 <span id="benchCap"></span> · 拖到上方格子即可上场；超过 10 名需先售出</div>
+          </div>
+
+          <div class="bench-area">
+            <div class="bench-area-head">
+              <span>备战席 · <span id="benchCap"></span> 名 · 拖到上方棋盘格子部署（10 格，满位请先售出）</span>
+            </div>
             <div id="benchWarn" class="bench-warn hidden"></div>
             <div id="bench" class="bench"></div>
-            <div id="sellZone" class="sell-zone">🗑 拖到此处售出</div>
           </div>
 
           <div class="action-bar">
-            <button id="btnFight" class="btn primary">⚔ 开战</button>
+            <button id="btnFight" class="btn primary">⚔ 开战 (F)</button>
             <button id="btnNext" class="btn hidden">前进 →</button>
             <span id="phaseHint" class="phase-hint"></span>
           </div>
@@ -264,13 +270,13 @@
   </div>
 
   <!-- 缓存戳：每次发版/改数据后修改 ?v= 即可强制浏览器刷新 -->
-  <script src="data.js?v=20260815i"></script>
-  <script src="signatures.js?v=20260815i"></script>
-  <script src="audio_assets.js?v=20260815i"></script>
-  <script src="audio.js?v=20260815i"></script>
-  <script src="resonance.js?v=20260815i"></script>
-  <script src="bonds_flavor.js?v=20260815i"></script>
-  <script src="game.js?v=20260815i"></script>
+  <script src="data.js?v=20260815n"></script>
+  <script src="signatures.js?v=20260815n"></script>
+  <script src="audio_assets.js?v=20260815n"></script>
+  <script src="audio.js?v=20260815n"></script>
+  <script src="resonance.js?v=20260815n"></script>
+  <script src="bonds_flavor.js?v=20260815n"></script>
+  <script src="game.js?v=20260815n"></script>
   <!-- 脚本加载容错：延迟检测 + 自动重试 + data.json fallback + 强制进入 -->
   <script>(function(){
     var CHECKS = 0, MAX = 24;       // 24 次 × 500ms = 12 秒（data.js 近 1MB，给慢机器/杀毒留时间）
