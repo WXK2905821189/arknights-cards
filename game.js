@@ -3269,7 +3269,7 @@
       const _gr = g.getBoundingClientRect();
       const _gw = _gr.width || (FIELD_W * CELL), _gh = _gr.height || (FIELD_H * CELL);
       const _cw = _gw / FIELD_W, _ch = _gh / FIELD_H;
-      const _uw = Math.max(40, Math.min(72, _cw - 4)), _uh = Math.max(46, Math.min(80, _ch - 4)); // v2.4 单位放大填格，减小部署/战斗视觉空隙
+      const _uw = Math.max(36, Math.min(62, _cw - 10)), _uh = Math.max(42, Math.min(70, _ch - 10)); // v4.3 单位略小于格子，避免相邻单位视觉重叠
       G._bfCell = { cw: _cw, ch: _ch, uw: _uw, uh: _uh };
       g.style.backgroundSize = _cw + 'px ' + _ch + 'px';
 
@@ -3374,7 +3374,7 @@
     if (!s.alive) {
       if (el.dataset.alive !== 'dead') {
         el.dataset.alive = 'dead';
-        try { const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null; if (_r && _r.width) FX.burst(_r.left + _r.width / 2, _r.top + _r.height / 2, 10, '#ffb3b3'); if (!G._fxShakenThisFrame) { FX.shake(90, 2); G._fxShakenThisFrame = 1; } } catch (e) {}
+        try { const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null; if (_r && _r.width) FX.burst(_r.left + _r.width / 2, _r.top + _r.height / 2, 10, '#ffb3b3'); } catch (e) {}
         if (!G._audioSkip && window.AUDIO) {
           // v2.1：召唤物死亡播专属"兽落"音，普通单位播通用 combat/death
           if (el.dataset.summon === '1') AUDIO.play('summon/death', { side: el.dataset.side });
@@ -3397,7 +3397,7 @@
           const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null;
           if (_r && _r.width) FX.floatText(_r.left + _r.width / 2, _r.top - 4, '-' + Math.round(s.max * Math.abs(diff) / 100), 'red');
         }
-        if (!G._fxShakenThisFrame && diff < -50) { FX.shake(90, 2); G._fxShakenThisFrame = 1; }
+
       } else if (diff > 0.5) {
         el.classList.remove('fx-heal'); void el.offsetWidth; el.classList.add('fx-heal');
         const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null;

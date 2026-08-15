@@ -811,7 +811,7 @@ body[data-theme="brief"]{
 #battleScreen .battle-log{flex:1 1 auto;min-height:0;height:auto;max-width:none;width:auto;margin:0;padding:8px 12px;
   border:none;border-radius:0;background:transparent;overflow-y:auto}
 #battleScreen .bf-frame{grid-column:2;display:grid;place-items:center;min-width:0;min-height:0}
-#battleScreen .bf-grid{width:100%;height:auto;max-width:100%;max-height:100%;aspect-ratio:8/6;min-width:0;min-height:0}
+#battleScreen .bf-grid{width:min(100%, calc((100vh - 120px) * 8 / 6));height:auto;max-width:100%;aspect-ratio:8/6;min-width:0;min-height:0;margin:0 auto}
 @media (max-width:1100px){#battleScreen .bf-side{flex-basis:170px}}
 
 /* ============ v2.7 顶部商店按钮 + 弹层（覆盖 nodeFlow 区域） ============ */
