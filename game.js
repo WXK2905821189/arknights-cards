@@ -1046,6 +1046,9 @@
     const enemy = enemyRaw.map(u => Object.assign({}, u));
     ally.forEach((u, i) => { u.uid = 'a' + i; u.x = allyPos[i].x; u.y = allyPos[i].y; u.cd = 0; u.stunUntil = 0; });
     enemy.forEach((u, i) => { u.uid = 'e' + i; u.x = enemyPos[i].x; u.y = enemyPos[i].y; u.cd = 0; u.stunUntil = 0; });
+    // 08-15 修复：护盾上限 = maxHp × SHIELD_CAP_MULT，防自施放盾无限堆积（配合 step() 射程外先推进）
+    const SHIELD_CAP_MULT = 2;
+    const addShield = (u, amt) => { u.shield = Math.min(u.shield + Math.max(0, amt), Math.round(u.maxHp * SHIELD_CAP_MULT)); };
     // 对称先手：随机决定先手方，并按 (先手, 后手) 逐索引交错排列，
     // 消除「ally 每 tick 恒定先动」带来的系统性偏置（原为 ally.concat(enemy)）。
     const firstSide = (typeof global !== 'undefined' && global.__forceFirst) ? global.__forceFirst : (Math.random() < 0.5 ? 'ally' : 'enemy'); // __forceFirst 调试钩子
@@ -1227,7 +1230,7 @@
           const dmg = dealDamage(u, tgt, u.atk * m * amp);
           line += ' → ' + tgt.name + ' -' + dmg;
           if (arch === 'lifesteal') u.hp = Math.min(u.maxHp, u.hp + Math.round(dmg * (eff.leech || 0.5)));
-        } else line += '（无目标）';
+        } else line += '（射程外）';
       } else if (arch === 'aoe') {
         let tot = 0;
         foes.filter(fo => cheb(fo, u) <= skRange).forEach(fo => { tot += dealDamage(u, fo, u.atk * eff.mult * amp); });
@@ -1244,7 +1247,7 @@
       } else if (arch === 'shield') {
         const tgt = (eff.target === 'self') ? u
           : (allies.filter(x => x !== u && cheb(x, u) <= skRange).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0] || u);
-        const s = Math.round(u.atk * (eff.mult || 1)); tgt.shield += s; line += ' 为 ' + tgt.name + ' 提供护盾 ' + s;
+        const s = Math.round(u.atk * (eff.mult || 1)); addShield(tgt, s); line += ' 为 ' + tgt.name + ' 提供护盾 ' + s;
       } else if (arch === 'stun') {
         const ne = nearestEnemy(u);
         const tgt = (ne.tgt && ne.d <= skRange) ? ne.tgt : null;
@@ -1263,7 +1266,7 @@
         const tgt = (ne.tgt && ne.d <= skRange) ? ne.tgt : null;
         if (tgt) { const d = dealDamage(u, tgt, u.atk * (eff.mult || 1) * amp); line += ' 侵蚀 ' + tgt.name + ' -' + d; } else line += '（射程外）';
       } else if (arch === 'summon') {
-        const s = Math.round(u.atk * (eff.mult || 1)); u.shield += s; line += ' 召唤援军（护盾+' + s + '）';
+        const s = Math.round(u.atk * (eff.mult || 1)); addShield(u, s); line += ' 召唤援军（护盾+' + s + '）';
       } else {
         const ne = nearestEnemy(u);
         const tgt = (ne.tgt && ne.d <= skRange) ? ne.tgt : null;
@@ -1348,12 +1351,12 @@
           const shielder = _sx.find(u => u.alive && u.specialKw.includes('shieldPeriodic'));
           if (shielder && t > 0 && Math.round(t) % ((shielder.specialParams['shieldPeriodic'] || {}).period || 5) === 0) {
             const frac = ((shielder.specialParams['shieldPeriodic'] || {}).frac || 0.10);
-            _sx.forEach(a => { if (a.alive) a.shield += Math.round(a.maxHp * frac); });
+            _sx.forEach(a => { if (a.alive) addShield(a, Math.round(a.maxHp * frac)); });
           }
           // v2 装备·再生装甲（regenShield）：仅持有者自身周期回盾（独立 kw，区别于谢拉格全队光环）
           _sx.forEach(a => {
             if (a.alive && a.regenShield && t > 0 && Math.round(t) % a.regenShield.period === 0) {
-              a.shield += Math.round(a.maxHp * a.regenShield.frac);
+              addShield(a, Math.round(a.maxHp * a.regenShield.frac));
             }
           });
         }
