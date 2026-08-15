@@ -29,14 +29,24 @@
   //   校验见 gen_bonds_table.py（BOARD_CAP=9，逐职业核对 卡池≥阶3 且 阶3≤9）。
   const BONDS = {
     '职业': {
-      '先锋': { thr: [2, 4, 6], spInit: [4, 8, 12], spRegen: [0.15, 0.30, 0.50] },   // 技力流：起手技力 + 技力回复
-      '近卫': { thr: [2, 4, 6], atk: [0.10, 0.20, 0.32], aspd: [0.08, 0.16, 0.26] }, // 斗士：攻击 + 攻速
-      '重装': { thr: [2, 4, 6], def: [0.10, 0.20, 0.32], hp: [0.08, 0.16, 0.26] },   // 壁垒：防御 + 生命
-      '狙击': { thr: [2, 4, 6], atk: [0.10, 0.20, 0.32], crit: [0.08, 0.15, 0.24] }, // 狙击：攻击 + 暴击
-      '术师': { thr: [2, 4, 6], magicAmp: [0.10, 0.20, 0.32], spInit: [4, 8, 12] },  // 术法：法伤 + 起手技力
-      '医疗': { thr: [2, 4, 6], healAmp: [0.10, 0.20, 0.32], hp: [0.08, 0.16, 0.26], magicAmp: [0.05, 0.10, 0.15] },// 急救：治疗量 + 生命 + 光合法伤（解纯医疗无输出）
-      '辅助': { thr: [2, 4, 6], aspd: [0.10, 0.20, 0.32], def: [0.08, 0.16, 0.26], atk: [0.06, 0.12, 0.20] }, // 控场：攻速 + 防御 + 攻击
-      '特种': { thr: [2, 4, 6], aspd: [0.10, 0.20, 0.32], crit: [0.08, 0.15, 0.24] }, // 奇袭：攻速 + 暴击
+      // v2.5 M3：职业羁绊 2/4/6/8/10 五阶。6 阶起 behavior（复用现成 kw 家族，零新引擎）；
+      // 8 阶双行为 / 10 阶专属大招。数值与 kw 参数全 [PLACEHOLDER] 待标定。
+      '先锋': { thr: [2, 4, 6, 8, 10], spInit: [4, 8, 12, 16, 20], spRegen: [0.15, 0.30, 0.50, 0.70, 0.95],
+                behavior: { 6: [{ kw: 'spRegenBuff', params: { value: 0.25 } }], 8: [{ kw: 'goldOnKill', params: { amount: 1 } }], 10: [{ kw: 'globalAspd', params: { value: 0.15 } }] } }, // 技力流：起手技力+回复 → 击杀回费 → 全场提速
+      '近卫': { thr: [2, 4, 6, 8, 10], atk: [0.10, 0.20, 0.32, 0.44, 0.56], aspd: [0.08, 0.16, 0.26, 0.36, 0.46],
+                behavior: { 6: [{ kw: 'berzerk', params: { thresh: 0.30, atkPct: 0.20, leech: 0.10 } }], 8: [{ kw: 'rampHit', params: { per: 0.02, cap: 0.20 } }], 10: [{ kw: 'lifesteal', params: { pct: 0.15 } }, { kw: 'counter', params: { pct: 0.10 } }] } }, // 斗士：攻+速 → 低血狂暴 → 越战越勇 → 吸血反伤
+      '重装': { thr: [2, 4, 6, 8, 10], def: [0.10, 0.20, 0.32, 0.44, 0.56], hp: [0.08, 0.16, 0.26, 0.36, 0.46],
+                behavior: { 6: [{ kw: 'guardAura', params: { value: 0.06 } }], 8: [{ kw: 'shieldPeriodic', params: { frac: 0.08, period: 5 } }], 10: [{ kw: 'counter', params: { pct: 0.15 } }, { kw: 'damageReduction', params: { value: 0.10 } }] } }, // 壁垒：防+血 → 协防 → 周期盾 → 反伤减伤
+      '狙击': { thr: [2, 4, 6, 8, 10], atk: [0.10, 0.20, 0.32, 0.44, 0.56], crit: [0.08, 0.15, 0.24, 0.33, 0.42],
+                behavior: { 6: [{ kw: 'splash', params: { pct: 0.30 } }], 8: [{ kw: 'pierce', params: { value: 0.20 } }, { kw: 'execute', params: { thresh: 0.30, mult: 0.50 } }], 10: [{ kw: 'globalAspd', params: { value: 0.12 } }, { kw: 'splash', params: { pct: 0.50 } }] } }, // 狙击：攻+暴 → 溅射 → 破甲处决 → 弹幕齐射
+      '术师': { thr: [2, 4, 6, 8, 10], magicAmp: [0.10, 0.20, 0.32, 0.44, 0.56], spInit: [4, 8, 12, 16, 20],
+                behavior: { 6: [{ kw: 'castAmp', params: { aspd: 0.15, amp: 0.15, dur: 3 } }], 8: [{ kw: 'overload', params: { value: 0.30, period: 6, dur: 3 } }], 10: [{ kw: 'trueDmg', params: { value: 0.15 } }, { kw: 'defShred', params: { value: 0.15 } }] } }, // 术法：法伤+起手 → 咏唱强化 → 周期法爆 → 真伤破甲
+      '医疗': { thr: [2, 4, 6, 8, 10], healAmp: [0.10, 0.20, 0.32, 0.44, 0.56], hp: [0.08, 0.16, 0.26, 0.36, 0.46], magicAmp: [0.05, 0.10, 0.15, 0.20, 0.25],
+                behavior: { 6: [{ kw: 'healAura', params: { regen: 0.02 } }], 8: [{ kw: 'healCrit', params: { pct: 0.25 } }], 10: [{ kw: 'triage', params: { revivePct: 0.30, charges: 1 } }] } }, // 急救：疗+血 → 治疗光环 → 治疗暴击 → 不抛下任何人
+      '辅助': { thr: [2, 4, 6, 8, 10], aspd: [0.10, 0.20, 0.32, 0.44, 0.56], def: [0.08, 0.16, 0.26, 0.36, 0.46], atk: [0.06, 0.12, 0.20, 0.28, 0.36],
+                behavior: { 6: [{ kw: 'slowAura', params: { value: 0.15 } }], 8: [{ kw: 'trueDmg', params: { value: 0.10 } }], 10: [{ kw: 'castAmp', params: { aspd: 0.20, amp: 0.20, dur: 3 } }, { kw: 'slowAura', params: { value: 0.25 } }] } }, // 控场：速+防+攻 → 减速光环 → 真伤 → 咏唱+强减速
+      '特种': { thr: [2, 4, 6, 8, 10], aspd: [0.10, 0.20, 0.32, 0.44, 0.56], crit: [0.08, 0.15, 0.24, 0.33, 0.42],
+                behavior: { 6: [{ kw: 'quickStart', params: { aspd: 0.30 } }], 8: [{ kw: 'execute', params: { thresh: 0.35, mult: 0.60 } }], 10: [{ kw: 'splash', params: { pct: 0.40 } }, { kw: 'lifesteal', params: { pct: 0.15 } }] } }, // 奇袭：速+暴 → 开局爆发 → 处决 → 溅射吸血
     },
     // 阵营轴：B 任务「势力主题化」——每个势力独立效果包，反映其 AK 身份。
     // 键名必须与 data.json 的 bonds['阵营'] 一致（已合并同类项：罗德岛-精英干员→罗德岛、炎-岁/炎-龙门→炎、龙门近卫局→龙门…）。
@@ -495,6 +505,40 @@
         });
       }
     });
+    // v2.5 M3：职业羁绊 behavior（6/8/10 阶 kw）——axes 循环后统一合并进 special[name]
+    // （此时阵营 deep 已确定，追加不覆盖；与阵营 kw 并存多槽）
+    (function applyClassBehavior() {
+      const jobCfg = BONDS['职业'];
+      if (!jobCfg) return;
+      Object.keys(seen['职业']).forEach(v => {
+        const vc = jobCfg[v];
+        if (!vc || !vc.behavior) return;
+        const n = seen['职业'][v].size;
+        let tier = -1;
+        for (let t = 0; t < vc.thr.length; t++) if (n >= Math.max(1, vc.thr[t] - bondEase)) tier = t;
+        if (tier < 0) return;
+        const tierN = tier + 1;
+        const behKws = [];
+        // behavior 键 = 人数档位（6/8/10），用 n（人数）比较：6 人→6 阶行为、8 人→8 阶、10 人→10 阶
+        Object.keys(vc.behavior).forEach(bk => { if (n >= parseInt(bk, 10)) vc.behavior[bk].forEach(e => behKws.push(e)); });
+        if (!behKws.length) return;
+        if (typeof console !== 'undefined') console.log('[M3] class', v, 'tier', tierN, 'kws', behKws.map(e => e.kw).join(','), 'count', n);
+        boardUnits.forEach(u => {
+          if (u.bonds['职业'] !== v) return;
+          if (!special[u.name]) special[u.name] = { kw: null, params: {}, kws: [] };
+          behKws.forEach(e => {
+            if (e.kw === special[u.name].kw) special[u.name].params = e.params || {}; // 同名覆盖（罕见）
+            else if (!special[u.name].kws.some(x => x.kw === e.kw)) special[u.name].kws.push(e);
+          });
+        });
+        // 展示：追加行为标签到对应职业羁绊条目
+        const behLabel = Object.keys(vc.behavior).filter(bk => n >= parseInt(bk, 10)).map(bk => vc.behavior[bk].map(e => e.kw).join('+')).join(' ');
+        if (behLabel) {
+          const act = active.find(a => a.axis === '职业' && a.value === v);
+          if (act) act.beh = behLabel;
+        }
+      });
+    })();
     // 签名展示（单人，阶0）
     boardUnits.forEach(u => {
       if (SIGNATURE[u.name]) {
@@ -695,6 +739,13 @@
         else if (KW === 'counter') u.counter = Math.max(u.counter, p.value || 0);      // v2.4 卡兹戴尔·源石反噬
         else if (KW === 'castAmp') { u.castAmpMul = 1 + (p.amp || 0.15); u.castAspd = 1 + (p.aspd || 0.15); u.castBuffUntil = Math.max(u.castBuffUntil, 1e9); }
         else if (KW === 'triage') { u.reviveCharges = (p.charges || 1); u.revivePct = (p.revivePct || 0.30); }
+        // v2.5 M3：职业羁绊 behavior kw 字段折叠（其余靠 specialKw 数组在 step/dealDamage 消费）
+        else if (KW === 'berzerk') u.berzerk = { thresh: p.thresh || 0.30, atkPct: p.atkPct || 0.20, leech: p.leech || 0.10 };
+        else if (KW === 'goldOnKill') u.goldOnKill = (u.goldOnKill || 0) + (p.amount || 1);
+        else if (KW === 'healCrit') u.healCrit = Math.max(u.healCrit || 0, p.pct || 0.25);
+        else if (KW === 'splash') u.splash = Math.max(u.splash || 0, p.pct || 0.30);
+        else if (KW === 'quickStart') u.quickF = Math.max(u.quickF || 1, 1 + (p.aspd || 0.30));
+        else if (KW === 'execute') { u.executeThresh = p.thresh || 0.30; u.executeMult = p.mult || 0.50; }
         // infernoRally / knightBanner / overload / capo / barrage 在 step/onFight 专门消费
       });
     }
@@ -984,7 +1035,10 @@
     for (const _sx of [ally, enemy]) {
       const foes = _sx === ally ? enemy : ally;
       if (_sx.some(u => u.specialKw.includes('globalAspd'))) {
-        const v = (SPECIAL['企鹅物流'] && SPECIAL['企鹅物流'].params.value) || 0.10;
+        // v2.5 M3：读持有者自身 params（职业 10 阶先锋/狙击与企鹅物流并存时各取各的，取最大）
+        let v = 0;
+        _sx.forEach(u => { if (u.specialKw.includes('globalAspd')) v = Math.max(v, (u.specialParams['globalAspd'] || {}).value || 0); });
+        if (!v) v = (SPECIAL['企鹅物流'] && SPECIAL['企鹅物流'].params.value) || 0.10;
         _sx.forEach(u => { u.spd *= (1 + v); });
       }
       const slowA = _sx.find(u => u.specialKw.includes('slowAura'));
@@ -1018,7 +1072,7 @@
     let tickIdx = Math.random() < 0.5 ? 0 : 1; // 行动顺序计数器（初始奇偶随机）：每 tick 交替先手方，抵消先手滚雪球偏置；初始随机使决定性技能齐放先手方随机化
     let suddenDeath = false; // 猝死阶段：禁用续航、无视护盾、伤害翻倍，强制终结僵局
     // P2-4：战斗统计（复盘用）——双方累计伤害与阵亡数
-    const stats = { allyDmg: 0, enemyDmg: 0, allyDeaths: 0, enemyDeaths: 0, summonKills: 0 };
+    const stats = { allyDmg: 0, enemyDmg: 0, allyDeaths: 0, enemyDeaths: 0, summonKills: 0, goldEarned: 0 };
     // 行动间隔：受减速(slowFactor)与施法加速(castAspd)影响
     const ATK = u => {
       const slowF = (u.slowFactor && t < u.slowUntil) ? u.slowFactor : 1;
@@ -1098,6 +1152,8 @@
           logBuf.push({ k: 'revive', line: tgt.name + ' 复活！(' + tgt.hp + ' HP)', side: tgt.side });
         } else {
           tgt.alive = false; occ.delete(tgt.x + ',' + tgt.y); if (tgt.side === 'ally') stats.allyDeaths++; else stats.enemyDeaths++; if (src && src.isSummon) stats.summonKills++;
+          // v2.5 M3 先锋 8 阶「击杀回费」：我方非召唤物击杀 → 累计（onFight 结算），防养狼刷钱
+          if (src && src.side === 'ally' && src.goldOnKill && !src.isSummon) stats.goldEarned += src.goldOnKill;
         }
       }
       // 命中破甲（薇薇安娜 / 伊比利亚）
@@ -1153,7 +1209,11 @@
       } else if (arch === 'heal') {
         const wounded = allies.some(x => x.hp < x.maxHp);
         const low = allies.filter(x => x.hp < x.maxHp && cheb(x, u) <= skRange).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
-        if (low) { const h = Math.round(u.atk * eff.mult * (u.healAmp || 1)); low.hp = Math.min(low.maxHp, low.hp + h); line += ' 治疗 ' + low.name + ' +' + h; }
+        if (low) {
+          let h = Math.round(u.atk * eff.mult * (u.healAmp || 1));
+          if (u.healCrit && Math.random() < u.healCrit) h = Math.round(h * 2); // v2.5 M3 医疗 8 阶：治疗暴击
+          low.hp = Math.min(low.maxHp, low.hp + h); line += ' 治疗 ' + low.name + ' +' + h + (u.healCrit && h > Math.round(u.atk * eff.mult * (u.healAmp || 1)) ? '（暴击）' : '');
+        }
         else line += (wounded ? '（射程外）' : '（友军满血）');
       } else if (arch === 'shield') {
         const tgt = (eff.target === 'self') ? u
@@ -1306,7 +1366,8 @@
             }
           }
           if (tgt) {
-            const heal = Math.round(u.atk * (u.healAmp || 1));
+            let heal = Math.round(u.atk * (u.healAmp || 1));
+            if (u.healCrit && Math.random() < u.healCrit) heal = Math.round(heal * 2); // v2.5 M3 医疗 8 阶：治疗暴击
             tgt.hp = Math.min(tgt.maxHp, tgt.hp + heal);
             logBuf.push({ k: 'heal', line: u.name + ' 治疗 ' + tgt.name + ' +' + heal, side: u.side });
             u.cd = ATK(u);
@@ -2853,6 +2914,8 @@
 
     const res = simulateBattleGrid(allyAll, enemyUnits, allyPos, enemyPos);
     G.battleRes = res;
+    // v2.5 M3 先锋 8 阶「击杀回费」：战斗结束统一结算（不在模拟中途改 G）
+    if (res.stats && res.stats.goldEarned) { G.gold += res.stats.goldEarned; }
     // —— v2.1 养狼：战斗后 EXP 结算（仅本 run，不写 Meta）——
     const lvlUp = grantSummonExp(xilaCount, xilaTier, res, ss, 1 + (se.summonExpMult || 0));
     G._summonLevelUp = lvlUp; // 供复盘/recap 提示（升级：下一场以新等级重生）
