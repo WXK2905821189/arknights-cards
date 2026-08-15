@@ -1616,7 +1616,7 @@
   const STRAT_GROWTH_LABEL = { instant: '即时', persistent: '持续', scaling: '成长' };
   const STRAT_ICON = {
     s_finance: '💰', s_train: '🎯', s_free: '🔄', s_sharp: '⚔', s_wall: '🛡', s_swift: '⚡',
-    s_war: '🔥', s_rich: '💎', s_arm: '🪖', s_apoc: '🌟', s_black: '🕶', s_core: '🧠',
+    s_war: '🔥', s_rich: '💎', s_arm: '🪖', s_apoc: '🌟', s_core: '🧠',
     s_comp_pioneer: '🚩', s_comp_rhodes: '🏥', s_comp_guard: '🛡', s_comp_sig: '⭐', s_comp_sniper: '🎯',
     s_comp_xila: '🐺', s_comp_summon: '🐾', s_comp_front: '🧱', s_comp_back: '🔫', s_comp_mage: '🔮',
     s_comp_victoria: '⚔', s_comp_heat: '🔥', s_rule_bond: '🔗', s_rule_resonance: '💞', s_rule_expand: '📐',
@@ -1634,9 +1634,10 @@
   //   位置（comp）：roleAtkPct{front,back} / roleHpPct{front,back} / roleDefPct{front,back}（我方列 0-3，front=x>=2 临近敌方，back=x<=1）
   //   规则（rule）：bondEase / resonanceBonusPct
   //   新增（v2.6）：goldNow / expNow / interestRate / winStreakGold / startAspdPct / startSpPct / reviveOncePct / teamLifesteal / teamArmorShred / skillAmpPct
+  //   sellValuePct 仅开局环境 ENV_POOL「黑市协议」在用（策略卡 s_black 已删：+50% 售价可低买高卖无限刷钱，超模）
   // 数值全 [PLACEHOLDER]，待 balance_sim.py 蒙特卡洛标定。
   const STRATEGY_POOL = [
-    // ===== comp：阵容构型（12/22，引导"玩什么阵"）=====
+    // ===== comp：阵容构型（12/29，引导"玩什么阵"）=====
     // A1 职业专精
     { id: 's_comp_pioneer', name: '先锋专精', tier: 'bronze', category: 'comp', sub: 'A1', desc: '先锋干员 +12% 攻击、+12% 生命。', effects: { classBonusPct: { '先锋': { atk: 0.12, hp: 0.12 } } } },
     { id: 's_comp_guard', name: '重装壁垒', tier: 'silver', category: 'comp', sub: 'A1', desc: '重装干员 +15% 防御、+12% 生命。', effects: { classBonusPct: { '重装': { def: 0.15, hp: 0.12 } } } },
@@ -1653,26 +1654,24 @@
     // A4 体系专精
     { id: 's_comp_summon', name: '召唤铺场', tier: 'gold', category: 'comp', sub: 'A4', desc: '召唤物 +20% 攻击、+20% 生命；召唤经验 +50%。', effects: { summonBonusPct: 0.20, summonExpMult: 0.50 } },
     { id: 's_comp_sig', name: '签名号令', tier: 'silver', category: 'comp', sub: 'A4', desc: '5 费签名干员 +15% 攻击、+15% 生命。', effects: { sigBonusPct: 0.15 } },
-    // ===== rule：规则改写（3/22）=====
+    // ===== rule：规则改写（7/29）=====
     // B1 羁绊规则
     { id: 's_rule_bond', name: '羁绊亲和', tier: 'silver', category: 'rule', sub: 'B1', desc: '所有羁绊阶位需求 -1（最低 1）。', effects: { bondEase: 1 } },
     { id: 's_rule_resonance', name: '呼应共振', tier: 'gold', category: 'rule', sub: 'B1', desc: '跨阵营呼应加成 +40%。', effects: { resonanceBonusPct: 0.40 } },
     // B2 棋盘规则
     { id: 's_rule_expand', name: '扩编令', tier: 'color', category: 'rule', sub: 'B2', growth: 'instant', desc: '部署上限 +1（满级可达 10 人口，解锁第 10 格）。', effects: { boardCapBonus: 1 } },
-    // ===== tempo：经济引擎（5/22）=====
+    // ===== tempo：经济引擎（8/29）=====
     // C1 稳定收益
     { id: 's_finance', name: '理财', tier: 'bronze', category: 'tempo', sub: 'C1', desc: '每回合 +2 金币。', effects: { goldPerRound: 2 } },
     { id: 's_train', name: '练兵', tier: 'bronze', category: 'tempo', sub: 'C1', desc: '每回合 +2 经验。', effects: { expPerRound: 2 } },
     { id: 's_rich', name: '厚赏', tier: 'gold', category: 'tempo', sub: 'C1', desc: '每回合 +4 金币、+3 经验。', effects: { goldPerRound: 4, expPerRound: 3 } },
     // C2 即时爆发
     { id: 's_free', name: '免费情报', tier: 'bronze', category: 'tempo', sub: 'C2', desc: '每回合 1 次免费刷新。', effects: { freeReroll: 1 } },
-    // C3 交易优化
-    { id: 's_black', name: '黑市', tier: 'color', category: 'tempo', sub: 'C3', desc: '售出价格 +50%。', effects: { sellValuePct: 0.5 } },
-    // ===== power：强化引擎（2/22，原 stat 并入）=====
+    // ===== power：强化引擎（2/29，原 stat 并入）=====
     // D1 全队属性
     { id: 's_sharp', name: '锋锐', tier: 'silver', category: 'power', sub: 'D1', desc: '全体干员 +8% 攻击。', effects: { allAtkPct: 0.08 } },
     { id: 's_wall', name: '坚壁', tier: 'silver', category: 'power', sub: 'D1', desc: '全体干员 +8% 生命。', effects: { allHpPct: 0.08 } },
-    // ===== v2.6 P3 首批新卡（rule B3 战斗规则 4 张 + tempo C4 风险投资 4 张，覆盖 条件/代价/赌博 标签）=====
+    // ===== v2.6 P3 首批新卡（rule B3 战斗规则 4 张 + tempo C4 风险投资 4 张，覆盖 条件/代价/赌博 标签；s_black 已删）=====
     // B3 战斗规则
     { id: 's_rule_vanguard', name: '开局号令', tier: 'gold', category: 'rule', sub: 'B3', risk: 'safe', growth: 'instant', desc: '战斗开始全体干员攻速 +30%。', effects: { startAspdPct: 0.30 } },
     { id: 's_rule_synergy', name: '兵贵神速', tier: 'bronze', category: 'rule', sub: 'B3', risk: 'safe', growth: 'instant', desc: '战斗开始全体干员起手技力 +5。', effects: { startSpPct: 5 } },
@@ -1994,8 +1993,11 @@
       const cost = op.stats.cost;
       const role = op.bonds && op.bonds['职业'];
       const aff = op.bonds && op.bonds['阵营'];
+      // v2.4 升星提示：买这张能升星 → 卡面闪烁星星（能升 2 星闪 ★★，3 星闪 ★★★）
+      const starGain = predictStarGain(op);
       // 方舟风格卡片：大头像 + 底部信息栏 + 标签叠层
       return '<div class="ucard shop-card c' + cost + afford + '" data-shop="' + i + '" style="animation-delay:' + (i * 70) + 'ms">' +
+        (starGain >= 2 ? '<span class="star-hint s' + starGain + '">' + '★'.repeat(starGain) + '</span>' : '') +
         '<img class="avatar" src="' + op.avatar + '" alt="" loading="lazy" decoding="async" onerror="this.style.background=\'#222\'">' +
         '<div class="card-fade"></div>' +
         '<div class="card-tags">' +
@@ -2768,7 +2770,7 @@
     if (!op) return;
     const c = effCost(op);
     if (G.gold < c) { flash('金币不足'); if (window.SFX) SFX.play('error'); return; }
-    if (G.bench.length >= BENCH_CAP) { flash('备战席已满（' + BENCH_CAP + '），先部署或售出'); if (window.SFX) SFX.play('error'); return; }
+    if (G.bench.length >= BENCH_CAP && predictStarGain(op) === 0) { flash('备战席已满（' + BENCH_CAP + '），先部署或售出'); if (window.SFX) SFX.play('error'); return; }
     G.gold -= c; G.shop[i] = null;
     G.bench.push({ uid: uidc++, op, star: 1 });
     if (window.SFX) SFX.play('buy');
@@ -2833,6 +2835,19 @@
       setTimeout(next, 1000);
     };
     next();
+  }
+  // v2.4 商店升星提示：预测买入该干员（1 星）后能否完成合成（返回最大可达星级 0/2/3）
+  function predictStarGain(op) {
+    if (!op) return 0;
+    let c1 = 0, c2 = 0;
+    Object.values(G.board).concat(G.bench).forEach(u => {
+      if (u.op.name === op.name) { if (u.star === 1) c1++; else if (u.star === 2) c2++; }
+    });
+    const new1 = c1 + 1;
+    if (new1 < 3) return 0;
+    const made2 = Math.floor(new1 / 3);
+    if (c2 + made2 >= 3) return 3;
+    return 2;
   }
   function tryCombine() {
     let changed = true;
@@ -3849,7 +3864,7 @@
       const op = d.op, c = effCost(op);
       if (G.gold < c) { reject('金币不足'); return; }
       if (occU) {
-        if (G.bench.length >= BENCH_CAP) { reject('备战席已满'); return; }
+        if (G.bench.length >= BENCH_CAP && predictStarGain(op) === 0) { reject('备战席已满'); return; }
         const old = occU;
         G.board[idx] = { uid: uidc++, op, star: 1 };
         G.bench.push(old);
@@ -4172,7 +4187,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { FX, G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, showStrategyScreen, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
+  if (typeof window !== 'undefined') window.__RH = { FX, G, buy, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, showStrategyScreen, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
 
   /* ---- 启动 ---- */
   buildNodes();
