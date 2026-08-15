@@ -201,8 +201,13 @@ a{color:var(--gold-strong);text-decoration:none}
 .btn.danger{border-color:#5a2a2a;color:#e08a8a}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 
-.action-bar{display:flex;align-items:center;gap:14px;margin-top:14px}
-.phase-hint{color:var(--text-2);font-size:13px}
+.action-bar{display:flex;align-items:center;gap:14px;margin-top:14px;padding:0 4px;min-height:48px}
+.action-main{display:flex;gap:10px;align-items:center;flex:0 0 auto}
+.action-info{display:flex;gap:10px;align-items:center;flex:1;justify-content:flex-end;color:var(--text-2);font-size:13px}
+.action-info .phase-hint{color:var(--text-2)}
+.bottom-shop{font-size:14px;padding:7px 18px}
+.bottom-fight{font-size:14px;padding:7px 22px}
+.bottom-sell{padding:7px 14px;font-size:13px}
 
 /* overlays */
 .overlay{position:fixed;inset:0;background:rgba(8,10,14,.86);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:40}
@@ -829,13 +834,10 @@ body[data-theme="brief"]{
 .shop-popover-cards{flex:1;display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:14px 16px;overflow:auto;align-items:start;justify-items:center}
 
 
-/* ============ v2.8 顶部行（商店|流程|售出）+ 亮黄操作按钮 + 备战席格子 + 概率标注 ============ */
-.top-row{display:flex !important;flex-direction:row !important;align-items:center;gap:12px;padding:8px 16px;max-width:1200px;margin:0 auto}
+/* ============ v4.1 顶部行（只保留流程节点，9 节点完整可见不滚动） ============ */
+.top-row{display:flex;align-items:center;gap:12px;padding:8px 16px;max-width:1280px;margin:0 auto}
 .top-row .node-flow{flex:1 1 auto;min-width:360px;max-width:none;margin:0}
 .top-row .node-flow.hidden{display:none}
-.top-row #sellZone{flex:0 0 76px}
-.top-row #btnShopToggle{flex:0 0 auto;min-width:96px}
-.top-sell{margin:0;flex:none;width:76px;padding:8px 6px;font-size:12px}
 /* 亮黄渐变操作按钮（刷新/买经验与商店按钮同款） */
 .shop-popover-actions .btn{background:linear-gradient(135deg,#e8b84b,#cf9a2e);color:#1a1206;border:1px solid #f4d27a;
   font-weight:700;box-shadow:0 2px 8px rgba(232,184,75,.25),inset 0 1px 0 rgba(255,255,255,.2);transition:transform .15s,box-shadow .15s}
