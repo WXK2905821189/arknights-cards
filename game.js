@@ -1598,7 +1598,7 @@
     // ===== rule：规则改写（3/22）=====
     { id: 's_rule_bond', name: '羁绊亲和', tier: 'silver', category: 'rule', desc: '所有羁绊阶位需求 -1（最低 1）。', effects: { bondEase: 1 } },
     { id: 's_rule_resonance', name: '呼应共振', tier: 'gold', category: 'rule', desc: '跨阵营呼应加成 +40%。', effects: { resonanceBonusPct: 0.40 } },
-    { id: 's_rule_expand', name: '扩张令', tier: 'color', category: 'rule', desc: '部署上限 +1。', effects: { boardCapBonus: 1 } },
+    { id: 's_rule_expand', name: '扩编令', tier: 'color', category: 'rule', desc: '部署上限 +1（满级可达 10 人口，解锁第 10 格）。', effects: { boardCapBonus: 1 } },
     // ===== tempo：经济节奏（5/22）=====
     { id: 's_finance', name: '理财', tier: 'bronze', category: 'tempo', desc: '每回合 +2 金币。', effects: { goldPerRound: 2 } },
     { id: 's_train', name: '练兵', tier: 'bronze', category: 'tempo', desc: '每回合 +2 经验。', effects: { expPerRound: 2 } },
