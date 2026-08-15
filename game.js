@@ -3824,18 +3824,15 @@
     // 敌方站位预览：叠加在统一棋盘右半 4×6 区域（pointer-events:none 不干扰拖拽）
     const overlay = $('enemyOverlay');
     if (overlay) {
-      // v2.9 敌方预览层对齐 #board 网格（board-battle 唯一子元素 → #board 直接定位）
+      // v2.9 敌方预览层对齐 #board 网格：保留 base CSS 的 left:50% / right:20px（覆盖右半），JS 仅设 top/bottom 让高度跟 board
       try {
         const bb = document.querySelector('.board-battle');
         const bd = document.getElementById('board');
         if (bb && bd) {
           const bbR = bb.getBoundingClientRect(), bdR = bd.getBoundingClientRect();
           if (bdR.width) {
-            const pad = 10;
-            overlay.style.left = (bdR.left - bbR.left + pad) + 'px';
-            overlay.style.top = (bdR.top - bbR.top + pad) + 'px';
-            overlay.style.right = (bbR.right - bdR.right + pad) + 'px';
-            overlay.style.bottom = (bbR.bottom - bdR.bottom + pad) + 'px';
+            overlay.style.top = (bdR.top - bbR.top + 10) + 'px';
+            overlay.style.bottom = (bbR.bottom - bdR.bottom + 10) + 'px';
           }
         }
       } catch (e) {}
@@ -3850,12 +3847,9 @@
         if (localCol < 0 || localCol >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
         const c = document.createElement('div');
         c.className = 'eo-chip';
-        // 百分比定位：overlay 严格覆盖部署区右半（4 列 × 6 行），与战斗坐标一一对应，头像填满格子
-        c.style.left = ((localCol + 0.5) / GRID_COLS * 100) + '%';
-        c.style.top = ((row + 0.5) / GRID_ROWS * 100) + '%';
-        c.style.width = (100 / GRID_COLS) + '%';
-        c.style.height = (100 / GRID_ROWS) + '%';
-        c.style.transform = 'translate(-50%,-50%)';
+        // v2.9 grid 定位：敌方 chip 用 grid-column/grid-row 自动按 overlay 的 4×6 网格对齐
+        c.style.gridColumn = (localCol + 1);
+        c.style.gridRow = (row + 1);
         c.innerHTML = '<img src="' + t.op.avatar + '" alt="" onerror="this.style.background=\'#222\'">';
         c.title = t.op.name + (t.star > 1 ? '★' + t.star : '');
         overlay.appendChild(c);
