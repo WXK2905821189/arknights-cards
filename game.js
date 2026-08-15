@@ -765,6 +765,7 @@
         else if (KW === 'counter') u.counter = Math.max(u.counter, p.value || 0);      // v2.4 卡兹戴尔·源石反噬
         else if (KW === 'castAmp') { u.castAmpMul = 1 + (p.amp || 0.15); u.castAspd = 1 + (p.aspd || 0.15); u.castBuffUntil = Math.max(u.castBuffUntil, 1e9); }
         else if (KW === 'triage') { u.reviveCharges = (p.charges || 1); u.revivePct = (p.revivePct || 0.30); }
+        else if (KW === 'revive') { u.reviveCharges = Math.min(1, u.reviveCharges + 1); u.revivePct = Math.max(u.revivePct, p.pct || 0.15); } // v2.6 策略战斗规则：全队首死复活
         // v2.5 M3：职业羁绊 behavior kw 字段折叠（其余靠 specialKw 数组在 step/dealDamage 消费）
         else if (KW === 'berzerk') u.berzerk = { thresh: p.thresh || 0.30, atkPct: p.atkPct || 0.20, leech: p.leech || 0.10 };
         else if (KW === 'goldOnKill') u.goldOnKill = (u.goldOnKill || 0) + (p.amount || 1);
@@ -883,6 +884,20 @@
             if (rh) m.hp *= (1 + rh);
             if (rd) m.def *= (1 + rd);
           }
+        }
+      }
+      // v2.6 策略战斗注入（rule 战斗规则 / power 全队机制）：仅我方，优先复用现成 kw 家族
+      if (side === 'ally') {
+        const stk = [];
+        if (se.teamLifesteal) stk.push({ kw: 'lifesteal', params: { value: se.teamLifesteal } });
+        if (se.teamArmorShred) stk.push({ kw: 'pierce', params: { value: se.teamArmorShred } });
+        if (se.skillAmpPct) stk.push({ kw: 'castAmp', params: { amp: se.skillAmpPct, aspd: 0 } });
+        if (se.reviveOncePct) stk.push({ kw: 'revive', params: { pct: se.reviveOncePct } });
+        if (se.startAspdPct) { m = Object.assign({}, m); m.aspd = (m.aspd || 1) * (1 + se.startAspdPct); }
+        if (se.startSpPct) { m = Object.assign({}, m); m.spInit = (m.spInit || 0) + se.startSpPct; }
+        if (stk.length) {
+          const sp = special[u.op.name] || (special[u.op.name] = { kw: null, params: {}, kws: [] });
+          stk.forEach(k => { if (!sp.kws.some(x => x.kw === k.kw)) sp.kws.push(k); });
         }
       }
       return makeCombatUnit(u.op, u.star, side, m, sig[u.op.name] || { attr: {}, kw: {} }, special[u.op.name] || null, resoKw ? resoKw[u.op.name] : null, equipFor(u.uid));
@@ -1595,58 +1610,89 @@
   // —— 策略节点（青铜/白银/黄金/彩色）：永久全局增益 ——
   const STRATEGY_TIERS_LABEL = { bronze: '青铜', silver: '白银', gold: '黄金', color: '彩色' };
   const STRATEGY_TIERS_ROMAN = { bronze: 'I', silver: 'II', gold: 'III', color: 'IV' };
+  // v2.6 四轴分类：主类/子类/风险/成长 展示标签（risk 默认 safe，growth 默认 persistent）
+  const STRAT_CAT_LABEL = { comp: '构型', rule: '规则', tempo: '经济', power: '强化' };
+  const STRAT_RISK_LABEL = { safe: '', conditional: '条件', costly: '代价', gamble: '赌博' };
+  const STRAT_GROWTH_LABEL = { instant: '即时', persistent: '持续', scaling: '成长' };
   const STRAT_ICON = {
     s_finance: '💰', s_train: '🎯', s_free: '🔄', s_sharp: '⚔', s_wall: '🛡', s_swift: '⚡',
     s_war: '🔥', s_rich: '💎', s_arm: '🪖', s_apoc: '🌟', s_black: '🕶', s_core: '🧠',
     s_comp_pioneer: '🚩', s_comp_rhodes: '🏥', s_comp_guard: '🛡', s_comp_sig: '⭐', s_comp_sniper: '🎯',
     s_comp_xila: '🐺', s_comp_summon: '🐾', s_comp_front: '🧱', s_comp_back: '🔫', s_comp_mage: '🔮',
-    s_comp_victoria: '⚔', s_comp_heat: '🔥', s_rule_bond: '🔗', s_rule_resonance: '💞', s_rule_expand: '📐'
+    s_comp_victoria: '⚔', s_comp_heat: '🔥', s_rule_bond: '🔗', s_rule_resonance: '💞', s_rule_expand: '📐',
+    s_rule_vanguard: '📯', s_rule_warclan: '🎺', s_rule_revive: '💊', s_rule_synergy: '⚡',
+    s_tempo_interest: '📈', s_tempo_streak: '🏆', s_tempo_gamble: '🎲', s_tempo_loan: '🏦'
   };
-  // —— 策略节点卡池：从"属性糖果"重做为"身份承诺 deck"（2026-08-12 重构）——
-  // category：comp 阵容导向（≥50%）/ rule 规则改写（~20%）/ tempo 经济节奏（~20%）/ stat 纯数值安全牌（≤10%）。
+  // —— 策略节点卡池：四轴分类 v2（2026-08-15 重分类，22→60+ 扩充中）——
+  // category：comp 阵容构型 / rule 规则改写 / tempo 经济引擎 / power 强化引擎（原 stat 已并入 power）
+  // sub：A1-A4 / B1-B3 / C1-C4 / D1-D3（展示分组，不参与逻辑）
+  // risk：safe 稳定 / conditional 条件 / costly 代价 / gamble 赌博（默认 safe）
+  // growth：instant 即时 / persistent 持续 / scaling 成长（默认 persistent）
   // effects 键：
-  //   全局（legacy，向后兼容）：goldPerRound / expPerRound / freeReroll / allAtkPct / allHpPct / allAspdPct / allMagicPct / sellValuePct / boardCapBonus
-  //   定向（comp 引导阵容）：classBonusPct{职业:{atk,hp,def,crit,aspd,magicAmp,spInit,spRegen}} / factionBonusPct{阵营:{...}} / sigBonusPct / summonBonusPct / summonExpMult
-  //   位置（comp 引导站位）：roleAtkPct{front,back} / roleHpPct{front,back}（我方列 0-3，front=x>=2 临近敌方，back=x<=1）
-  //   规则（rule）：bondEase（羁绊阶位需求 -N，最低 1）/ resonanceBonusPct（呼应加成 ×(1+N)）
+  //   全局（legacy）：goldPerRound / expPerRound / freeReroll / allAtkPct / allHpPct / allAspdPct / allMagicPct / sellValuePct / boardCapBonus
+  //   定向（comp）：classBonusPct{职业:{atk,hp,def,crit,aspd,magicAmp,spInit,spRegen}} / factionBonusPct{阵营:{...}} / sigBonusPct / summonBonusPct / summonExpMult
+  //   位置（comp）：roleAtkPct{front,back} / roleHpPct{front,back} / roleDefPct{front,back}（我方列 0-3，front=x>=2 临近敌方，back=x<=1）
+  //   规则（rule）：bondEase / resonanceBonusPct
+  //   新增（v2.6）：goldNow / expNow / interestRate / winStreakGold / startAspdPct / startSpPct / reviveOncePct / teamLifesteal / teamArmorShred / skillAmpPct
   // 数值全 [PLACEHOLDER]，待 balance_sim.py 蒙特卡洛标定。
   const STRATEGY_POOL = [
-    // ===== comp：阵容导向（10/22 ≈ 45%，配合 rule/tempo 引导，纯数值仅 2 张）=====
-    // 职业专精
-    { id: 's_comp_pioneer', name: '先锋专精', tier: 'bronze', category: 'comp', desc: '先锋干员 +12% 攻击、+12% 生命。', effects: { classBonusPct: { '先锋': { atk: 0.12, hp: 0.12 } } } },
-    { id: 's_comp_rhodes', name: '罗德岛共识', tier: 'bronze', category: 'comp', desc: '罗德岛干员 +10% 治疗量、+10% 生命。', effects: { factionBonusPct: { '罗德岛': { healAmp: 0.10, hp: 0.10 } } } },
-    { id: 's_comp_guard', name: '重装壁垒', tier: 'silver', category: 'comp', desc: '重装干员 +15% 防御、+12% 生命。', effects: { classBonusPct: { '重装': { def: 0.15, hp: 0.12 } } } },
-    { id: 's_comp_sig', name: '签名号令', tier: 'silver', category: 'comp', desc: '5 费签名干员 +15% 攻击、+15% 生命。', effects: { sigBonusPct: 0.15 } },
-    { id: 's_comp_sniper', name: '狙击专注', tier: 'gold', category: 'comp', desc: '狙击干员 +18% 攻击、+12% 暴击。', effects: { classBonusPct: { '狙击': { atk: 0.18, crit: 0.12 } } } },
-    { id: 's_comp_xila', name: '叙拉古家族', tier: 'gold', category: 'comp', desc: '叙拉古干员 +15% 暴击、+15% 攻速；狼群受益。', effects: { factionBonusPct: { '叙拉古': { crit: 0.15, aspd: 0.15 } } } },
-    { id: 's_comp_summon', name: '召唤铺场', tier: 'gold', category: 'comp', desc: '召唤物 +20% 攻击、+20% 生命；召唤经验 +50%。', effects: { summonBonusPct: 0.20, summonExpMult: 0.50 } },
-    { id: 's_comp_front', name: '前排铁壁', tier: 'silver', category: 'comp', desc: '前排（临近敌方列）干员 +15% 防御、+15% 生命。', effects: { roleHpPct: { front: 0.15 }, roleDefPct: { front: 0.15 } } },
-    { id: 's_comp_back', name: '后排火力', tier: 'gold', category: 'comp', desc: '后排（远离敌方列）干员 +18% 攻击。', effects: { roleAtkPct: { back: 0.18 } } },
-    { id: 's_comp_mage', name: '术师奥能', tier: 'color', category: 'comp', desc: '术师干员 +20% 法强、+6 起手技力。', effects: { classBonusPct: { '术师': { magicAmp: 0.20, spInit: 6 } } } },
-    { id: 's_comp_victoria', name: '维多利亚骑士', tier: 'color', category: 'comp', desc: '维多利亚干员 +18% 攻击、+18% 防御。', effects: { factionBonusPct: { '维多利亚': { atk: 0.18, def: 0.18 } } } },
-    { id: 's_comp_heat', name: '炎国烈焰', tier: 'color', category: 'comp', desc: '炎干员 +15% 生命、+15% 防御；灼烧受益。', effects: { factionBonusPct: { '炎': { hp: 0.15, def: 0.15 } } } },
+    // ===== comp：阵容构型（12/22，引导"玩什么阵"）=====
+    // A1 职业专精
+    { id: 's_comp_pioneer', name: '先锋专精', tier: 'bronze', category: 'comp', sub: 'A1', desc: '先锋干员 +12% 攻击、+12% 生命。', effects: { classBonusPct: { '先锋': { atk: 0.12, hp: 0.12 } } } },
+    { id: 's_comp_guard', name: '重装壁垒', tier: 'silver', category: 'comp', sub: 'A1', desc: '重装干员 +15% 防御、+12% 生命。', effects: { classBonusPct: { '重装': { def: 0.15, hp: 0.12 } } } },
+    { id: 's_comp_sniper', name: '狙击专注', tier: 'gold', category: 'comp', sub: 'A1', desc: '狙击干员 +18% 攻击、+12% 暴击。', effects: { classBonusPct: { '狙击': { atk: 0.18, crit: 0.12 } } } },
+    { id: 's_comp_mage', name: '术师奥能', tier: 'color', category: 'comp', sub: 'A1', desc: '术师干员 +20% 法强、+6 起手技力。', effects: { classBonusPct: { '术师': { magicAmp: 0.20, spInit: 6 } } } },
+    // A2 阵营专精
+    { id: 's_comp_rhodes', name: '罗德岛共识', tier: 'bronze', category: 'comp', sub: 'A2', desc: '罗德岛干员 +10% 治疗量、+10% 生命。', effects: { factionBonusPct: { '罗德岛': { healAmp: 0.10, hp: 0.10 } } } },
+    { id: 's_comp_xila', name: '叙拉古家族', tier: 'gold', category: 'comp', sub: 'A2', desc: '叙拉古干员 +15% 暴击、+15% 攻速；狼群受益。', effects: { factionBonusPct: { '叙拉古': { crit: 0.15, aspd: 0.15 } } } },
+    { id: 's_comp_victoria', name: '维多利亚骑士', tier: 'color', category: 'comp', sub: 'A2', desc: '维多利亚干员 +18% 攻击、+18% 防御。', effects: { factionBonusPct: { '维多利亚': { atk: 0.18, def: 0.18 } } } },
+    { id: 's_comp_heat', name: '炎国烈焰', tier: 'color', category: 'comp', sub: 'A2', desc: '炎干员 +15% 生命、+15% 防御；灼烧受益。', effects: { factionBonusPct: { '炎': { hp: 0.15, def: 0.15 } } } },
+    // A3 定位专精
+    { id: 's_comp_front', name: '前排铁壁', tier: 'silver', category: 'comp', sub: 'A3', desc: '前排（临近敌方列）干员 +15% 防御、+15% 生命。', effects: { roleHpPct: { front: 0.15 }, roleDefPct: { front: 0.15 } } },
+    { id: 's_comp_back', name: '后排火力', tier: 'gold', category: 'comp', sub: 'A3', desc: '后排（远离敌方列）干员 +18% 攻击。', effects: { roleAtkPct: { back: 0.18 } } },
+    // A4 体系专精
+    { id: 's_comp_summon', name: '召唤铺场', tier: 'gold', category: 'comp', sub: 'A4', desc: '召唤物 +20% 攻击、+20% 生命；召唤经验 +50%。', effects: { summonBonusPct: 0.20, summonExpMult: 0.50 } },
+    { id: 's_comp_sig', name: '签名号令', tier: 'silver', category: 'comp', sub: 'A4', desc: '5 费签名干员 +15% 攻击、+15% 生命。', effects: { sigBonusPct: 0.15 } },
     // ===== rule：规则改写（3/22）=====
-    { id: 's_rule_bond', name: '羁绊亲和', tier: 'silver', category: 'rule', desc: '所有羁绊阶位需求 -1（最低 1）。', effects: { bondEase: 1 } },
-    { id: 's_rule_resonance', name: '呼应共振', tier: 'gold', category: 'rule', desc: '跨阵营呼应加成 +40%。', effects: { resonanceBonusPct: 0.40 } },
-    { id: 's_rule_expand', name: '扩编令', tier: 'color', category: 'rule', desc: '部署上限 +1（满级可达 10 人口，解锁第 10 格）。', effects: { boardCapBonus: 1 } },
-    // ===== tempo：经济节奏（5/22）=====
-    { id: 's_finance', name: '理财', tier: 'bronze', category: 'tempo', desc: '每回合 +2 金币。', effects: { goldPerRound: 2 } },
-    { id: 's_train', name: '练兵', tier: 'bronze', category: 'tempo', desc: '每回合 +2 经验。', effects: { expPerRound: 2 } },
-    { id: 's_free', name: '免费情报', tier: 'bronze', category: 'tempo', desc: '每回合 1 次免费刷新。', effects: { freeReroll: 1 } },
-    { id: 's_rich', name: '厚赏', tier: 'gold', category: 'tempo', desc: '每回合 +4 金币、+3 经验。', effects: { goldPerRound: 4, expPerRound: 3 } },
-    { id: 's_black', name: '黑市', tier: 'color', category: 'tempo', desc: '售出价格 +50%。', effects: { sellValuePct: 0.5 } },
-    // ===== stat：纯数值安全牌（仅 2/22，可选兜底）=====
-    { id: 's_sharp', name: '锋锐', tier: 'silver', category: 'stat', desc: '全体干员 +8% 攻击。', effects: { allAtkPct: 0.08 } },
-    { id: 's_wall', name: '坚壁', tier: 'silver', category: 'stat', desc: '全体干员 +8% 生命。', effects: { allHpPct: 0.08 } },
-  ];
-  const STRATEGY_BY_ID = {}; STRATEGY_POOL.forEach(s => STRATEGY_BY_ID[s.id] = s);
+    // B1 羁绊规则
+    { id: 's_rule_bond', name: '羁绊亲和', tier: 'silver', category: 'rule', sub: 'B1', desc: '所有羁绊阶位需求 -1（最低 1）。', effects: { bondEase: 1 } },
+    { id: 's_rule_resonance', name: '呼应共振', tier: 'gold', category: 'rule', sub: 'B1', desc: '跨阵营呼应加成 +40%。', effects: { resonanceBonusPct: 0.40 } },
+    // B2 棋盘规则
+    { id: 's_rule_expand', name: '扩编令', tier: 'color', category: 'rule', sub: 'B2', growth: 'instant', desc: '部署上限 +1（满级可达 10 人口，解锁第 10 格）。', effects: { boardCapBonus: 1 } },
+    // ===== tempo：经济引擎（5/22）=====
+    // C1 稳定收益
+    { id: 's_finance', name: '理财', tier: 'bronze', category: 'tempo', sub: 'C1', desc: '每回合 +2 金币。', effects: { goldPerRound: 2 } },
+    { id: 's_train', name: '练兵', tier: 'bronze', category: 'tempo', sub: 'C1', desc: '每回合 +2 经验。', effects: { expPerRound: 2 } },
+    { id: 's_rich', name: '厚赏', tier: 'gold', category: 'tempo', sub: 'C1', desc: '每回合 +4 金币、+3 经验。', effects: { goldPerRound: 4, expPerRound: 3 } },
+    // C2 即时爆发
+    { id: 's_free', name: '免费情报', tier: 'bronze', category: 'tempo', sub: 'C2', desc: '每回合 1 次免费刷新。', effects: { freeReroll: 1 } },
+    // C3 交易优化
+    { id: 's_black', name: '黑市', tier: 'color', category: 'tempo', sub: 'C3', desc: '售出价格 +50%。', effects: { sellValuePct: 0.5 } },
+    // ===== power：强化引擎（2/22，原 stat 并入）=====
+    // D1 全队属性
+    { id: 's_sharp', name: '锋锐', tier: 'silver', category: 'power', sub: 'D1', desc: '全体干员 +8% 攻击。', effects: { allAtkPct: 0.08 } },
+    { id: 's_wall', name: '坚壁', tier: 'silver', category: 'power', sub: 'D1', desc: '全体干员 +8% 生命。', effects: { allHpPct: 0.08 } },
+    // ===== v2.6 P3 首批新卡（rule B3 战斗规则 4 张 + tempo C4 风险投资 4 张，覆盖 条件/代价/赌博 标签）=====
+    // B3 战斗规则
+    { id: 's_rule_vanguard', name: '开局号令', tier: 'gold', category: 'rule', sub: 'B3', risk: 'safe', growth: 'instant', desc: '战斗开始全体干员攻速 +30%。', effects: { startAspdPct: 0.30 } },
+    { id: 's_rule_synergy', name: '兵贵神速', tier: 'bronze', category: 'rule', sub: 'B3', risk: 'safe', growth: 'instant', desc: '战斗开始全体干员起手技力 +5。', effects: { startSpPct: 5 } },
+    { id: 's_rule_revive', name: '战场急救', tier: 'silver', category: 'rule', sub: 'B3', risk: 'conditional', desc: '全队首次阵亡时以 20% 血量复活一次（每场仅一次）。', effects: { reviveOncePct: 0.20 } },
+    { id: 's_rule_warclan', name: '先声夺人', tier: 'color', category: 'rule', sub: 'B3', risk: 'costly', growth: 'instant', desc: '战斗开始全体起手技力 +12，但全队攻速 -10%。', effects: { startSpPct: 12, allAspdPct: -0.10 } },
+    // C4 风险投资
+    { id: 's_tempo_interest', name: '利息协议', tier: 'bronze', category: 'tempo', sub: 'C4', risk: 'safe', growth: 'scaling', desc: '每回合金币利息 +50%（滚雪球越滚越多）。', effects: { interestRate: 0.5 } },
+    { id: 's_tempo_streak', name: '连胜赏金', tier: 'silver', category: 'tempo', sub: 'C4', risk: 'conditional', desc: '连胜或连败 ≥2 时，每回合额外 +2 金币。', effects: { winStreakGold: 2 } },
+    { id: 's_tempo_gamble', name: '赌徒协议', tier: 'gold', category: 'tempo', sub: 'C4', risk: 'gamble', growth: 'instant', desc: '立即掷骰：50% 得 12 金币，50% 失去 4 金币。', effects: { goldGamble: 12 } },
+    { id: 's_tempo_loan', name: '高利贷', tier: 'color', category: 'tempo', sub: 'C4', risk: 'costly', growth: 'instant', desc: '立即 +18 金币，但此后每回合 -3 金币。', effects: { goldNow: 18, goldPerRound: -3 } },
+  ];  const STRATEGY_BY_ID = {}; STRATEGY_POOL.forEach(s => STRATEGY_BY_ID[s.id] = s);
 
   // 汇总已选策略的全局 / 定向 / 规则效果
   function aggregateStrategies() {
     const acc = {
       goldPerRound: 0, expPerRound: 0, freeReroll: 0, allAtkPct: 0, allHpPct: 0, allAspdPct: 0, allMagicPct: 0, sellValuePct: 0, boardCapBonus: 0,
       classBonusPct: {}, factionBonusPct: {}, sigBonusPct: 0, summonBonusPct: 0, summonExpMult: 0,
-      roleAtkPct: {}, roleHpPct: {}, roleDefPct: {}, resonanceBonusPct: 0, bondEase: 0
+      roleAtkPct: {}, roleHpPct: {}, roleDefPct: {}, resonanceBonusPct: 0, bondEase: 0,
+      goldNow: 0, expNow: 0, interestRate: 0, winStreakGold: 0, goldGamble: 0, startAspdPct: 0, startSpPct: 0,
+      reviveOncePct: 0, teamLifesteal: 0, teamArmorShred: 0, skillAmpPct: 0
     };
     (G.strategies || []).forEach(id => {
       const s = STRATEGY_BY_ID[id]; if (!s) return;
@@ -1665,6 +1711,17 @@
       if (e.summonExpMult) acc.summonExpMult += e.summonExpMult;
       if (e.resonanceBonusPct) acc.resonanceBonusPct += e.resonanceBonusPct;
       if (e.bondEase) acc.bondEase += e.bondEase;
+      if (e.goldNow) acc.goldNow += e.goldNow;
+      if (e.goldGamble) acc.goldGamble += e.goldGamble;
+      if (e.expNow) acc.expNow += e.expNow;
+      if (e.interestRate) acc.interestRate += e.interestRate;
+      if (e.winStreakGold) acc.winStreakGold += e.winStreakGold;
+      if (e.startAspdPct) acc.startAspdPct += e.startAspdPct;
+      if (e.startSpPct) acc.startSpPct += e.startSpPct;
+      if (e.reviveOncePct) acc.reviveOncePct += e.reviveOncePct;
+      if (e.teamLifesteal) acc.teamLifesteal += e.teamLifesteal;
+      if (e.teamArmorShred) acc.teamArmorShred += e.teamArmorShred;
+      if (e.skillAmpPct) acc.skillAmpPct += e.skillAmpPct;
       const mergeMap = (src, dst) => { if (!src) return; Object.keys(src).forEach(k => { const t = dst[k] || (dst[k] = {}); const v = src[k]; Object.keys(v).forEach(a => { t[a] = (t[a] || 0) + v[a]; }); }); };
       mergeMap(e.classBonusPct, acc.classBonusPct);
       mergeMap(e.factionBonusPct, acc.factionBonusPct);
@@ -1840,7 +1897,7 @@
     } catch (err) {}
     const _cls = 'ucard c' + cost + sel + (where === 'board' ? ' board-lite' : '');
     return '<div class="' + _cls + '" data-uid="' + u.uid + '" data-where="' + where + '">' +
-      '<img class="avatar" src="' + op.avatar + '" alt="" onerror="this.style.background=\'#222\'">' +
+      '<img class="avatar" src="' + op.avatar + '" alt="" loading="lazy" decoding="async" onerror="this.style.background=\'#222\'">' +
       '<div class="card-fade"></div>' +
       '<div class="card-tags">' +
         (role ? '<span class="ctag"><span class="ctag-icon">⚔</span><span class="ctag-txt">' + role + '</span></span>' : '') +
@@ -1939,7 +1996,7 @@
       const aff = op.bonds && op.bonds['阵营'];
       // 方舟风格卡片：大头像 + 底部信息栏 + 标签叠层
       return '<div class="ucard shop-card c' + cost + afford + '" data-shop="' + i + '" style="animation-delay:' + (i * 70) + 'ms">' +
-        '<img class="avatar" src="' + op.avatar + '" alt="" onerror="this.style.background=\'#222\'">' +
+        '<img class="avatar" src="' + op.avatar + '" alt="" loading="lazy" decoding="async" onerror="this.style.background=\'#222\'">' +
         '<div class="card-fade"></div>' +
         '<div class="card-tags">' +
           (role ? '<span class="ctag"><span class="ctag-icon">⚔</span><span class="ctag-txt">' + role + '</span></span>' : '') +
@@ -2475,10 +2532,12 @@
     }
     const round = G.nodeIdx + 1;
     const interestMax = 5 + (ef.interestMax || 0);
-    const interest = Math.min(interestMax, Math.floor(G.gold / 10));
+    // v2.6 策略经济：利息加成（interestRate）+ 连胜/连败额外奖金（winStreakGold）
+    const interest = Math.min(interestMax, Math.floor(G.gold / 10) * (1 + (se.interestRate || 0)));
     let streakBonus = 0;
     const s = Math.max(G.winStreak, G.lossStreak);
     if (s >= 2 && s <= 3) streakBonus = 1; else if (s >= 4 && s <= 5) streakBonus = 2; else if (s >= 6) streakBonus = 3;
+    if (s >= 2) streakBonus += (se.winStreakGold || 0);
     const base = Math.min(round + 2, 7);
     G.gold += base + interest + streakBonus + se.goldPerRound;
     G.exp += 2 + (ef.expBonus || 0) + se.expPerRound;
@@ -2501,7 +2560,7 @@
     const byCat = {};
     pool.forEach(s => { (byCat[s.category] = byCat[s.category] || []).push(s); });
     Object.keys(byCat).forEach(c => { byCat[c] = shuffle(byCat[c]); });
-    const order = ['comp', 'rule', 'tempo', 'stat'].filter(c => byCat[c] && byCat[c].length);
+    const order = ['comp', 'rule', 'tempo', 'power'].filter(c => byCat[c] && byCat[c].length);
     const chosen = [];
     let i = 0;
     while (chosen.length < n && chosen.length < pool.length) {
@@ -2527,6 +2586,12 @@
     if (pool.length < 3) pool = STRATEGY_POOL.filter(s => G.strategies.indexOf(s.id) < 0);
     if (pool.length === 0) pool = STRATEGY_POOL.slice(); // 极端：全选过，允许重复兜底
     const picks = pickDiverseStrategies(pool, 3);
+    // v2.6 风险配额：3 选 1 至少 1 张非"稳定"（池子允许时），保证"选强力但难受"的取舍张力
+    const nonStable = pool.filter(s => (s.risk || 'safe') !== 'safe');
+    if (nonStable.length && !picks.some(s => (s.risk || 'safe') !== 'safe')) {
+      const rep = nonStable.filter(s => picks.indexOf(s) < 0);
+      if (rep.length) picks[Math.floor(Math.random() * picks.length)] = rep[Math.floor(Math.random() * rep.length)];
+    }
     const wrap = $('strategyChoices');
     wrap.innerHTML = picks.map(s =>
       '<div class="strategy-card tier-' + s.tier + '" data-sid="' + s.id + '">' +
@@ -2537,12 +2602,20 @@
         '<div class="sc-name">' + s.name + '</div>' +
         '<div class="sc-divider"></div>' +
         '<div class="sc-desc">' + s.desc + '</div>' +
-        '<div class="sc-tier-label">' + STRATEGY_TIERS_LABEL[s.tier] + '档</div>' +
+        '<div class="sc-tier-label">' + STRATEGY_TIERS_LABEL[s.tier] + '档 · ' + (STRAT_CAT_LABEL[s.category] || s.category) +
+          (s.risk && s.risk !== 'safe' ? ' · <span class="sc-risk">' + STRAT_RISK_LABEL[s.risk] + '</span>' : '') + '</div>' +
       '</div>'
     ).join('');
     wrap.querySelectorAll('.strategy-card').forEach(c => c.onclick = () => {
       if (window.SFX) SFX.play('select');
       G.strategies.push(c.dataset.sid); G.stratCount++;
+      // v2.6 即时型策略：选卡立即结算（goldNow/expNow）
+      const selS = STRATEGY_BY_ID[c.dataset.sid];
+      if (selS && selS.effects) {
+        if (selS.effects.goldNow) G.gold += selS.effects.goldNow;
+        if (selS.effects.goldGamble) { if (Math.random() < 0.5) G.gold += selS.effects.goldGamble; else G.gold = Math.max(0, G.gold - Math.round(selS.effects.goldGamble * 0.33)); }
+        if (selS.effects.expNow) { G.exp += selS.effects.expNow; levelUp(); }
+      }
       $('strategyScreen').classList.add('hidden');
       enterShopRound(node); // 策略节点同时进入一回合（普通战斗）
     });
@@ -2587,7 +2660,7 @@
       const role = op.bonds && op.bonds['职业'];
       const aff = op.bonds && op.bonds['阵营'];
       return '<div class="ucard shop-card c' + op.stats.cost + afford + '" data-mk-unit="' + i + '">' +
-        '<img class="avatar" src="' + op.avatar + '" alt="" onerror="this.style.background=\'#222\'">' +
+        '<img class="avatar" src="' + op.avatar + '" alt="" loading="lazy" decoding="async" onerror="this.style.background=\'#222\'">' +
         '<div class="card-fade"></div>' +
         '<div class="card-tags">' +
           (role ? '<span class="ctag"><span class="ctag-icon">⚔</span><span class="ctag-txt">' + role + '</span></span>' : '') +
@@ -3144,7 +3217,7 @@
     if (!s.alive) {
       if (el.dataset.alive !== 'dead') {
         el.dataset.alive = 'dead';
-        try { const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null; if (_r && _r.width) { FX.burst(_r.left + _r.width / 2, _r.top + _r.height / 2, 10, '#ffb3b3'); FX.shake(100, 3); } } catch (e) {}
+        try { const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null; if (_r && _r.width) FX.burst(_r.left + _r.width / 2, _r.top + _r.height / 2, 10, '#ffb3b3'); if (!G._fxShakenThisFrame) { FX.shake(90, 2); G._fxShakenThisFrame = 1; } } catch (e) {}
         if (!G._audioSkip && window.AUDIO) {
           // v2.1：召唤物死亡播专属"兽落"音，普通单位播通用 combat/death
           if (el.dataset.summon === '1') AUDIO.play('summon/death', { side: el.dataset.side });
@@ -3167,7 +3240,7 @@
           const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null;
           if (_r && _r.width) FX.floatText(_r.left + _r.width / 2, _r.top - 4, '-' + Math.round(s.max * Math.abs(diff) / 100), 'red');
         }
-        if (diff < -25) FX.shake(110, 4);
+        if (!G._fxShakenThisFrame && diff < -25) { FX.shake(100, 2); G._fxShakenThisFrame = 1; }
       } else if (diff > 0.5) {
         el.classList.remove('fx-heal'); void el.offsetWidth; el.classList.add('fx-heal');
         const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null;
@@ -3194,6 +3267,7 @@
   function applyFrame(fr) {
     try {
       G._fxHitsThisFrame = 0;
+      G._fxShakenThisFrame = 0; // v2.4 震屏帧内全局限频（防多单位同帧叠加抖动）
       if (fr.sys) {
         const log = $('battleLog');
         const div = document.createElement('div');
@@ -3841,12 +3915,12 @@
         if (cell && !cell.classList.contains('enemy-zone')) {
           if (u) { const from = G.bench.some(x => x.uid === u.uid) ? 'bench' : 'board';
             dropOnCell({ from, uid: u.uid, unit: u, op: u.op, shopIdx: null }, parseInt(cell.dataset.slot, 10)); }
-          G.selected = null; renderAll(); return;
+          G.selected = null; renderBoard(); renderTop(); return;
         }
-        if (e.target.closest('#bench')) { if (u) dropOnBench({ from: G.bench.some(x => x.uid === u.uid) ? 'bench' : 'board', uid: u.uid, unit: u, op: u.op }); G.selected = null; renderAll(); return; }
-        if (e.target.closest('#sellZone')) { sellUnit(G.selected); G.selected = null; renderAll(); return; }
+        if (e.target.closest('#bench')) { if (u) dropOnBench({ from: G.bench.some(x => x.uid === u.uid) ? 'bench' : 'board', uid: u.uid, unit: u, op: u.op }); G.selected = null; renderBoard(); renderTop(); return; }
+        if (e.target.closest('#sellZone')) { sellUnit(G.selected); G.selected = null; renderBoard(); renderTop(); return; }
         // 点击已选单位本身或空白处：取消选择（装备槽点击放行，走下方卸下逻辑）
-        if (!e.target.closest('[data-eq-unequip]') && (e.target.closest('.ucard[data-uid="' + G.selected + '"]') || !e.target.closest('.ucard'))) { selectUnit(G.selected); return; }
+        if (!e.target.closest('[data-eq-unequip],[data-eq-sell],[data-eq-bag],[data-eq-shop]') && (e.target.closest('.ucard[data-uid="' + G.selected + '"]') || !e.target.closest('.ucard'))) { selectUnit(G.selected); return; }
       }
       const sc = e.target.closest('[data-shop]');
       if (sc) { const i = parseInt(sc.dataset.shop, 10); buy(i); return; }
@@ -3886,7 +3960,7 @@
           const u = findUnit(G.selected);
           if (u) { const from = G.bench.some(x => x.uid === u.uid) ? 'bench' : 'board';
             dropOnCell({ from, uid: u.uid, unit: u, op: u.op, shopIdx: null }, parseInt(cell.dataset.slot, 10)); }
-          G.selected = null; renderAll();
+          G.selected = null; renderBoard(); renderTop();
         }
       }
     });
@@ -4098,7 +4172,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { FX, G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
+  if (typeof window !== 'undefined') window.__RH = { FX, G, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, showStrategyScreen, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
 
   /* ---- 启动 ---- */
   buildNodes();
