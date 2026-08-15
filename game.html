@@ -18,6 +18,7 @@
       <span class="stat diff" id="diffChip"></span>
       <span class="stat streak" id="streak"></span>
     </div>
+    <button id="envStratBtn" class="sfx-btn" title="查看投资环境与已选策略" aria-label="查看环境与策略">📋</button>
     <button id="themeBtn" class="sfx-btn" title="切换主题（基建风/战场简报风）" aria-label="切换主题">🌓</button>
     <button id="sfxBtn" class="sfx-btn" title="音效开关" aria-label="切换音效">🔊</button>
     <a class="codex-link" href="index.html" target="_blank">← 图鉴</a>
@@ -374,5 +375,14 @@
     // 延迟 300ms 开始首次检测（等所有 <script> 解析完）
     setTimeout(probe, 300);
   })();</script>
+
+  <!-- 环境 & 策略查看弹层 -->
+  <div id="envStratModal" class="overlay hidden" aria-hidden="true">
+    <div class="panel" role="dialog" aria-modal="true" style="max-width:520px;text-align:left">
+      <h2 style="text-align:center">📋 环境 &amp; 策略</h2>
+      <div id="envStratBody" style="max-height:60vh;overflow-y:auto;margin-top:12px"></div>
+      <button id="envStratClose" class="btn primary" style="margin-top:16px;width:100%">关闭</button>
+    </div>
+  </div>
 </body>
 </html>
