@@ -4012,7 +4012,7 @@
 
   /* ---- 存档系统（本地进度续档） ---- */
   const SAVE_KEY = 'rh_chess_save';
-  const NODE_ICON = { reward: '🎁', battle: '⚔', elite: '★', boss: '👑', strategy: '💡', encounter: '⚡', fork: '🔀' };
+  const NODE_ICON = { reward: '🎁', battle: '⚔', elite: '★', boss: '👑', strategy: '💡', encounter: '⚡', market: '🛒', fork: '🔀' };
   const NODE_LABEL = { reward: '补给节点', battle: '普通战', elite: '精英战', boss: 'BOSS 战', strategy: '策略节点', encounter: '遭遇节点', market: '补给市场', fork: '抉择点' };
   // P2-1：分叉节点各选项的说明
   const FORK_DESC = {
