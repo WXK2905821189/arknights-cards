@@ -1087,12 +1087,16 @@
     const em = (ed.buffMult || 1) * (gd.enemyMult || 1);
     const cb = (ed.countBonus || 0) + (gd.countBonus || 0);
     const ops = DATA.operators;
-    const count = Math.min(9, playerLevel + (isBoss ? 2 : 0) + cb);
+    // v3.0 T2：敌人数量/强度按【节点阶段】固定，不再随玩家等级膨胀——
+    // 数量：nodeIdx 0-2 三个 / 3-5 四个 / 6-8 五个 / 9+ 每 3 节点 +1（封顶 8，boss +2）
+    // 星级：2 星 25%（nodeIdx≥5 才开）、3 星 12%（nodeIdx≥9 才开）——第一阶后期前无敌方 3 星
+    // buff/预算：随节点缓升（1.5%/节点），不再受玩家等级影响
+    const count = Math.min(9, 3 + Math.floor(nodeIdx / 3) + (isBoss ? 2 : 0) + cb);
     const cap = Math.min(5, 2 + Math.floor(nodeIdx / 2));
     const cand = ops.filter(o => o.stats.cost <= cap);
     const team = [];
-    const buff = (1 + nodeIdx * 0.02) * em; // 难度曲线 × 遭遇难度 × 全局难度
-    let budget = count * (2.1 + nodeIdx * 0.35) * em;
+    const buff = (1 + nodeIdx * 0.015) * em; // 难度曲线 × 遭遇难度 × 全局难度
+    let budget = count * (2.1 + nodeIdx * 0.30) * em;
     let tries = 0;
     while (team.length < count && tries < 300 && budget > 0) {
       tries++;
@@ -1102,8 +1106,8 @@
     }
     return team.map(o => {
       let st = 1;
-      if (nodeIdx >= 4 && Math.random() < 0.30) st = 2;
-      if (nodeIdx >= 6 && Math.random() < 0.18) st = 3;
+      if (nodeIdx >= 5 && Math.random() < 0.25) st = 2;
+      if (nodeIdx >= 9 && Math.random() < 0.12) st = 3;
       return { op: o, star: st, buff };
     });
   }
@@ -1644,26 +1648,39 @@
   const PROMOTE_KEY = 'rh_chess_promote';
   const BENCH_CAP = 10;
 
-  const EXP_NEED = { 1: 2, 2: 6, 3: 10, 4: 20, 5: 36, 6: 56, 7: 80, 8: 108 };
+  // v3.0 T3 经济曲线：高阶升级需求上调——7 级（10 人口）成"中后期分水岭"，第一阶结束前正常玩家不可达
+  // 累计到 7 级 = 2+6+10+20+36+64 = 138；正常玩家第一阶末（~57 经验）4-5 级，堆经验玩家（~130）6 级边缘
+  const EXP_NEED = { 1: 2, 2: 6, 3: 10, 4: 20, 5: 36, 6: 64, 7: 96, 8: 128 };
   // —— 开局投资环境：每局随机抽 3 个供选择，用 effects 统一描述增益 ——
   // shopBias: 提升某职业/阵营在商店的出现率（即「羁绊爆率」）
   const ENV_POOL = [
+    // v3.0 T1：投资环境丰富 + 平衡（删黑市漏洞；重做弱环境；新增超模向环境，让玩家开局爽）
+    // 强度带参考（V=经济×12+战力）：15-30 常规 / 30-58 爽感向
     // 经济 / 运营
-    { id: 'gold', name: '资本注入', desc: '起始 +12 金币，前期即可抢高费。', effects: { gold: 12 } },
+    { id: 'gold', name: '资本注入', desc: '起始 +18 金币，前期即可抢高费。', effects: { gold: 18 } },
+    { id: 'allowance', name: '外勤津贴', desc: '起始 +25 金币，一开场就能组成型阵容。', effects: { gold: 25 } },
     { id: 'interest', name: '复利引擎', desc: '利息上限 +5（每 10 金多给）。', effects: { interestMax: 5 } },
+    { id: 'bond', name: '战争债券', desc: '利息上限 +8，金币越存越多。', effects: { interestMax: 8 } },
     { id: 'exp', name: '精英培养', desc: '每回合额外 +3 经验，更快拉高人口。', effects: { expBonus: 3 } },
+    { id: 'elite', name: '精英作战', desc: '每回合额外 +4 经验，人口一骑绝尘。', effects: { expBonus: 4 } },
     { id: 'discount', name: '罗德岛特供', desc: '所有单位购买费用 -1（最低 1）。', effects: { discount: 1 } },
+    { id: 'stockpile', name: '战略囤积', desc: '购买费用 -1 且起始 +6 金币。', effects: { discount: 1, gold: 6 } },
     { id: 'reroll', name: '战术侦察', desc: '每回合额外 1 次免费刷新。', effects: { rerollBonus: 1 } },
-    { id: 'sell', name: '黑市协议', desc: '售出价格 +25%。', effects: { sellValuePct: 0.25 } },
-    { id: 'heal', name: '后勤补给', desc: '每次战斗胜利回复 8 生命。', effects: { healPerWin: 8 } },
+    { id: 'rapid', name: '快速反应', desc: '每回合 2 次免费刷新，起始 +5 金币。', effects: { rerollBonus: 2, gold: 5 } },
+    { id: 'heal', name: '后勤补给', desc: '每次战斗胜利回复 14 生命。', effects: { healPerWin: 14 } },
     { id: 'boardcap', name: '前线扩编', desc: '上场人口上限 +1，同场可多部署一名干员。', effects: { boardCapBonus: 1 } },
-    { id: 'hp', name: '重装防线', desc: '小队生命 +40，容错更高。', effects: { maxHp: 40 } },
+    { id: 'hp', name: '重装防线', desc: '小队生命 +100，容错极高。', effects: { maxHp: 100 } },
+    { id: 'veteran', name: '老兵血统', desc: '小队生命 +60 且每胜回复 8 生命。', effects: { maxHp: 60, healPerWin: 8 } },
     // 羁绊爆率提升（商店更常出现对应职业 / 阵营，更容易凑齐羁绊）
     { id: 'b_vanguard', name: '先锋号令', desc: '商店中【先锋】干员出现率大幅提升，易凑先锋羁绊。', effects: { shopBias: { field: '职业', value: '先锋', mult: 2.6 } } },
     { id: 'b_medic', name: '医疗优先', desc: '商店中【医疗】干员出现率大幅提升，易凑医疗羁绊。', effects: { shopBias: { field: '职业', value: '医疗', mult: 2.6 } } },
     { id: 'b_sniper', name: '远程压制', desc: '商店中【狙击】干员出现率大幅提升，易凑狙击羁绊。', effects: { shopBias: { field: '职业', value: '狙击', mult: 2.6 } } },
     { id: 'b_yan', name: '炎之眷顾', desc: '商店中【炎】阵营出现率大幅提升，易凑炎阵营羁绊。', effects: { shopBias: { field: '阵营', value: '炎', mult: 2.6 } } },
     { id: 'b_rh', name: '罗德岛血脉', desc: '商店中【罗德岛】阵营出现率大幅提升，易凑罗德岛羁绊。', effects: { shopBias: { field: '阵营', value: '罗德岛', mult: 2.6 } } },
+    // 爽感向（高投入高回报，用户拍板"允许适当超模"）
+    { id: 'winstreak', name: '连胜战意', desc: '战斗胜利额外 +3 经验（胜场越多升级越快）。', effects: { expPerWin: 3 } },
+    { id: 'golden', name: '黄金时刻', desc: '每回合利息 +25%，滚雪球之王。', effects: { interestRate: 0.25 } },
+    { id: 'doubledip', name: '双倍补给', desc: '战斗胜利金币 +4（打更多，富更快）。', effects: { goldPerWin: 4 } },
   ];
 
   // —— 策略节点（青铜/白银/黄金/彩色）：永久全局增益 ——
@@ -2692,8 +2709,9 @@
     }
     const round = G.nodeIdx + 1;
     const interestMax = 5 + (ef.interestMax || 0);
-    // v2.6 策略经济：利息加成（interestRate）+ 连胜/连败额外奖金（winStreakGold）
-    const interest = Math.min(interestMax, Math.floor(G.gold / 10) * (1 + (se.interestRate || 0)));
+    // v2.6 策略经济：利息加成（interestRate，策略 + 环境叠加）+ 连胜/连败额外奖金（winStreakGold）
+    const irate = (se.interestRate || 0) + (ef.interestRate || 0); // v3.0 T1：环境「黄金时刻」利息 +25%
+    const interest = Math.min(interestMax, Math.floor(G.gold / 10) * (1 + irate));
     let streakBonus = 0;
     const s = Math.max(G.winStreak, G.lossStreak);
     if (s >= 2 && s <= 3) streakBonus = 1; else if (s >= 4 && s <= 5) streakBonus = 2; else if (s >= 6) streakBonus = 3;
@@ -2905,7 +2923,9 @@
 
   function grantReward(node) {
     const rm = diffCfg().rewardMult || 1;
-    const g = Math.round(rnd(8, 14) * rm), e = Math.round(rnd(4, 8) * rm);
+    const ef = (G.env && G.env.effects) || {};
+    const g = Math.round(rnd(8, 14) * rm) + (ef.goldPerWin || 0);   // v3.0 T1：双倍补给 +4 金
+    const e = Math.round(rnd(3, 6) * rm) + (ef.expPerWin || 0);     // v3.0 T3：胜利经验 3-6；T1：连胜战意 +3 经验
     G.gold += g; G.exp += e; levelUp();
     let bonus = '';
     // 偶发增援：免费获得干员，可能把备战席顶过 10（用于演示溢出拦截）
@@ -4371,18 +4391,43 @@
     };
     // v2.5 主题皮肤：基建风（深）/ 战场简报风（亮金高对比），localStorage 记忆
     try { if (localStorage.getItem('ak_theme') === 'brief') document.body.dataset.theme = 'brief'; } catch (e) {}
-    if ($('themeBtn')) $('themeBtn').onclick = () => {
-      const cur = document.body.dataset.theme === 'brief' ? '' : 'brief';
-      document.body.dataset.theme = cur;
-      try { localStorage.setItem('ak_theme', cur || 'dark'); } catch (e) {}
-      if (window.SFX) SFX.play('click');
-    };
     // v2.5 主题皮肤：基建风（深）/ 战场简报风（亮金高对比），localStorage 记忆
     try { if (localStorage.getItem('ak_theme') === 'brief') document.body.dataset.theme = 'brief'; } catch (e) {}
     if ($('themeBtn')) $('themeBtn').onclick = () => {
       const cur = document.body.dataset.theme === 'brief' ? '' : 'brief';
       document.body.dataset.theme = cur;
       try { localStorage.setItem('ak_theme', cur || 'dark'); } catch (e) {}
+      if (window.SFX) SFX.play('click');
+    };
+    // v4.4 环境 & 策略查看：📋 按钮弹层（当前投资环境 + 已选策略）
+    if ($('envStratBtn')) $('envStratBtn').onclick = () => {
+      const body = $('envStratBody');
+      if (!body) return;
+      let h = '<div style="margin:2px 0 8px;font-weight:700;color:var(--gold-strong)">投资环境</div>';
+      const env = G.env;
+      h += env
+        ? '<div style="background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:14px"><div style="font-weight:700;font-size:13px">' + env.name + '</div><div style="font-size:12px;color:var(--text-2);margin-top:4px">' + (env.desc || '') + '</div></div>'
+        : '<div style="color:var(--text-3);margin-bottom:14px;font-size:12px">尚未选择</div>';
+      h += '<div style="margin:2px 0 8px;font-weight:700;color:var(--gold-strong)">已选策略</div>';
+      const sids = G.strategies || [];
+      h += sids.length
+        ? sids.map(function (id) {
+            const st = STRATEGY_BY_ID[id];
+            if (!st) return '';
+            const tierTxt = { bronze: '青铜', silver: '白银', gold: '黄金', color: '异彩' }[st.tier] || '';
+            return '<div style="background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:8px">' +
+              '<div style="font-weight:700;font-size:13px">' + (tierTxt ? '[' + tierTxt + '] ' : '') + st.name + '</div>' +
+              '<div style="font-size:11px;color:var(--text-2);margin-top:2px">' + (st.desc || '') + '</div></div>';
+          }).join('')
+        : '<div style="color:var(--text-3);font-size:12px">暂无策略（在策略节点三选一）</div>';
+      body.innerHTML = h;
+      const m = $('envStratModal');
+      if (m) { m.classList.remove('hidden'); m.setAttribute('aria-hidden', 'false'); }
+      if (window.SFX) SFX.play('click');
+    };
+    if ($('envStratClose')) $('envStratClose').onclick = () => {
+      const m = $('envStratModal');
+      if (m) { m.classList.add('hidden'); m.setAttribute('aria-hidden', 'true'); }
       if (window.SFX) SFX.play('click');
     };
     if ($('btnReplay')) $('btnReplay').onclick = () => {
