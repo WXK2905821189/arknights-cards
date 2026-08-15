@@ -2067,8 +2067,13 @@
     }
     b.innerHTML = html;
     $('boardCap').textContent = boardCount() + '/' + boardCap();
-    const benchHtml = G.bench.map(u => unitCard(u, 'bench')).join('') || '<div class="slot empty"></div>';
-    $('bench').innerHTML = benchHtml;
+    // v2.8 备战席格子化：固定 BENCH_CAP 个槽位，空位显示虚框
+    const benchHtml = [];
+    for (let i = 0; i < BENCH_CAP; i++) {
+      const bu = G.bench[i];
+      benchHtml.push('<div class="bench-cell' + (bu ? ' filled' : '') + '" data-bench="' + i + '">' + (bu ? unitCard(bu, 'bench') : '') + '</div>');
+    }
+    $('bench').innerHTML = benchHtml.join('');
     $('benchCap').textContent = G.bench.length + '/' + BENCH_CAP;
     benchWarn();
     // 射程高亮：#board 元素本身不被重建，一次性绑定 hover 委托即可
@@ -2090,6 +2095,13 @@
   }
 
   function renderShop() {
+    // v2.8 各费用刷新概率标注（按当前等级 ODDS）
+    const probEl = $('shopProbRow');
+    if (probEl && typeof ODDS !== 'undefined') {
+      const odds = ODDS[Math.max(1, Math.min(9, G.level || 1))] || ODDS[1];
+      probEl.innerHTML = 'Lv.' + (G.level || 1) + ' 概率 · ' + odds.map((o, i) =>
+        '<span class="sp-c' + (i + 1) + '">' + (i + 1) + '费 ' + Math.round(o * 100) + '%</span>').join('　');
+    }
     const wrap = $('shopCards');
     wrap.innerHTML = G.shop.map((op, i) => {
       if (!op) return '<div class="slot empty"></div>';
@@ -2313,11 +2325,14 @@
       const tip = (flav && flav.cap) ? flavorText(flav.cap).slice(0, 46) : '点击查看羁绊详情';
       // v3.0 行为标签（职业/阵营 behavior）：3/5 阶质变提示
       const behTxt = b.beh ? ' <span class="beh">' + b.beh.split('+').map(k => kwLabel(k)).join('+') + '</span>' : '';
+      // v3.0 UI 补：阵营 SPECIAL 专属机制标签（达到 SPECIAL.tier 显示——池 2 阵营凑满即触发质变，不再"只加数值"）
+      const spE = b.axis === '阵营' ? SPECIAL[b.value] : null;
+      const spTxt = spE && b.tier >= spE.tier ? ' <span class="beh sp">' + kwLabel(spE.kw) + '</span>' : '';
       const _thr = (BONDS[b.axis] && BONDS[b.axis][b.value] && BONDS[b.axis][b.value].thr) || [];
       const _ti = _thr.indexOf(b.tier);
       const _next = _thr[_ti + 1];
       const _need = _next ? (_next - b.count) : 0;
-      return '<div class="bond' + (freshKeys.has(b.axis + '|' + b.value + '|' + b.tier) ? ' fresh' : '') + '" data-axis="' + b.axis + '" data-value="' + b.value + '" data-tier="' + b.tier + '" title="' + tip.replace(/"/g, '&quot;') + '"><b>' + b.axis + '·' + b.value + '</b> <span class="tier">' + b.tier + '阶 (' + b.count + ')</span> ' + parts.join(' ') + behTxt + (_need > 0 ? ' <span class="bond-next">下一阶还差' + _need + '</span>' : '') + '</div>';
+      return '<div class="bond' + (freshKeys.has(b.axis + '|' + b.value + '|' + b.tier) ? ' fresh' : '') + '" data-axis="' + b.axis + '" data-value="' + b.value + '" data-tier="' + b.tier + '" title="' + tip.replace(/"/g, '&quot;') + '"><b>' + b.axis + '·' + b.value + '</b> <span class="tier">' + b.tier + '阶 (' + b.count + ')</span> ' + parts.join(' ') + behTxt + spTxt + (_need > 0 ? ' <span class="bond-next">下一阶还差' + _need + '</span>' : '') + '</div>';
     }).join('');
     // v2.5 规划器：未激活但有干员的条目（淡色，提示还差几张激活）
     html += pendHtml.join('');
@@ -2409,7 +2424,10 @@
         cfg.thr.forEach((th, t) => {
           const effs = [];
           BOND_KEYS.forEach(k => { if (cfg[k] && cfg[k][t] != null) effs.push(describeEffect(k, cfg[k][t])); });
-          html += '<div class="bm-tier"><b>' + (t + 1) + '阶（' + th + '名）</b>：' + (effs.length ? effs.join('、') : '—') + '</div>';
+          // v3.0 behavior：该阶人数达到 behavior 键时显示行为（如 3 阶→治疗光环）
+          const behNow = cfg.behavior ? Object.keys(cfg.behavior).filter(bk => th >= parseInt(bk, 10)).map(bk => cfg.behavior[bk].map(e => kwLabel(e.kw)).join('+')) : [];
+          html += '<div class="bm-tier"><b>' + (t + 1) + '阶（' + th + '名）</b>：' + (effs.length ? effs.join('、') : '—') +
+            (behNow.length ? ' <span class="beh">' + behNow.join(' ')+'</span>' : '') + '</div>';
         });
         html += '</div>';
         if (axis === '阵营') {
@@ -3806,6 +3824,21 @@
     // 敌方站位预览：叠加在统一棋盘右半 4×6 区域（pointer-events:none 不干扰拖拽）
     const overlay = $('enemyOverlay');
     if (overlay) {
+      // v2.8 敌方预览层对齐 #board 网格（rosterRail 占位后 50% 不再等于棋盘中线）
+      try {
+        const bb = document.querySelector('.board-battle');
+        const bd = document.getElementById('board');
+        if (bb && bd) {
+          const bbR = bb.getBoundingClientRect(), bdR = bd.getBoundingClientRect();
+          if (bdR.width) {
+            const pad = 10;
+            overlay.style.left = (bdR.left - bbR.left + pad) + 'px';
+            overlay.style.top = (bdR.top - bbR.top + pad) + 'px';
+            overlay.style.right = (bbR.right - bdR.right + pad) + 'px';
+            overlay.style.bottom = (bbR.bottom - bdR.bottom + pad) + 'px';
+          }
+        }
+      } catch (e) {}
       overlay.innerHTML = '';
       const enemies = team;
       const eps = autoPositions(enemies, 'enemy'); // 敌方坐标 x∈[4,7]（右半4列）, y∈[0,7]
@@ -3836,8 +3869,8 @@
     const list = $('rosterList');
     if (!list) return;
     const rows = [];
+    // v2.8 上场角色区只读镜像棋盘（不包含备战席）
     for (let i = 0; i < 48; i++) { if (G.board[i]) rows.push({ u: G.board[i], where: 'board' }); }
-    G.bench.forEach(u => rows.push({ u, where: 'bench' }));
     list.innerHTML = rows.map(function (r) {
       const u = r.u, op = u.op;
       const sel = G.selected === u.uid ? ' sel' : '';
@@ -4063,6 +4096,22 @@
     }
     const card = e.target.closest('.ucard');
     if (!card) return;
+    if (e.target.closest('#rosterRail')) {
+      // v3.0 上场角色区：只读不可拖拽；点击穿戴（_eqPending）与选中（selectUnit）走临时 pointerup
+      const rUid = parseInt(card.dataset.uid, 10);
+      if (findUnit(rUid)) {
+        const onRoUp = (ev) => {
+          window.removeEventListener('pointerup', onRoUp);
+          if (G._eqPending != null) {
+            const eqId = G.equipState && G.equipState.bag[G._eqPending];
+            if (eqId) { equipToUnit(rUid, eqId); return; }
+          }
+          clickSuppress = true; selectUnit(rUid);
+        };
+        window.addEventListener('pointerup', onRoUp);
+      }
+      return;
+    }
     if (!e.target.closest('#arena')) return;
     const shopCard = card.closest('[data-shop]');
     let from, uid = null, op = null, shopIdx = null, unit = null;
@@ -4315,6 +4364,10 @@
       if (uc) { selectUnit(parseInt(uc.dataset.uid, 10)); return; }
     });
     document.body.addEventListener('keydown', e => {
+      // v2.7 ESC 关闭商店弹层（优先级最高）
+      if (e.key === 'Escape' && $('shopPopover') && !$('shopPopover').classList.contains('hidden')) { $('btnShopClose').click(); return; }
+      // v2.7 ESC 关闭商店弹层（优先级最高）
+      if (e.key === 'Escape' && $('shopPopover') && !$('shopPopover').classList.contains('hidden')) { $('btnShopClose').click(); return; }
       if (e.key === 'Escape' && G.selected != null) { selectUnit(G.selected); return; }
       // v2.5 快捷键：1-5 买商店卡 / E 部署选中干员到棋盘 / F 开战（仅非 overlay 且非战斗中）
       if (!$('arena').classList.contains('hidden') && !document.querySelector('.overlay:not(.hidden)')) {
@@ -4404,6 +4457,12 @@
       $('battleScreen').classList.remove('hidden');
       showBattle(G._lastRes, G._lastAll ? G._lastAll.ally : [], G._lastAll ? G._lastAll.enemy : []);
     };
+    // v2.7 顶部商店按钮：切换弹层（点 🛒 打开 / × 关闭 / ESC 关闭）
+    const shopPop = $('shopPopover');
+    const closeShop = function () { if (shopPop) { shopPop.classList.add('hidden'); shopPop.setAttribute('aria-hidden', 'true'); } };
+    const openShop = function () { if (!shopPop) return; shopPop.classList.remove('hidden'); shopPop.setAttribute('aria-hidden', 'false'); if (window.SFX) SFX.play('click'); };
+    if ($('btnShopToggle')) $('btnShopToggle').onclick = () => { if (shopPop && !shopPop.classList.contains('hidden')) closeShop(); else openShop(); };
+    if ($('btnShopClose')) $('btnShopClose').onclick = closeShop;
     $('btnSkip').onclick = () => { if (G._skip) G._skip(); };
     $('ubSell').onclick = sell;
     // 新游戏：清除存档并进入难度选择（始终可用，不依赖是否存在存档）
@@ -4632,6 +4691,12 @@
     } else info += '　|　终点：决战 BOSS';
     html += '<div class="nf-info">' + info + '</div>';
     el.innerHTML = html;
+    // v2.7 顶部商店按钮与 nodeFlow 同步显示/隐藏 + 弹层默认关闭 + 商店元数据
+    const tr = $('topRow'); const sp = $('shopPopover');
+    if (tr) tr.classList.toggle('hidden', !G.env);
+    if (sp) { sp.classList.add('hidden'); sp.setAttribute('aria-hidden', 'true'); }
+    const sl = $('shopLv'); if (sl) sl.textContent = G.level || 1;
+    if (G.level > 1 && renderShop) renderShop(); // 等级变化时同步商店概率标注
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
