@@ -27,6 +27,14 @@
   // 阶3 阈值规则（任务 C-1）：每个职业的阶3 阈值须【独立】依据其去重卡池数判定可行性，且【不得高于可上场人数上限】
   //   （部署格上限 = 玩家等级，封顶 9）。当前各职业去重卡池均 ≥9，故统一 thr=[2,4,6]，全部可行；若未来某职业卡池 <6 则需下调阶3。
   //   校验见 gen_bonds_table.py（BOARD_CAP=9，逐职业核对 卡池≥阶3 且 阶3≤9）。
+  // v3.0 阵营行为模板：4 类型组（heal/defense/attack/support），3/5 阶行为（7+ 走 SPECIAL.deep 觉醒）
+  // 全部复用现成 kw 家族，零新引擎；数值 [PLACEHOLDER] 待 balance_sim 标定
+  const FAC_BEHAVIOR_TMPL = {
+    heal:    { 3: [{ kw: 'healAura', params: { regen: 0.02 } }], 5: [{ kw: 'healCrit', params: { pct: 0.20 } }] },
+    defense: { 3: [{ kw: 'shieldPeriodic', params: { frac: 0.06, period: 5 } }], 5: [{ kw: 'counter', params: { value: 0.10 } }] },
+    attack:  { 3: [{ kw: 'critDmg', params: { value: 1.15 } }], 5: [{ kw: 'splash', params: { pct: 0.20 } }] },
+    support: { 3: [{ kw: 'spRegenBuff', params: { value: 0.20 } }], 5: [{ kw: 'goldOnKill', params: { amount: 1 } }] },
+  };
   const BONDS = {
     '职业': {
       // v2.5 M3：职业羁绊 2/4/6/8/10 五阶。6 阶起 behavior（复用现成 kw 家族，零新引擎）；
@@ -36,7 +44,7 @@
       '近卫': { thr: [2, 4, 6, 8, 10], atk: [0.10, 0.20, 0.32, 0.44, 0.56], aspd: [0.08, 0.16, 0.26, 0.36, 0.46],
                 behavior: { 6: [{ kw: 'berzerk', params: { thresh: 0.30, atkPct: 0.20, leech: 0.10 } }], 8: [{ kw: 'rampHit', params: { per: 0.02, cap: 0.20 } }], 10: [{ kw: 'lifesteal', params: { pct: 0.15 } }, { kw: 'counter', params: { pct: 0.10 } }] } }, // 斗士：攻+速 → 低血狂暴 → 越战越勇 → 吸血反伤
       '重装': { thr: [2, 4, 6, 8, 10], def: [0.10, 0.20, 0.32, 0.44, 0.56], hp: [0.08, 0.16, 0.26, 0.36, 0.46],
-                behavior: { 6: [{ kw: 'guardAura', params: { value: 0.06 } }], 8: [{ kw: 'shieldPeriodic', params: { frac: 0.08, period: 5 } }], 10: [{ kw: 'counter', params: { pct: 0.15 } }, { kw: 'damageReduction', params: { value: 0.10 } }] } }, // 壁垒：防+血 → 协防 → 周期盾 → 反伤减伤
+                behavior: { 6: [{ kw: 'guardAura', params: { value: 0.06 } }], 8: [{ kw: 'shieldPeriodic', params: { frac: 0.08, period: 5 } }], 10: [{ kw: 'counter', params: { value: 0.15 } }, { kw: 'damageReduction', params: { value: 0.10 } }] } }, // 壁垒：防+血 → 协防 → 周期盾 → 反伤减伤
       '狙击': { thr: [2, 4, 6, 8, 10], atk: [0.10, 0.20, 0.32, 0.44, 0.56], crit: [0.08, 0.15, 0.24, 0.33, 0.42],
                 behavior: { 6: [{ kw: 'splash', params: { pct: 0.30 } }], 8: [{ kw: 'pierce', params: { value: 0.20 } }, { kw: 'execute', params: { thresh: 0.30, mult: 0.50 } }], 10: [{ kw: 'globalAspd', params: { value: 0.12 } }, { kw: 'splash', params: { pct: 0.50 } }] } }, // 狙击：攻+暴 → 溅射 → 破甲处决 → 弹幕齐射
       '术师': { thr: [2, 4, 6, 8, 10], magicAmp: [0.10, 0.20, 0.32, 0.44, 0.56], spInit: [4, 8, 12, 16, 20],
@@ -57,22 +65,22 @@
       // —— 阵营多阶（2026-08-12）：仅 Epic(pool≥9)/Large(7≤pool≤8) 拉长 thr 与属性数组；前 3 阶数值不变，零回归 ——
       // 顶点阶：Epic=[2,3,5,7,9,10]（满盘单阵营 mono + 扩编 10 人觉醒），Large=[2,3,5,7,8]（8 人觉醒技）。
       // v2.5 M4：扩编令解锁第 10 格后，Epic 阵营 10 人触发觉醒技（tierN=6）；Large 8 人触发（tierN=5）。
-      '罗德岛':     { thr: [2, 3, 5, 7, 9, 10], healAmp: [0.08, 0.16, 0.26, 0.34, 0.42, 0.48], hp: [0.06, 0.12, 0.20, 0.26, 0.32, 0.36] }, // 医疗理念：治疗量 + 生存（已含精英干员）
-      '炎':         { thr: [2, 3, 5, 7, 9, 10], hp: [0.05, 0.10, 0.15, 0.20, 0.25, 0.28], def: [0.03, 0.06, 0.09, 0.12, 0.15, 0.17] },     // 岁兽/炎国：生命 + 防御（已含炎-岁/炎-龙门）— 二次削弱（原 100% 超模）
-      '维多利亚':   { thr: [2, 3, 5, 7, 8], atk: [0.08, 0.16, 0.26, 0.34, 0.40], def: [0.06, 0.12, 0.20, 0.26, 0.30] }, // 骑士王国：攻防兼备（深度阶 +攻防 → 8 人觉醒）
-      '莱茵生命':   { thr: [2, 3, 5, 7, 8], magicAmp: [0.08, 0.16, 0.26, 0.34, 0.40], spInit: [3, 6, 10, 14, 18] }, // 科研机构：术法 + 起手技力（深度阶 +术法/技力 → 8 人觉醒）
-      '叙拉古':     { thr: [2, 3, 5, 7, 8], crit: [0.06, 0.12, 0.20, 0.26, 0.32], aspd: [0.06, 0.12, 0.20, 0.26, 0.32] }, // 黑帮：暴击 + 攻速（深度阶 +暴击/攻速 → 8 人觉醒）
-      '拉特兰':     { thr: [2, 3, 5, 7, 8], atk: [0.08, 0.16, 0.26, 0.34, 0.40], crit: [0.10, 0.20, 0.32, 0.42, 0.50] }, // 枪之城：攻击 + 暴击（深度阶 +攻击/暴击 → 8 人觉醒）
-      '莱塔尼亚':   { thr: [2, 3, 5], magicAmp: [0.08, 0.16, 0.26], spInit: [3, 6, 10] },    // 源石技艺帝国：术法 + 起手技力
-      '萨尔贡':     { thr: [2, 3, 5], atk: [0.10, 0.20, 0.32], hp: [0.06, 0.12, 0.20] },      // 荒野战士：攻击 + 生命（攻击档位上调）
-      '龙门':       { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20] },     // 近卫局：攻击 + 防御（已含龙门近卫局）
-      '企鹅物流':   { thr: [2, 3, 5], spInit: [3, 6, 10], spRegen: [0.12, 0.24, 0.40] },       // 物流速度：起手技力 + 技力回复
-      '巴别塔':     { thr: [2, 3, 5], hp: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20] },      // 起源：生存向
-      '谢拉格':     { thr: [2, 3, 5], hp: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20] },      // 雪境信仰：生命 + 防御
-      '深海猎人':   { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20] },      // 猎杀者：攻击 + 生命
-      '乌萨斯':     { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20] },     // 寒冬帝国：攻击 + 防御
-      '伊比利亚':   { thr: [2, 3, 5], magicAmp: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20] },  // 深海外交：术法 + 生命
-      '卡兹戴尔':   { thr: [2, 3, 5], def: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20] },      // 萨卡兹故土：防御 + 生存（池=2，泥岩+赫德雷）
+      '罗德岛':     { thr: [2, 3, 5, 7, 9, 10], healAmp: [0.08, 0.16, 0.26, 0.34, 0.42, 0.48], hp: [0.06, 0.12, 0.20, 0.26, 0.32, 0.36], behavior: FAC_BEHAVIOR_TMPL.heal }, // 医疗理念：治疗量 + 生存（已含精英干员）
+      '炎':         { thr: [2, 3, 5, 7, 9, 10], hp: [0.05, 0.10, 0.15, 0.20, 0.25, 0.28], def: [0.03, 0.06, 0.09, 0.12, 0.15, 0.17], behavior: FAC_BEHAVIOR_TMPL.defense },     // 岁兽/炎国：生命 + 防御（已含炎-岁/炎-龙门）— 二次削弱（原 100% 超模）
+      '维多利亚':   { thr: [2, 3, 5, 7, 8], atk: [0.08, 0.16, 0.26, 0.34, 0.40], def: [0.06, 0.12, 0.20, 0.26, 0.30], behavior: FAC_BEHAVIOR_TMPL.attack }, // 骑士王国：攻防兼备（深度阶 +攻防 → 8 人觉醒）
+      '莱茵生命':   { thr: [2, 3, 5, 7, 8], magicAmp: [0.08, 0.16, 0.26, 0.34, 0.40], spInit: [3, 6, 10, 14, 18], behavior: FAC_BEHAVIOR_TMPL.support }, // 科研机构：术法 + 起手技力（深度阶 +术法/技力 → 8 人觉醒）
+      '叙拉古':     { thr: [2, 3, 5, 7, 8], crit: [0.06, 0.12, 0.20, 0.26, 0.32], aspd: [0.06, 0.12, 0.20, 0.26, 0.32], behavior: FAC_BEHAVIOR_TMPL.attack }, // 黑帮：暴击 + 攻速（深度阶 +暴击/攻速 → 8 人觉醒）
+      '拉特兰':     { thr: [2, 3, 5, 7, 8], atk: [0.08, 0.16, 0.26, 0.34, 0.40], crit: [0.10, 0.20, 0.32, 0.42, 0.50], behavior: FAC_BEHAVIOR_TMPL.attack }, // 枪之城：攻击 + 暴击（深度阶 +攻击/暴击 → 8 人觉醒）
+      '莱塔尼亚':   { thr: [2, 3, 5], magicAmp: [0.08, 0.16, 0.26], spInit: [3, 6, 10], behavior: FAC_BEHAVIOR_TMPL.support },    // 源石技艺帝国：术法 + 起手技力
+      '萨尔贡':     { thr: [2, 3, 5], atk: [0.10, 0.20, 0.32], hp: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.attack },      // 荒野战士：攻击 + 生命（攻击档位上调）
+      '龙门':       { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.defense },     // 近卫局：攻击 + 防御（已含龙门近卫局）
+      '企鹅物流':   { thr: [2, 3, 5], spInit: [3, 6, 10], spRegen: [0.12, 0.24, 0.40], behavior: FAC_BEHAVIOR_TMPL.support },       // 物流速度：起手技力 + 技力回复
+      '巴别塔':     { thr: [2, 3, 5], hp: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.defense },      // 起源：生存向
+      '谢拉格':     { thr: [2, 3, 5], hp: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.defense },      // 雪境信仰：生命 + 防御
+      '深海猎人':   { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.attack },      // 猎杀者：攻击 + 生命
+      '乌萨斯':     { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.defense },     // 寒冬帝国：攻击 + 防御
+      '伊比利亚':   { thr: [2, 3, 5], magicAmp: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.support },  // 深海外交：术法 + 生命
+      '卡兹戴尔':   { thr: [2, 3, 5], def: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.defense },      // 萨卡兹故土：防御 + 生存（池=2，泥岩+赫德雷）
     },
   };
 
@@ -308,28 +316,22 @@
     'Ave Mujica': '来自另一段旋律的客人，琴弦里缠着不属于这片大地的悲欢。丰川祥子带来的，是一首尚未写完的安魂曲。'
   };
 
-  // P2-3：单干员势力「独行被动」——池=1 的阵营无法成羁绊（F8），上场即给轻量风味被动，消除空洞感。
-  // 运行时依据 DATA 计算（按职业给差异化属性），不改变平衡大局，仅让每个单位「有东西」。
-  const DEPLOY_PASSIVE = (function () {
-    const cnt = {};
-    DATA.operators.forEach(o => { const f = o.bonds && o.bonds['阵营']; if (f) cnt[f] = (cnt[f] || 0) + 1; });
-    const m = {};
-    DATA.operators.forEach(o => {
-      const f = o.bonds && o.bonds['阵营'];
-      if (f && cnt[f] === 1) {
-        let attr;
-        switch (o.class) {
-          case '重装': attr = { hp: 0.12, def: 0.08 }; break;
-          case '狙击': case '术师': attr = { atk: 0.10 }; break;
-          case '医疗': attr = { healAmp: 0.12 }; break;
-          case '辅助': attr = { aspd: 0.10 }; break;
-          default: attr = { atk: 0.08, aspd: 0.06 }; // 先锋 / 近卫 / 特种等
-        }
-        m[f] = { attr, desc: SOLO_FLAVOR[f] || '' };
-      }
-    });
-    return m;
-  })();
+  // v3.0 单干员势力「独行羁绊」——池=1 的阵营无法成羁绊，上场即给「attr 数值 + behavior 独有机制」。
+  // 11 个独行干员各 1 独门绝学（复用现成 kw 家族，零新引擎）；数值 [PLACEHOLDER] 待 balance_sim 标定。
+  // 键名与 data.json 池=1 阵营一致；若未来池变化需同步增删。
+  const DEPLOY_PASSIVE = {
+    '格拉斯哥帮': { attr: { atk: 0.15, hp: 0.10, spInit: 6 }, behavior: [{ kw: 'knightBanner', params: { base: 0.10, per: 0.02 } }], desc: SOLO_FLAVOR['格拉斯哥帮'] },   // 王之旗：全队攻光环
+    'Ave Mujica': { attr: { atk: 0.12, aspd: 0.10 }, behavior: [{ kw: 'barrage', params: { hits: 2, spread: 0 } }], desc: SOLO_FLAVOR['Ave Mujica'] },               // 面具之舞：普攻多段连击
+    '米诺斯':     { attr: { atk: 0.10, def: 0.08 }, behavior: [{ kw: 'berzerk', params: { thresh: 0.30, atkPct: 0.25, leech: 0.10 } }], desc: SOLO_FLAVOR['米诺斯'] }, // 米诺斯之盾：低血狂暴
+    '黑钢国际':   { attr: { hp: 0.12, def: 0.12 }, behavior: [{ kw: 'counter', params: { value: 0.15 } }], desc: SOLO_FLAVOR['黑钢国际'] },                         // 黑钢协议：受击反伤
+    '萨米':       { attr: { atk: 0.12, crit: 0.10 }, behavior: [{ kw: 'critDmg', params: { value: 1.30 } }], desc: SOLO_FLAVOR['萨米'] },                           // 萨米弓术：暴伤
+    '行动预备组A6': { attr: { atk: 0.10, aspd: 0.08 }, behavior: [{ kw: 'quickStart', params: { aspd: 0.25 } }], desc: SOLO_FLAVOR['行动预备组A6'] },                // 预备组：开局攻速
+    '汐斯塔':     { attr: { atk: 0.10, crit: 0.10 }, behavior: [{ kw: 'berzerk', params: { thresh: 0.40, atkPct: 0.30 } }], desc: SOLO_FLAVOR['汐斯塔'] },           // 汐斯塔狂热：低血狂击
+    '莱欧斯小队': { attr: { magicAmp: 0.15, spInit: 4 }, behavior: [{ kw: 'castAmp', params: { amp: 0.15, aspd: 0 } }], desc: SOLO_FLAVOR['莱欧斯小队'] },           // 莱欧斯共振：技能增幅
+    '阿戈尔':     { attr: { healAmp: 0.12, aspd: 0.10 }, behavior: [{ kw: 'healAura', params: { regen: 0.03 } }], desc: SOLO_FLAVOR['阿戈尔'] },                     // 深海之歌：全队治疗光环
+    'S.W.E.E.P.': { attr: { aspd: 0.12, crit: 0.08 }, behavior: [{ kw: 'rampHit', params: { per: 0.06, cap: 3 } }], desc: SOLO_FLAVOR['S.W.E.E.P.'] },              // 追踪印记：渐强叠印
+    '行动组A4':   { attr: { aspd: 0.10, atk: 0.12 }, behavior: [{ kw: 'execute', params: { thresh: 0.25, mult: 0.60 } }], desc: SOLO_FLAVOR['行动组A4'] },           // 夜袭：残血处决
+  };
 
   // ============ 真实召唤物（v2.1 · summon archetype）============
   // 狼（叙拉古养狼）/ 岁兽（令签名）转为可独立攻防、占格、死亡的战斗单位。
@@ -547,7 +549,6 @@
         // behavior 键 = 人数档位（6/8/10），用 n（人数）比较：6 人→6 阶行为、8 人→8 阶、10 人→10 阶
         Object.keys(vc.behavior).forEach(bk => { if (n >= parseInt(bk, 10)) vc.behavior[bk].forEach(e => behKws.push(e)); });
         if (!behKws.length) return;
-        if (typeof console !== 'undefined') console.log('[M3] class', v, 'tier', tierN, 'kws', behKws.map(e => e.kw).join(','), 'count', n);
         boardUnits.forEach(u => {
           if (u.bonds['职业'] !== v) return;
           if (!special[u.name]) special[u.name] = { kw: null, params: {}, kws: [] };
@@ -560,6 +561,34 @@
         const behLabel = Object.keys(vc.behavior).filter(bk => n >= parseInt(bk, 10)).map(bk => vc.behavior[bk].map(e => e.kw).join('+')).join(' ');
         if (behLabel) {
           const act = active.find(a => a.axis === '职业' && a.value === v);
+          if (act) act.beh = behLabel;
+        }
+      });
+    })();
+    // v3.0 阵营羁绊 behavior（3/5 阶 kw，7+ 走 SPECIAL.deep 觉醒）——与职业 behavior 同构，axes 后统一合并
+    (function applyFactionBehavior() {
+      const facCfg = BONDS['阵营'];
+      if (!facCfg) return;
+      Object.keys(seen['阵营']).forEach(v => {
+        const vc = facCfg[v];
+        if (!vc || !vc.behavior) return;
+        const n = seen['阵营'][v].size;
+        const behKws = [];
+        // behavior 键 = 人数档位（3/5），用 n（人数）比较；7+ 交给 SPECIAL.deep（不重复注入）
+        Object.keys(vc.behavior).forEach(bk => { if (n >= parseInt(bk, 10)) vc.behavior[bk].forEach(e => behKws.push(e)); });
+        if (!behKws.length) return;
+        boardUnits.forEach(u => {
+          if (!u.bonds['阵营'] || u.bonds['阵营'] !== v) return;
+          if (!special[u.name]) special[u.name] = { kw: null, params: {}, kws: [] };
+          behKws.forEach(e => {
+            if (e.kw === special[u.name].kw) { /* 同名：SPECIAL 主题机制优先，模板不覆盖（防低值削弱高值） */ }
+            else if (!special[u.name].kws.some(x => x.kw === e.kw)) special[u.name].kws.push(e);
+          });
+        });
+        // 展示：追加行为标签到对应阵营羁绊条目
+        const behLabel = Object.keys(vc.behavior).filter(bk => n >= parseInt(bk, 10)).map(bk => vc.behavior[bk].map(e => e.kw).join('+')).join(' ');
+        if (behLabel) {
+          const act = active.find(a => a.axis === '阵营' && a.value === v);
           if (act) act.beh = behLabel;
         }
       });
@@ -850,7 +879,7 @@
       let m = mult[u.op.name] || DEF_MULT;
       if (u.buff && u.buff !== 1) { m = Object.assign({}, m); m.atk *= u.buff; m.hp *= u.buff; m.def *= u.buff; }
       if (gmult) { m = Object.assign({}, m); m.atk *= gmult.atk; m.hp *= gmult.hp; m.aspd *= gmult.aspd; m.magicAmp *= gmult.magicAmp; }
-      // P2-3：单干员势力上场即给「独行被动」（按阵营查 DEPLOY_PASSIVE）
+      // v3.0 单干员势力「独行羁绊」：attr 数值 + behavior 独有机制（注入 special.kws，复用现成 kw 通道）
       const dp = DEPLOY_PASSIVE[(u.op.bonds && u.op.bonds['阵营'])];
       if (dp) {
         m = Object.assign({}, m);
@@ -859,6 +888,10 @@
           else if (k === 'spRegen') m.spRegen *= (1 + dp.attr[k]);
           else m[k] = (m[k] || 1) * (1 + dp.attr[k]);
         });
+        if (dp.behavior && dp.behavior.length && side === 'ally') {
+          const sp = special[u.op.name] || (special[u.op.name] = { kw: null, params: {}, kws: [] });
+          dp.behavior.forEach(e => { if (!sp.kws.some(x => x.kw === e.kw)) sp.kws.push(e); });
+        }
       }
       // 策略节点 comp 定向加成（阵容导向）+ 位置加成（引导前后排站位），仅我方
       if (side === 'ally') {
