@@ -255,7 +255,7 @@ a{color:var(--gold-strong);text-decoration:none}
 .bf-scope::after{content:"";position:absolute;left:0;right:0;height:2px;top:4%;
   background:linear-gradient(90deg,transparent,var(--ally),transparent);opacity:.5;animation:scopeScan 3.4s linear infinite}
 @keyframes scopeScan{0%{top:4%}100%{top:96%}}
-.bf-unit{position:absolute;width:58px;height:66px;top:0;left:0;transition:transform var(--dur-slow) linear;will-change:transform;z-index:2;
+.bf-unit{position:absolute;width:58px;height:66px;top:0;left:0;transition:transform 160ms linear;will-change:transform;z-index:2;
   border-radius:8px;display:flex;flex-direction:column;align-items:center;padding:2px;box-sizing:border-box;
   border:2px solid transparent}
 .bf-unit.ally{border-color:var(--ally);background:rgba(64,180,220,0.1)}
@@ -482,10 +482,9 @@ a{color:var(--gold-strong);text-decoration:none}
 }
 
 /* 进度流程条（页面上方） */
-.node-flow{display:flex;flex-direction:row;align-items:center;gap:14px;padding:0;margin:0;max-width:1080px;height:80px}
-.nf-head{flex:none;font-size:12px;font-weight:700;color:var(--gold-strong);letter-spacing:.5px;margin:0;padding-right:8px;border-right:1px solid var(--line);text-align:left;min-width:100px}
-.nf-track{display:flex;align-items:center;gap:0;flex-wrap:nowrap;overflow-x:auto;padding:0 4px;max-width:100%;justify-content:safe center;flex:1;min-width:0;height:76px}
-.nf-node{display:flex;flex-direction:column;align-items:center;width:62px;padding:6px 0;border-radius:8px;
+.node-flow{display:flex;flex-direction:row;align-items:center;padding:0;margin:0;max-width:1280px;height:auto;justify-content:center}
+.nf-track{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow-x:auto;padding:6px 8px;max-width:100%;justify-content:center;flex:1;min-width:0;height:auto}
+.nf-node{display:flex;flex-direction:column;align-items:center;width:76px;padding:6px 0;border-radius:8px;
   background:#16202e;border:1px solid #26344a;color:#8fa6c0;transition:var(--dur);flex:0 0 auto}
 .nf-node .nf-ico{font-size:18px;line-height:1}
 .nf-node .nf-num{font-size:12px;font-weight:700;margin-top:2px}

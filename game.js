@@ -3392,12 +3392,12 @@
       if (diff < -0.5) {
         el.classList.remove('fx-hit'); void el.offsetWidth; el.classList.add('fx-hit');
         G._fxHitsThisFrame = (G._fxHitsThisFrame || 0);
-        if (G._fxHitsThisFrame < 4) {
+        if (G._fxHitsThisFrame < 2) {
           G._fxHitsThisFrame++;
           const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null;
           if (_r && _r.width) FX.floatText(_r.left + _r.width / 2, _r.top - 4, '-' + Math.round(s.max * Math.abs(diff) / 100), 'red');
         }
-        if (!G._fxShakenThisFrame && diff < -25) { FX.shake(100, 2); G._fxShakenThisFrame = 1; }
+        if (!G._fxShakenThisFrame && diff < -50) { FX.shake(90, 2); G._fxShakenThisFrame = 1; }
       } else if (diff > 0.5) {
         el.classList.remove('fx-heal'); void el.offsetWidth; el.classList.add('fx-heal');
         const _av = el.querySelector('.av'); const _r = _av ? _av.getBoundingClientRect() : null;
@@ -3418,30 +3418,6 @@
       setTimeout(() => el.classList.remove('fx-revive'), 600);
     } else if (!s.reviving && el.dataset.revived === '1') {
       el.dataset.revived = '0';
-    }
-  }
-
-  // v2.5 战斗弹道：帧攻击事件 → 光弹从攻击者中心飞向目标中心（限流 6 条/帧）
-  function playAttackFx(fx) {
-    if (!fx || !fx.length || typeof document === 'undefined' || FX.reduced) return;
-    let n = 0;
-    for (let i = 0; i < fx.length; i++) {
-      const ev = fx[i];
-      if (++n > 6) break;
-      const from = G._bfEls && G._bfEls[ev.f], to = G._bfEls && G._bfEls[ev.t];
-      if (!from || !to) continue;
-      const rf = from.getBoundingClientRect(), rt = to.getBoundingClientRect();
-      if (!rf.width || !rt.width) continue;
-      const b = document.createElement('div');
-      b.className = 'bf-bolt';
-      const sx = rf.left + rf.width / 2, sy = rf.top + rf.height / 2;
-      const tx = rt.left + rt.width / 2, ty = rt.top + rt.height / 2;
-      b.style.left = sx + 'px'; b.style.top = sy + 'px';
-      b.style.setProperty('--bx', (tx - sx) + 'px');
-      b.style.setProperty('--by', (ty - sy) + 'px');
-      document.body.appendChild(b);
-      requestAnimationFrame(function () { b.classList.add('go'); });
-      setTimeout(function () { b.remove(); }, 260);
     }
   }
 
@@ -3546,7 +3522,6 @@
       if (fr.enemy) fr.enemy.forEach(s => updateUnit(s));
       // v2.5 弹道：帧攻击事件 → 光弹
       if (fr.fx) playAttackFx(fr.fx);
-      if (G._bfHoverUid) drawRangeLayer(G._bfHoverUid); // v2.6 射程层实时跟随单位移动
       if (G._bfHoverUid) drawRangeLayer(G._bfHoverUid); // v2.6 射程层实时跟随单位移动
       // 施法闪光 + 技能特效场（蓝色技能圈 + 技能名飘字）
       if (fr.casts && fr.casts.length) fr.casts.forEach(c => {
@@ -4630,8 +4605,8 @@
     const curPhase = curNode.phase || 1;
     // 只显示当前阶段的 9 个节点；进入下一阶段时自动切到下一阶段的节点
     const phaseNodes = nodes.filter(n => (n.phase || 1) === curPhase);
-    let html = '<div class="nf-head">阶段 ' + curPhase + ' / 3　·　本阶段 ' + phaseNodes.length + ' 节点（共 ' + nodes.length + ' 节点）</div>';
-    html += '<div class="nf-track">';
+    // v4.2 去掉 nf-head/nf-info 文字说明，空出空间给节点条
+    let html = '<div class="nf-track">';
     phaseNodes.forEach((n, pIdx) => {
       const gi = nodes.indexOf(n);
       let cls = 'nf-node';
@@ -4639,23 +4614,15 @@
       else if (gi === cur) cls += ' current';
       else cls += ' upcoming';
       if (n.type === 'fork') cls += ' fork'; // v2.5 地图化：抉择点分叉标记
-      html += '<div class="' + cls + '"><span class="nf-ico">' + NODE_ICON[n.type] + '</span>' +
-        '<span class="nf-num">' + (pIdx + 1) + '</span><span class="nf-tag">' + NODE_LABEL[n.type] + '</span></div>';
+      html += '<div class="' + cls + '" title="' + (NODE_LABEL[n.type] || '') + '"><span class="nf-ico">' + NODE_ICON[n.type] + '</span>' +
+        '<span class="nf-num">' + (pIdx + 1) + '</span></div>';
       if (pIdx < phaseNodes.length - 1) html += '<span class="nf-link ' + (gi < cur ? 'passed' : '') + '"></span>';
     });
     html += '</div>';
-    const nxt = nodes[cur + 1];
-    let info = '本阶段进度 ' + (phaseNodes.indexOf(curNode) + 1) + ' / ' + phaseNodes.length + ' · 当前：' + NODE_LABEL[curNode.type];
-    if (nxt) {
-      if ((nxt.phase || 1) !== curPhase) info += '　|　下一阶段将解锁 ' + (nxt.phase || 1) + ' 阶段节点';
-      else info += '　|　下一站：' + NODE_LABEL[nxt.type];
-    } else info += '　|　终点：决战 BOSS';
-    html += '<div class="nf-info">' + info + '</div>';
     el.innerHTML = html;
-    // v2.7 顶部商店按钮与 nodeFlow 同步显示/隐藏 + 弹层默认关闭 + 商店元数据
-    const tr = $('topRow'); const sp = $('shopPopover');
+    // v4.2 顶部商店按钮与 nodeFlow 同步显示/隐藏 + 商店元数据（不再强制关闭弹层——商店保持打开直到玩家点退出/ESC）
+    const tr = $('topRow');
     if (tr) tr.classList.toggle('hidden', !G.env);
-    if (sp) { sp.classList.add('hidden'); sp.setAttribute('aria-hidden', 'true'); }
     const sl = $('shopLv'); if (sl) sl.textContent = G.level || 1;
     if (G.level > 1 && renderShop) renderShop(); // 等级变化时同步商店概率标注
   }
