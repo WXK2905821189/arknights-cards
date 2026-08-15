@@ -892,54 +892,40 @@ body[data-theme="brief"]{
 /* 右边留空：主区右侧加 padding */
 .arena-main{padding-right:24px;padding-bottom:8px}
 
-/* ============ v3.1 方案B：三段式布局（顶部工具栏 + 侧栏268 + 主区棋盘正方形 + 备战席110 + 操作条44） ============ */
-.arena{display:flex;flex-direction:column;padding:8px 16px 16px;max-width:1400px;margin:0 auto;position:relative}
-.arena-side{display:flex;flex-direction:column;gap:10px;min-width:0}
-.arena-main{display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0;flex:1}
+/* ============ v3.1 方案B：三段式布局（row 布局无条件生效，窄屏降级堆叠） ============ */
+/* 默认：宽屏 row 布局（侧栏左 + 主区右 + 备战席下） */
+.arena{display:flex;flex-direction:row;align-items:stretch;gap:14px;padding:12px 16px 16px;max-width:none;margin:0;position:relative}
+.arena-side{order:1;width:268px;flex:none;display:flex;flex-direction:column;gap:10px;min-width:0;
+  max-height:calc(100vh - 210px);overflow-y:auto;padding-right:2px}
+.arena-main{order:2;flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;padding-right:24px}
+.board-wrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.board-battle{position:relative;width:100%;height:100%;max-height:100%;margin:0 auto;
+  display:grid;place-items:center;
+  background:#0c0f14;border:1px solid var(--line);border-radius:8px;padding:10px;overflow:hidden}
+.board-grid{position:relative;width:100%;height:100%;max-width:100%;max-height:100%;aspect-ratio:8/6;min-width:0;min-height:0;
+  display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr));
+  gap:4px;background:transparent}
+.board-cell{width:100%;height:100%;min-width:0;min-height:0}
+#board::after{left:calc(50% - 1px);top:6px;bottom:6px}
+.enemy-overlay{left:50%;top:10px;right:10px;bottom:10px;
+  grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr));gap:2px}
+.bench-area{flex:none;height:auto;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.bench-area-head{font-size:12px;color:var(--text-2);font-weight:700;margin-bottom:8px}
+.bench{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;min-width:0;flex:1;padding:0}
+.bench-cell{aspect-ratio:1;min-height:0;border:1px dashed #3a4660;border-radius:8px;background:#10141b;
+  display:flex;align-items:center;justify-content:center;font-size:22px;color:#5f6b7a}
+.bench-cell:not(.filled)::before{content:"+";opacity:.5}
+.bench-cell.filled{border-style:solid;border-color:var(--line);background:var(--panel-2)}
+.bench-cell.filled::before{content:none}
+.bench-cell .ucard{width:100%;height:100%}
+.action-bar{flex:none;min-height:44px;display:flex;align-items:center;gap:14px;margin-top:0}
+.action-bar .btn.primary{height:38px;padding:0 22px;font-size:15px}
 
-@media (min-width:1200px){
-  .arena{flex-direction:row;align-items:stretch;gap:14px;max-width:none;padding:12px 16px 16px}
-  .arena-side{order:1;width:268px;flex:none;max-height:calc(100vh - 210px);overflow-y:auto;padding-right:2px}
-  .arena-main{order:2;flex:1;padding-right:24px}
-  .board-wrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
-  /* 棋盘：8×6 正方形格子（容器 aspect-ratio + grid 1fr 等分 → 宽高联动永远正方） */
-  .board-battle{position:relative;width:100%;height:100%;max-height:100%;margin:0 auto;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    background:#0c0f14;border:1px solid var(--line);border-radius:8px;padding:10px;overflow:hidden}
-  .board-grid{position:relative;width:auto;height:auto;max-width:100%;max-height:100%;aspect-ratio:8/6;min-width:0;min-height:0;
-    display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr));
-    gap:4px;background:transparent}
-  .board-cell{width:100%;height:100%;min-width:0;min-height:0}
-  /* 中分线：第 4/5 列之间（棋盘内 50%） */
-  #board::after{left:calc(50% - 1px);top:6px;bottom:6px}
-  /* 敌方预览：grid 4×6 覆盖右半 */
-  .enemy-overlay{left:50%;top:10px;right:10px;bottom:10px;
-    grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr));gap:2px}
-  /* 备战席：10 格正方形 + 售出区右侧 */
-  .bench-area{flex:none;height:auto;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
-  .bench-area-head{font-size:12px;color:var(--text-2);font-weight:700;margin-bottom:8px}
-  .bench-row{display:flex;gap:10px;align-items:stretch}
-  .bench{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;min-width:0;flex:1;padding:0}
-  .bench-cell{aspect-ratio:1;min-height:0;border:1px dashed #3a4660;border-radius:8px;background:#10141b;
-    display:flex;align-items:center;justify-content:center;font-size:22px;color:#5f6b7a}
-  .bench-cell:not(.filled)::before{content:"+";opacity:.5}
-  .bench-cell.filled{border-style:solid;border-color:var(--line);background:var(--panel-2)}
-  .bench-cell.filled::before{content:none}
-  .bench-cell .ucard{width:100%;height:100%}
-  .bench-row #sellZone{flex:0 0 88px;margin:0}
-  /* 操作条：底部固定 44px */
-  .action-bar{flex:none;min-height:44px;display:flex;align-items:center;gap:14px;margin-top:0}
-  .action-bar .btn.primary{height:38px;padding:0 22px;font-size:15px}
-}
-
-/* 断点降级：900-1200px 侧栏 220px / 备战席格子 72px */
-@media (min-width:900px) and (max-width:1199px){
-  .arena-side{width:220px}
-  .bench-cell{font-size:18px}
-}
-/* <900px：纯堆叠（顶部 → 棋盘 → 备战席） */
+/* <900px：纯堆叠（顶部→棋盘→备战席→侧栏）；棋盘缩到 ~80vh */
 @media (max-width:899px){
-  .arena-side{order:2;width:100%;flex-direction:row;flex-wrap:wrap}
-  .arena-side > *{flex:1 1 45%}
-  .arena-main{order:1;width:100%}
+  .arena{flex-direction:column;padding:8px 12px 12px}
+  .arena-side{order:2;width:100%;flex-direction:row;flex-wrap:wrap;max-height:none;overflow:visible;padding-right:0}
+  .arena-side > *{flex:1 1 45%;min-width:200px}
+  .arena-main{order:1;width:100%;padding-right:0}
+  .board-battle{max-height:70vh}
 }
