@@ -55,13 +55,14 @@
     '阵营': {
       '__default__': { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20] },   // 长尾小势力兜底：通用攻/血
       // —— 阵营多阶（2026-08-12）：仅 Epic(pool≥9)/Large(7≤pool≤8) 拉长 thr 与属性数组；前 3 阶数值不变，零回归 ——
-      // 顶点阶受部署上限 9 约束：Epic=[2,3,5,7,9]（满盘单阵营 mono），Large=[2,3,5,7]（≥7 人触发深度阶）。
-      '罗德岛':     { thr: [2, 3, 5, 7, 9], healAmp: [0.08, 0.16, 0.26, 0.34, 0.42], hp: [0.06, 0.12, 0.20, 0.26, 0.32] }, // 医疗理念：治疗量 + 生存（已含精英干员）
-      '炎':         { thr: [2, 3, 5, 7, 9], hp: [0.05, 0.10, 0.15, 0.20, 0.25], def: [0.03, 0.06, 0.09, 0.12, 0.15] },     // 岁兽/炎国：生命 + 防御（已含炎-岁/炎-龙门）— 二次削弱（原 100% 超模）
-      '维多利亚':   { thr: [2, 3, 5, 7], atk: [0.08, 0.16, 0.26, 0.34], def: [0.06, 0.12, 0.20, 0.26] }, // 骑士王国：攻防兼备（深度阶 +攻防）
-      '莱茵生命':   { thr: [2, 3, 5, 7], magicAmp: [0.08, 0.16, 0.26, 0.34], spInit: [3, 6, 10, 14] }, // 科研机构：术法 + 起手技力（深度阶 +术法/技力）
-      '叙拉古':     { thr: [2, 3, 5, 7], crit: [0.06, 0.12, 0.20, 0.26], aspd: [0.06, 0.12, 0.20, 0.26] }, // 黑帮：暴击 + 攻速（深度阶 +暴击/攻速）
-      '拉特兰':     { thr: [2, 3, 5, 7], atk: [0.08, 0.16, 0.26, 0.34], crit: [0.10, 0.20, 0.32, 0.42] }, // 枪之城：攻击 + 暴击（深度阶 +攻击/暴击）
+      // 顶点阶：Epic=[2,3,5,7,9,10]（满盘单阵营 mono + 扩编 10 人觉醒），Large=[2,3,5,7,8]（8 人觉醒技）。
+      // v2.5 M4：扩编令解锁第 10 格后，Epic 阵营 10 人触发觉醒技（tierN=6）；Large 8 人触发（tierN=5）。
+      '罗德岛':     { thr: [2, 3, 5, 7, 9, 10], healAmp: [0.08, 0.16, 0.26, 0.34, 0.42, 0.48], hp: [0.06, 0.12, 0.20, 0.26, 0.32, 0.36] }, // 医疗理念：治疗量 + 生存（已含精英干员）
+      '炎':         { thr: [2, 3, 5, 7, 9, 10], hp: [0.05, 0.10, 0.15, 0.20, 0.25, 0.28], def: [0.03, 0.06, 0.09, 0.12, 0.15, 0.17] },     // 岁兽/炎国：生命 + 防御（已含炎-岁/炎-龙门）— 二次削弱（原 100% 超模）
+      '维多利亚':   { thr: [2, 3, 5, 7, 8], atk: [0.08, 0.16, 0.26, 0.34, 0.40], def: [0.06, 0.12, 0.20, 0.26, 0.30] }, // 骑士王国：攻防兼备（深度阶 +攻防 → 8 人觉醒）
+      '莱茵生命':   { thr: [2, 3, 5, 7, 8], magicAmp: [0.08, 0.16, 0.26, 0.34, 0.40], spInit: [3, 6, 10, 14, 18] }, // 科研机构：术法 + 起手技力（深度阶 +术法/技力 → 8 人觉醒）
+      '叙拉古':     { thr: [2, 3, 5, 7, 8], crit: [0.06, 0.12, 0.20, 0.26, 0.32], aspd: [0.06, 0.12, 0.20, 0.26, 0.32] }, // 黑帮：暴击 + 攻速（深度阶 +暴击/攻速 → 8 人觉醒）
+      '拉特兰':     { thr: [2, 3, 5, 7, 8], atk: [0.08, 0.16, 0.26, 0.34, 0.40], crit: [0.10, 0.20, 0.32, 0.42, 0.50] }, // 枪之城：攻击 + 暴击（深度阶 +攻击/暴击 → 8 人觉醒）
       '莱塔尼亚':   { thr: [2, 3, 5], magicAmp: [0.08, 0.16, 0.26], spInit: [3, 6, 10] },    // 源石技艺帝国：术法 + 起手技力
       '萨尔贡':     { thr: [2, 3, 5], atk: [0.10, 0.20, 0.32], hp: [0.06, 0.12, 0.20] },      // 荒野战士：攻击 + 生命（攻击档位上调）
       '龙门':       { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20] },     // 近卫局：攻击 + 防御（已含龙门近卫局）
@@ -114,30 +115,50 @@
     // 与基础 SPECIAL.kw 同名 → 覆盖参数（进化）；异名 → 追加 capstone 行为。数值全 [PLACEHOLDER]。
     '罗德岛':   { tier: 3, kw: 'healAura',        params: { regen: 0.03 },
                   deep: { 4: { label: '战地医疗网', kws: [{ kw: 'healAura', params: { regen: 0.045 } }] },
-                          5: { label: '不抛下任何人', kws: [{ kw: 'triage', params: { revivePct: 0.30, charges: 1 } }] } } }, // 急救协议：低血回血 → 深度进化治疗 / 阵亡复活
+                          5: { label: '不抛下任何人', kws: [{ kw: 'triage', params: { revivePct: 0.30, charges: 1 } }] },
+                          6: { label: '生命方舟·觉醒', attr: { healAmp: 0.06 }, kws: [{ kw: 'healAura', params: { regen: 0.06 } }, { kw: 'triage', params: { revivePct: 0.40, charges: 1 } }] } } }, // 急救协议：低血回血 → 深度进化治疗 / 阵亡复活 → 10 人觉醒：全队治疗翻倍+强复活
     '炎':       { tier: 3, kw: 'burnDoT',         params: { dps: 0.025, dur: 3 },
                   deep: { 4: { label: '炽魂蔓延', kws: [{ kw: 'burnDoT', params: { dps: 0.040, dur: 4, spread: true } }] },
-                          5: { label: '岁兽觉醒', kws: [{ kw: 'infernoRally', params: { value: 0.15 } }] } } }, // 炽魂：灼烧 → 溅射 / 攻强光环
+                          5: { label: '岁兽觉醒', kws: [{ kw: 'infernoRally', params: { value: 0.15 } }] },
+                          6: { label: '燎原·觉醒', attr: { atk: 0.06 }, kws: [{ kw: 'burnDoT', params: { dps: 0.055, dur: 5, spread: true } }, { kw: 'infernoRally', params: { value: 0.25 } }] } } }, // 炽魂：灼烧 → 溅射 / 攻强光环 → 10 人觉醒：全屏灼烧+攻强爆发
     '维多利亚': { tier: 3, kw: 'pierce',          params: { value: 0.15 },
                   deep: { 4: { label: '方阵穿透 + 骑士旗帜', attr: { atk: 0.05 }, kws: [
                     { kw: 'pierce', params: { value: 0.28 } },                 // 进化：破甲强化且普攻生效
                     { kw: 'knightBanner', params: { base: 0.08, per: 0.02 } } // capstone：全队攻光环·随人数缩放
-                  ] } } },                                                                          // 破阵：破甲（Large 单深度阶，capstone 并入 7）
+                  ] },
+                          5: { label: '骑士王座·觉醒', attr: { def: 0.06 }, kws: [
+                    { kw: 'knightBanner', params: { base: 0.12, per: 0.03 } }, // 觉醒：旗帜光环大幅强化
+                    { kw: 'guardAura', params: { value: 0.08 } }               // 觉醒：全体协防
+                  ] } } },                                                                          // 破阵：破甲（Large 8 人觉醒技）
     '莱茵生命': { tier: 3, kw: 'spRegenBuff',     params: { value: 0.30 },
                   deep: { 4: { label: '源石技艺链接 + 过载协议', kws: [
                     { kw: 'castAmp', params: { aspd: 0.20, amp: 0.22, dur: 3 } }, // 进化：咏唱强化
                     { kw: 'overload', params: { value: 0.30, period: 6, dur: 3 } } // capstone：周期法强爆发
-                  ] } } },                                                                          // 源石技艺增幅
+                  ] },
+                          5: { label: '过载协议·觉醒', attr: { magicAmp: 0.08 }, kws: [
+                    { kw: 'castAmp', params: { aspd: 0.30, amp: 0.35, dur: 4 } },  // 觉醒：咏唱大幅强化
+                    { kw: 'overload', params: { value: 0.45, period: 4, dur: 4 } } // 觉醒：法爆更频更强
+                  ] } } },                                                                          // 源石技艺增幅（Large 8 人觉醒技）
     '叙拉古':   { tier: 2, kw: 'summonWolf',      params: { t2: 1, t3: 2 },
                   deep: { 4: { label: '狼群扩张 + 教父', attr: { crit: 0.05 }, kws: [
                     { kw: 'summonWolf', params: { t2: 1, t3: 2, t4: 3 } },      // 进化：7 人出 3 狼
                     { kw: 'capo', params: { aspd: 0.20 } }                      // capstone：狼群攻速光环
-                  ] } } },                                                                          // 养狼（阶段3）
+                  ] },
+                          5: { label: '狼主降临·觉醒', attr: { crit: 0.10 }, kws: [
+                    { kw: 'summonWolf', params: { t2: 1, t3: 2, t4: 3, t5: 5 } }, // 觉醒：8 人出 5 狼
+                    { kw: 'capo', params: { aspd: 0.35 } },                      // 觉醒：狼群狂攻速
+                    { kw: 'globalAspd', params: { value: 0.10 } }                // 觉醒：全队提速
+                  ] } } },                                                                          // 养狼（阶段3 → Large 8 人觉醒技）
     '拉特兰':   { tier: 2, kw: 'critDmg',         params: { value: 1.00 },
                   deep: { 4: { label: '标记射击 + 弹幕风暴', kws: [
                     { kw: 'critDmg', params: { value: 1.40 } },                 // 进化：暴伤强化 + 技能必暴
                     { kw: 'barrage', params: { hits: 3, spread: 0.6 } }         // capstone：多段普攻
-                  ] } } },                                                                          // 弹幕覆盖：暴伤（阶二解锁 + 数值上调）
+                  ] },
+                          5: { label: '圣城审判·觉醒', attr: { crit: 0.10 }, kws: [
+                    { kw: 'critDmg', params: { value: 1.80 } },                 // 觉醒：暴伤爆炸
+                    { kw: 'barrage', params: { hits: 5, spread: 0.8 } },        // 觉醒：弹幕风暴全覆盖
+                    { kw: 'execute', params: { thresh: 0.35, mult: 0.60 } }     // 觉醒：圣城处决
+                  ] } } },                                                                          // 弹幕覆盖：暴伤（阶二解锁 + 数值上调 → Large 8 人觉醒技）
     '莱塔尼亚': { tier: 3, kw: 'castAmp',         params: { aspd: 0.15, amp: 0.15, dur: 3 } },                // 咏唱：施法后强化
     '萨尔贡':   { tier: 2, kw: 'execute',         params: { thresh: 0.30, mult: 0.80 } },                     // 蛮力：处决（阶二解锁 + 数值上调）
     '龙门':     { tier: 3, kw: 'guardAura',       params: { value: 0.10 } },                                  // 协防：相邻减伤
@@ -2862,8 +2883,17 @@
     const summonPlan = [];
     const placedSummons = []; // 用于音频/复盘
     if (xilaTier >= 2) {
-      // xilaTier 即 tierN：3-4 人→tierN2(1狼) / 5-6 人→tierN3(2狼) / 7 人→tierN4(深度阶 3狼)
-      const n = xilaTier >= 4 ? 3 : (xilaTier >= 3 ? 2 : 1);
+      // v2.5 M4：读叙拉古 SPECIAL 的狼数参数（t2/t3/t4/t5，含 deep 覆盖），不再硬编码——8 人觉醒出 5 狼
+      // 合成规则：deep[tierN] 若存在则用其 params（覆盖基础），否则用基础 params
+      const spSw = SPECIAL['叙拉古'] || {};
+      let swP = (spSw.params || {});
+      const dpK = spSw.deep ? Object.keys(spSw.deep).map(Number).filter(k => k <= xilaTier).sort((a, b) => a - b) : [];
+      dpK.forEach(dk => { const e = (spSw.deep[dk].kws || []).find(x => x.kw === 'summonWolf'); if (e) swP = e.params; });
+      let n = 1;
+      if (swP.t5 && xilaTier >= 5) n = swP.t5;
+      else if (swP.t4 && xilaTier >= 4) n = swP.t4;
+      else if (swP.t3 && xilaTier >= 3) n = swP.t3;
+      else if (swP.t2 && xilaTier >= 2) n = swP.t2;
       const deepWolf = xilaTier >= 4; // 叙拉古深度阶：狼继承叙拉古暴击
       const sIdx = allyList.findIndex(u => u.op.bonds && u.op.bonds['阵营'] === '叙拉古');
       for (let i = 0; i < n; i++) {
