@@ -191,7 +191,7 @@
     // —— 属性装（attr）——
     { id: 'e_blade',   name: '制式单刃', icon: '🗡', type: 'attr', cat4: 'weapon', rarity: 0, cost: 3, attr: { atk: 0.15 },  desc: '攻击 +15%', flavor: '罗德岛工坊批量维护的制式近战刃，朴素趁手，是近卫干员出任务前最常顺手抓起的那一把。' },        // [PLACEHOLDER]
     { id: 'e_plate',   name: '城防护板', icon: '🛡', type: 'attr', cat4: 'armor',  rarity: 0, cost: 3, attr: { hp: 0.20 },   desc: '生命 +20%', flavor: '拆解自龙门城防模块的标准合金护板，厚重而可靠，足以替使用者挡下多数流弹与冲击。' },        // [PLACEHOLDER]
-    { id: 'e_swift',   name: '轻量突击组件', icon: '⚡', type: 'attr', cat4: 'weapon', rarity: 1, cost: 5, attr: { aspd: 0.20 }, desc: '攻速 +20%', flavor: '哥伦比亚量产的外骨骼加速器，轻巧地扣在腕部，让持握者的出手快上半拍。' },        // [PLACEHOLDER]
+    { id: 'e_swift',   name: '轻量突击组件', icon: '⚡', type: 'attr', cat4: 'weapon', rarity: 1, cost: 5, attr: { aspd: 0.13 }, desc: '攻速 +13%', flavor: '哥伦比亚量产的外骨骼加速器，轻巧地扣在腕部，让持握者的出手快上半拍。' },        // [PLACEHOLDER] v2.5 标定：20%→13%（攻速超模回调）
     { id: 'e_cuirass', name: '动力装甲板', icon: '🪖', type: 'attr', cat4: 'armor',  rarity: 1, cost: 5, attr: { def: 0.25 },  desc: '防御 +25%', flavor: '承自乌萨斯重工业化武思路的动力骨架装甲，靠液压硬扛每一次重击。' },        // [PLACEHOLDER]
     { id: 'e_serum',   name: '战术兴奋剂', icon: '💉', type: 'attr', cat4: 'device', rarity: 2, cost: 8, attr: { crit: 0.15 }, desc: '暴击率 +15%', flavor: '封装在便携针管里的神经兴奋剂，临战一针，让反应与出手更加凌厉。' },      // [PLACEHOLDER]
     // —— 机制装（mech）——
@@ -202,7 +202,7 @@
     { id: 'e_piercer', name: '穿甲弩头', icon: '🏹', type: 'mech', cat4: 'weapon', rarity: 2, cost: 8, kw: 'pierce',      params: { value: 0.15 },  desc: '攻击无视 15% 防御', flavor: '维多利亚军械匠打磨的特种弩头，专门咬穿重甲与源石护壁的薄弱处。' },        // 复用 pierce
     { id: 'e_warfare', name: '战意核心', icon: '🔥', type: 'mech', cat4: 'weapon', rarity: 2, cost: 8, kw: 'berzerk',     params: { thresh: 0.30, atkPct: 0.20, leech: 0.10 }, desc: '血量低于 30% 时伤害 +20% 并吸血 10%', flavor: '萨卡兹佣兵间流传的源石核心，越是濒死，越是点燃使用者骨子里的凶性。' },
     { id: 'e_barrage', name: '弹幕装置', icon: '💥', type: 'mech', cat4: 'device', rarity: 3, cost: 12, kw: 'splash',     params: { pct: 0.40 },    desc: '普攻对相邻敌人溅射 40% 伤害', flavor: '龙门近卫局制式的散射挂件，一次挥击便将冲击甩向周围所有敌人。' },
-    { id: 'e_phantom', name: '幽影协议', icon: '👻', type: 'mech', cat4: 'device', rarity: 3, cost: 12, kw: 'revive',     params: { pct: 0.30 },    desc: '死亡后以 30% 血量复活一次', flavor: '深海猎人带来的濒死重构技术，让躯体在彻底碎裂前，于阴影里重新拼合一次。' },  // 复用 revive（双复活上限 1）
+    { id: 'e_phantom', name: '幽影协议', icon: '👻', type: 'mech', cat4: 'device', rarity: 3, cost: 12, kw: 'revive',     params: { pct: 0.15 },    desc: '死亡后以 15% 血量复活一次', flavor: '深海猎人带来的濒死重构技术，让躯体在彻底碎裂前，于阴影里重新拼合一次。' },  // 复用 revive（双复活上限 1）[PLACEHOLDER] v2.5 标定：30%→15%（复活无解回调）
     // —— 阵营铭刻（engraving · 对应 6 个多阶阵营，帮凑深度阶）——
     { id: 'e_m_rhodes',   name: '罗德岛徽记', icon: '✚', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '罗德岛',   desc: '视为罗德岛（阵营羁绊计数）', flavor: '刻着罗德岛徽记的身份铭刻。戴上它，你便被视为这艘船的一员——为了同一个方向而战。' },
     { id: 'e_m_yen',      name: '炎国龙纹', icon: '🐉', type: 'engraving', cat4: 'engraving', rarity: 3, cost: 12, countAsFaction: '炎',       desc: '视为炎（阵营羁绊计数）', flavor: '绘着炎国古龙纹样的铭刻。龙脉的余温仍在金属里流动，将佩戴者认作炎土的子民。' },
@@ -1368,11 +1368,11 @@
         if (u.cd > 0) { u.cd -= DT; continue; }
         if (u.stunUntil > t) { u.cd = 0.1; continue; }
         // 技能释放（攒满技力则本次行动改为施法）
+        // 停滞修复：敌人不在射程内时放弃空放技能，落入下方移动分支推进 —— 否则自施放单位(盾/奶/增益)会无限叠技能、永不接近敌人
         if (u.skill && u.sp >= u.spMax) {
-          castSkill(u);
-          u.sp = 0;
-          u.cd = ATK(u) * 0.6;
-          continue;
+          const _neCast = nearestEnemy(u);
+          if (_neCast.tgt && _neCast.d > u.range) { /* 敌人在射程外 → 交给移动分支 */ }
+          else { castSkill(u); u.sp = 0; u.cd = ATK(u) * 0.6; continue; }
         }
 
         if (u.dmgType === 'heal') {
@@ -1539,6 +1539,7 @@
     simulateBattle, simulateBattleGrid, autoPositions, slotToXY, ODDS, BONDS, STAR_MULT,
     GRID_COLS, GRID_ROWS, FIELD_W, FIELD_H, makeCombatSummon, placeAdjacentSummons,
     grantSummonExp, summonLevelFromExp, SPECIAL, SIGNATURE, DIFFICULTY,
+    EQUIP_POOL, EQUIP_BY_ID,  // v2.5 标定用：Node 侧构造装备
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   // 游戏状态对象：提到控制器之外，保证 Node 测试路径下也已初始化（引擎函数 applyBonds/generateEnemyTeam 依赖 G）
