@@ -1717,6 +1717,18 @@
     { id: 's_tempo_loan', name: '高利贷', tier: 'color', category: 'tempo', sub: 'C4', risk: 'costly', growth: 'instant', desc: '立即 +18 金币，但此后每回合 -3 金币。', effects: { goldNow: 18, goldPerRound: -3 } },
   ];  const STRATEGY_BY_ID = {}; STRATEGY_POOL.forEach(s => STRATEGY_BY_ID[s.id] = s);
 
+  // v3.0 行为 kw → 中文标签（羁绊/独行 behavior 展示用）
+  const KW_LABEL = {
+    healAura: '治疗光环', healCrit: '治疗暴击', triage: '复活', shieldPeriodic: '周期护盾', counter: '反伤',
+    damageReduction: '减伤', critDmg: '暴伤', splash: '溅射', pierce: '破甲', execute: '处决',
+    globalAspd: '攻速光环', castAmp: '咏唱强化', spRegenBuff: '技力加速', goldOnKill: '击杀回费',
+    berzerk: '狂暴', quickStart: '开局爆发', lifesteal: '吸血', trueDmg: '真伤', defShred: '破防',
+    overload: '周期法爆', slowAura: '减速光环', guardAura: '协防', infernoRally: '攻强光环',
+    knightBanner: '攻光环', capo: '狼群攻速', barrage: '多段普攻', burnDoT: '灼烧', rampHit: '渐强叠印',
+    summonWolf: '召唤狼', revive: '复活',
+  };
+  const kwLabel = (kw) => KW_LABEL[kw] || kw;
+
   // 汇总已选策略的全局 / 定向 / 规则效果
   function aggregateStrategies() {
     const acc = {
@@ -2224,7 +2236,9 @@
       // 叙事 flavor：悬浮提示用阵营 capstone（剥离【台词出处】角标，保持 UI 干净）
       const flav = (typeof BONDS_FLAVOR !== 'undefined' && BONDS_FLAVOR.faction) ? BONDS_FLAVOR.faction[b.value] : null;
       const tip = (flav && flav.cap) ? flavorText(flav.cap).slice(0, 46) : '点击查看羁绊详情';
-      return '<div class="bond' + (freshKeys.has(b.axis + '|' + b.value + '|' + b.tier) ? ' fresh' : '') + '" data-axis="' + b.axis + '" data-value="' + b.value + '" data-tier="' + b.tier + '" title="' + tip.replace(/"/g, '&quot;') + '"><b>' + b.axis + '·' + b.value + '</b> <span class="tier">' + b.tier + '阶 (' + b.count + ')</span> ' + parts.join(' ') + '</div>';
+      // v3.0 行为标签（职业/阵营 behavior）：3/5 阶质变提示
+      const behTxt = b.beh ? ' <span class="beh">' + b.beh.split('+').map(k => kwLabel(k)).join('+') + '</span>' : '';
+      return '<div class="bond' + (freshKeys.has(b.axis + '|' + b.value + '|' + b.tier) ? ' fresh' : '') + '" data-axis="' + b.axis + '" data-value="' + b.value + '" data-tier="' + b.tier + '" title="' + tip.replace(/"/g, '&quot;') + '"><b>' + b.axis + '·' + b.value + '</b> <span class="tier">' + b.tier + '阶 (' + b.count + ')</span> ' + parts.join(' ') + behTxt + '</div>';
     }).join('');
     // 呼应 chips：独立于普通羁绊，青色标识，点击看呼应详情
     html += reso.map(p => {
@@ -2453,8 +2467,15 @@
     const bd = $('ubBonds');
     if (bd) {
       const tags = bondTagsFull(op);
+      // v3.0 独行羁绊：池=1 阵营上场自带独门绝学（attr + behavior）
+      const soloF = op.bonds && op.bonds['阵营'];
+      const solo = (soloF && DEPLOY_PASSIVE[soloF]) || null;
+      const soloTxt = solo ? '<div class="ub-solo">独行 · ' +
+        (solo.behavior || []).map(e => kwLabel(e.kw)).join('+') +
+        (solo.desc ? '<span class="ub-solo-desc" title="' + solo.desc.replace(/"/g, '&quot;') + '">（' + (solo.behavior || []).map(e => kwLabel(e.kw)).join('/') + '）</span>' : '') +
+        '</div>' : '';
       bd.innerHTML = (tags ? '<div class="ub-bond-tags">' + tags + '</div>' : '') +
-        '<div class="ub-bond-note">' + bondShort(op) + '</div>';
+        '<div class="ub-bond-note">' + bondShort(op) + '</div>' + soloTxt;
     }
     const skEl = $('ubSkill');
     if (skEl) { skEl.innerHTML = renderSkillBlock(u); bindSkillToggle(); }
@@ -4220,7 +4241,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { FX, G, buy, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, showStrategyScreen, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
+  if (typeof window !== 'undefined') window.__RH = { FX, G, buy, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, showStrategyScreen, renderUnitBar, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
 
   /* ---- 启动 ---- */
   buildNodes();
