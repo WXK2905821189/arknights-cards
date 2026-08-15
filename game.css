@@ -734,8 +734,8 @@ a{color:var(--gold-strong);text-decoration:none}
   .arena-main{order:2;flex:1;min-width:0}
   .board-wrap{margin-bottom:12px}
   .action-bar{margin-top:12px}
-  /* 棋盘格子随视口放大：9vh 格 × 6 行 = 54vh，整局一屏无滚动 */
-  .board-grid{grid-template-columns:repeat(8,minmax(56px,9vh));grid-template-rows:repeat(6,minmax(56px,9vh))}
+  /* v2.7 棋盘格子：grid 等分 + 容器 aspect-ratio:8/6 → 格子永远正方形（不依赖 vh，宽高联动） */
+  .board-grid{grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr))}
   .board-battle{display:flex !important;flex-direction:row !important;gap:10px;align-items:stretch;width:fit-content;max-width:100%}
   .bench{max-height:66px;overflow-y:hidden}
   .mini-team{flex-wrap:nowrap;overflow-x:auto}
