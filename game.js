@@ -2321,8 +2321,6 @@
     }).join('');
     // v2.5 规划器：未激活但有干员的条目（淡色，提示还差几张激活）
     html += pendHtml.join('');
-    // v2.5 规划器：未激活但有干员的条目（淡色，提示还差几张激活）
-    html += pendHtml.join('');
     // 呼应 chips：独立于普通羁绊，青色标识，点击看呼应详情
     html += reso.map(p => {
       const cls = 'reso' + (p.confidence === 'gap' ? ' gap' : '') + (p.creative ? ' creative' : '');
@@ -2684,6 +2682,7 @@
     rollShop();
     rollEquipShop(); // v2 装备：40% 概率刷 1 件
     renderAll();
+    if (G.nodeIdx === 0) startTutorial(); // v2.5 首局引导
     $('phaseHint').textContent = '阶段 ' + (node.phase || 1) + '/3 · 第 ' + round + ' 回合 · 运营你的棋库，拖拽部署后开战';
     $('btnFight').classList.remove('hidden');
     $('btnNext').classList.add('hidden');
@@ -4308,6 +4307,22 @@
       $('btnPause').textContent = G._playPaused ? '▶ 继续' : '⏸ 暂停';
       if (window.SFX) SFX.play('click');
     };
+    // v2.5 主题皮肤：基建风（深）/ 战场简报风（亮金高对比），localStorage 记忆
+    try { if (localStorage.getItem('ak_theme') === 'brief') document.body.dataset.theme = 'brief'; } catch (e) {}
+    if ($('themeBtn')) $('themeBtn').onclick = () => {
+      const cur = document.body.dataset.theme === 'brief' ? '' : 'brief';
+      document.body.dataset.theme = cur;
+      try { localStorage.setItem('ak_theme', cur || 'dark'); } catch (e) {}
+      if (window.SFX) SFX.play('click');
+    };
+    // v2.5 主题皮肤：基建风（深）/ 战场简报风（亮金高对比），localStorage 记忆
+    try { if (localStorage.getItem('ak_theme') === 'brief') document.body.dataset.theme = 'brief'; } catch (e) {}
+    if ($('themeBtn')) $('themeBtn').onclick = () => {
+      const cur = document.body.dataset.theme === 'brief' ? '' : 'brief';
+      document.body.dataset.theme = cur;
+      try { localStorage.setItem('ak_theme', cur || 'dark'); } catch (e) {}
+      if (window.SFX) SFX.play('click');
+    };
     if ($('btnReplay')) $('btnReplay').onclick = () => {
       if (!G._lastRes) return;
       if (window.SFX) SFX.play('click');
@@ -4477,6 +4492,40 @@
     renderNodeFlow(); // 此时 G.env 为空，内部会自动隐藏
   }
 
+  // v2.5 新手引导：首局步骤气泡（目标高亮 + 提示，不拦截操作；localStorage 记忆）
+  const TUT_STEPS = [
+    { sel: '#shopCards .shop-card', text: '① 从商店购买干员卡（数字键 1-5 可快速购买，能升星会闪烁 ★★）' },
+    { sel: '#bench', text: '② 购买的干员进入备战席；拖到棋盘，或选中后按 E 快速部署' },
+    { sel: '#board .board-cell', text: '③ 左 4 列为部署区、右 4 列为敌方站位预览；凑同职业/阵营触发羁绊（悬停干员看射程）' },
+    { sel: '#bondsBar', text: '④ 羁绊条显示激活效果；「下一阶还差 N」帮你规划阵容方向' },
+    { sel: '#btnFight', text: '⑤ 阵容就绪后点「开战」或按 F；打完后可回放战斗、看输出/承伤/治疗三榜' },
+  ];
+  function startTutorial() {
+    if (typeof document === 'undefined') return;
+    try { if (typeof localStorage !== 'undefined' && localStorage.getItem('ak_tut_v1')) return; } catch (e) { return; }
+    let step = 0, hl = null;
+    const tut = $('tutorial'), pop = $('tutPop'), st = $('tutStep');
+    if (!tut || !pop || !st) return;
+    const clearHl = function () { if (hl) { hl.classList.remove('tut-hl'); hl = null; } };
+    const show = function (i) {
+      clearHl();
+      if (i >= TUT_STEPS.length) { tut.classList.add('hidden'); tut.setAttribute('aria-hidden', 'true'); try { localStorage.setItem('ak_tut_v1', '1'); } catch (e) {} return; }
+      const target = document.querySelector(TUT_STEPS[i].sel);
+      if (!target) { show(i + 1); return; }
+      hl = target; hl.classList.add('tut-hl');
+      st.textContent = TUT_STEPS[i].text;
+      tut.classList.remove('hidden'); tut.setAttribute('aria-hidden', 'false');
+      const r = target.getBoundingClientRect();
+      const ph = pop.offsetHeight || 96;
+      const lx = Math.max(10, Math.min((window.innerWidth || 1280) - 300, r.left));
+      pop.style.left = lx + 'px';
+      pop.style.top = ((r.bottom + 10 > (window.innerHeight || 800) - ph - 20) ? Math.max(8, r.top - ph - 14) : r.bottom + 10) + 'px';
+    };
+    if ($('tutNext')) $('tutNext').onclick = function () { if (window.SFX) SFX.play('click'); show(++step); };
+    if ($('tutSkip')) $('tutSkip').onclick = function () { clearHl(); tut.classList.add('hidden'); tut.setAttribute('aria-hidden', 'true'); try { localStorage.setItem('ak_tut_v1', '1'); } catch (e) {} };
+    show(0);
+  }
+
   function renderNodeFlow() {
     const el = $('nodeFlow');
     if (!el) return;
@@ -4513,7 +4562,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { FX, G, buy, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, showStrategyScreen, renderUnitBar, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
+  if (typeof window !== 'undefined') window.__RH = { FX, G, buy, startTutorial, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, showStrategyScreen, renderUnitBar, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
 
   /* ---- 启动 ---- */
   buildNodes();
