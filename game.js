@@ -355,6 +355,8 @@
   // 数值 [PLACEHOLDER]：基础值沿用 light 版初值，每级成长 ×1.25（标定可调）；等级/经验为局内（本 run）状态，不写 Meta。
   const SUMMON_TEMPLATES = {
     wolf:  { name: '狼', en: 'Wolf', sub: '叙拉古眷属', avatar: 'assets/wolf.png',
+             // 三段形态立绘：lv1-2 狼崽 / lv3-4 成年狼 / lv5 狼王
+             levelSprites: ['assets/wolf_pup.png', 'assets/wolf_pup.png', 'assets/wolf.png', 'assets/wolf.png', 'assets/wolf_alpha.png'],
              atk: 130, hp: 640, def: 45, spd: 110, dmgType: 'phys', range: 1, growth: 1.25 },
     beast: { name: '岁兽', en: 'Beast', sub: '令之眷属', avatar: 'assets/beast.png',
              atk: 210, hp: 1700, def: 90, spd: 95, dmgType: 'phys', range: 1, growth: 1.25 },
@@ -372,13 +374,16 @@
     const tmpl = SUMMON_TEMPLATES[kind];
     if (!tmpl) return null;
     const g = Math.pow(tmpl.growth, Math.max(0, level - 1));
+    const sprite = (tmpl.levelSprites)
+      ? tmpl.levelSprites[Math.min(Math.max(0, level - 1), tmpl.levelSprites.length - 1)]
+      : tmpl.avatar;
     const op = {
       name: tmpl.name, en: tmpl.en, class: '召唤物', subclass: tmpl.sub, rarity: 3, cost: 0,
       stats: {
         atk: Math.round(tmpl.atk * g), hp: Math.round(tmpl.hp * g), def: Math.round(tmpl.def * g),
         spd: tmpl.spd, dmgType: tmpl.dmgType, range: tmpl.range,
       },
-      skill: null, traits: [], bonds: { 职业: '召唤物', 阵营: '—' }, avatar: tmpl.avatar,
+      skill: null, traits: [], bonds: { 职业: '召唤物', 阵营: '—' }, avatar: sprite,
     };
     // 召唤物不按星级缩放（沿用 light 版固定基础值 × 等级成长，避免 STAR_MULT 放大破坏平衡），故 star 传 1
     const u = makeCombatUnit(op, 1, side, DEF_MULT, { attr: {}, kw: {} }, null, null);
@@ -3860,7 +3865,7 @@
   // v3.0 部署区左侧「上场角色栏」：场上（按位序）+ 备战席全部角色小卡
   // 复用 .ucard 类名 → 点击/拖拽/穿戴/卸下全走现有 body 委托，零新事件系统；装备槽常驻显示（空槽可见）
   function renderAll() {
-    renderTop(); renderBoard(); renderShop(); renderBonds(); renderUnitBar(); showEnemyPreview();
+    renderTop(); renderBoard(); renderShop(); renderBonds(); renderUnitBar(); showEnemyPreview(); renderNodeFlow();
   }
 
   /* ---- 投资环境 ---- */
