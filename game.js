@@ -71,7 +71,7 @@
       '莱茵生命':   { thr: [2, 3, 5, 7, 8], magicAmp: [0.08, 0.16, 0.26, 0.34, 0.40], spInit: [3, 6, 10, 14, 18], behavior: FAC_BEHAVIOR_TMPL.support }, // 科研机构：术法 + 起手技力（深度阶 +术法/技力 → 8 人觉醒）
       '叙拉古':     { thr: [2, 3, 5, 7, 8], crit: [0.06, 0.12, 0.20, 0.26, 0.32], aspd: [0.06, 0.12, 0.20, 0.26, 0.32], behavior: FAC_BEHAVIOR_TMPL.attack }, // 黑帮：暴击 + 攻速（深度阶 +暴击/攻速 → 8 人觉醒）
       '拉特兰':     { thr: [2, 3, 5, 7, 8], atk: [0.08, 0.16, 0.26, 0.34, 0.40], crit: [0.10, 0.20, 0.32, 0.42, 0.50], behavior: FAC_BEHAVIOR_TMPL.attack }, // 枪之城：攻击 + 暴击（深度阶 +攻击/暴击 → 8 人觉醒）
-      '莱塔尼亚':   { thr: [2, 3, 5], magicAmp: [0.08, 0.16, 0.26], spInit: [3, 6, 10], behavior: FAC_BEHAVIOR_TMPL.support },    // 源石技艺帝国：术法 + 起手技力
+      '莱塔尼亚':   { thr: [2, 3, 5, 7, 8], magicAmp: [0.08, 0.16, 0.26, 0.34, 0.40], spInit: [3, 6, 10, 14, 18], behavior: FAC_BEHAVIOR_TMPL.support },    // 源石技艺帝国：术法 + 起手技力（v3.0 扩 Large：8 人觉醒技）
       '萨尔贡':     { thr: [2, 3, 5], atk: [0.10, 0.20, 0.32], hp: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.attack },      // 荒野战士：攻击 + 生命（攻击档位上调）
       '龙门':       { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.defense },     // 近卫局：攻击 + 防御（已含龙门近卫局）
       '企鹅物流':   { thr: [2, 3, 5], spInit: [3, 6, 10], spRegen: [0.12, 0.24, 0.40], behavior: FAC_BEHAVIOR_TMPL.support },       // 物流速度：起手技力 + 技力回复
@@ -81,6 +81,15 @@
       '乌萨斯':     { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.defense },     // 寒冬帝国：攻击 + 防御
       '伊比利亚':   { thr: [2, 3, 5], magicAmp: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.support },  // 深海外交：术法 + 生命
       '卡兹戴尔':   { thr: [2, 3, 5], def: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.defense },      // 萨卡兹故土：防御 + 生存（池=2，泥岩+赫德雷）
+      // —— v3.0 显式化：原走 __default__ 的 8 个小阵营，补专属数值 + 组模板 behavior（24 阵营全配置闭环）——
+      '东':         { thr: [2, 3, 5], aspd: [0.08, 0.16, 0.26], crit: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.attack },  // 心流：攻速 + 暴击（池=3）
+      '哥伦比亚':   { thr: [2, 3, 5], atk: [0.10, 0.20, 0.32], crit: [0.08, 0.16, 0.26], behavior: FAC_BEHAVIOR_TMPL.attack },  // 军火：攻击 + 暴击（池=3）
+      '卡西米尔':   { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.attack },    // 骑士团：攻击 + 生命（池=3）
+      '喀兰贸易':   { thr: [2, 3, 5], atk: [0.08, 0.16, 0.26], spInit: [3, 6, 10], behavior: FAC_BEHAVIOR_TMPL.attack },       // 雇佣：攻击 + 起手技力（池=3）
+      '雷姆必拓':   { thr: [2, 3, 5], def: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.defense },  // 矿脉护体：防御 + 生命（池=2）
+      '塔拉':       { thr: [2, 3, 5], aspd: [0.08, 0.16, 0.26], hp: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.attack },  // 战歌：攻速 + 生命（池=2）
+      '使徒':       { thr: [2, 3, 5], hp: [0.08, 0.16, 0.26], def: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.defense },  // 神恩：生命 + 防御（池=2）
+      '鲤氏侦探事务所': { thr: [2, 3, 5], crit: [0.08, 0.16, 0.26], atk: [0.06, 0.12, 0.20], behavior: FAC_BEHAVIOR_TMPL.attack }, // 洞察：暴击 + 攻击（池=2）
     },
   };
 
@@ -171,7 +180,14 @@
                     { kw: 'barrage', params: { hits: 5, spread: 0.8 } },        // 觉醒：弹幕风暴全覆盖
                     { kw: 'execute', params: { thresh: 0.35, mult: 0.60 } }     // 觉醒：圣城处决
                   ] } } },                                                                          // 弹幕覆盖：暴伤（阶二解锁 + 数值上调 → Large 8 人觉醒技）
-    '莱塔尼亚': { tier: 3, kw: 'castAmp',         params: { aspd: 0.15, amp: 0.15, dur: 3 } },                // 咏唱：施法后强化
+    '莱塔尼亚': { tier: 3, kw: 'castAmp',         params: { aspd: 0.15, amp: 0.15, dur: 3 },
+                  deep: { 4: { label: '帝国回响', kws: [
+                    { kw: 'castAmp', params: { aspd: 0.25, amp: 0.25, dur: 3 } }               // 深度阶：咏唱强化
+                  ] },
+                          5: { label: '黄金之城·觉醒', attr: { magicAmp: 0.10 }, kws: [
+                    { kw: 'castAmp', params: { aspd: 0.30, amp: 0.35, dur: 3 } },              // 觉醒：咏唱爆炸
+                    { kw: 'overload', params: { value: 0.35, period: 6, dur: 3 } }             // 觉醒：周期法爆
+                  ] } } },                                                                      // 咏唱：施法后强化（v3.0 扩 Large：8 人觉醒技）
     '萨尔贡':   { tier: 2, kw: 'execute',         params: { thresh: 0.30, mult: 0.80 } },                     // 蛮力：处决（阶二解锁 + 数值上调）
     '龙门':     { tier: 3, kw: 'guardAura',       params: { value: 0.10 } },                                  // 协防：相邻减伤
     '企鹅物流': { tier: 3, kw: 'globalAspd',      params: { value: 0.10 } },                                  // 极速配送：全局攻速
@@ -1175,8 +1191,10 @@
       return true;
     }
 
+    const attackFxBuf = []; // v2.5 弹道：帧内攻击事件缓冲（from uid → to uid），snap 时并入帧
     function dealDamage(src, tgt, rawDmg) {
       if (!tgt || !tgt.alive) return 0;
+      if (src && src.uid && tgt.uid) attackFxBuf.push({ f: src.uid, t: tgt.uid });
       let dmg = rawDmg;
       // 法强
       const amp = (src.magicAmp || 1) * (src.castAmpMul || 1);
@@ -1533,7 +1551,8 @@
       };
       const lines = logBuf.slice(); logBuf.length = 0;
       const casts = castsThisSnap.slice(); castsThisSnap.length = 0;
-      frames.push({ lines, ally: ally.map(map), enemy: enemy.map(map), casts });
+      const fx = attackFxBuf.slice(); attackFxBuf.length = 0; // v2.5 弹道事件
+      frames.push({ lines, ally: ally.map(map), enemy: enemy.map(map), casts, fx });
     }
 
     snap();
@@ -3333,6 +3352,54 @@
     }
   }
 
+  // v2.5 战斗弹道：帧攻击事件 → 光弹从攻击者中心飞向目标中心（限流 6 条/帧）
+  function playAttackFx(fx) {
+    if (!fx || !fx.length || typeof document === 'undefined' || FX.reduced) return;
+    let n = 0;
+    for (let i = 0; i < fx.length; i++) {
+      const ev = fx[i];
+      if (++n > 6) break;
+      const from = G._bfEls && G._bfEls[ev.f], to = G._bfEls && G._bfEls[ev.t];
+      if (!from || !to) continue;
+      const rf = from.getBoundingClientRect(), rt = to.getBoundingClientRect();
+      if (!rf.width || !rt.width) continue;
+      const b = document.createElement('div');
+      b.className = 'bf-bolt';
+      const sx = rf.left + rf.width / 2, sy = rf.top + rf.height / 2;
+      const tx = rt.left + rt.width / 2, ty = rt.top + rt.height / 2;
+      b.style.left = sx + 'px'; b.style.top = sy + 'px';
+      b.style.setProperty('--bx', (tx - sx) + 'px');
+      b.style.setProperty('--by', (ty - sy) + 'px');
+      document.body.appendChild(b);
+      requestAnimationFrame(function () { b.classList.add('go'); });
+      setTimeout(function () { b.remove(); }, 260);
+    }
+  }
+
+  // v2.5 战斗弹道：帧攻击事件 → 光弹从攻击者中心飞向目标中心（限流 6 条/帧）
+  function playAttackFx(fx) {
+    if (!fx || !fx.length || typeof document === 'undefined' || FX.reduced) return;
+    let n = 0;
+    for (let i = 0; i < fx.length; i++) {
+      const ev = fx[i];
+      if (++n > 6) break;
+      const from = G._bfEls && G._bfEls[ev.f], to = G._bfEls && G._bfEls[ev.t];
+      if (!from || !to) continue;
+      const rf = from.getBoundingClientRect(), rt = to.getBoundingClientRect();
+      if (!rf.width || !rt.width) continue;
+      const b = document.createElement('div');
+      b.className = 'bf-bolt';
+      const sx = rf.left + rf.width / 2, sy = rf.top + rf.height / 2;
+      const tx = rt.left + rt.width / 2, ty = rt.top + rt.height / 2;
+      b.style.left = sx + 'px'; b.style.top = sy + 'px';
+      b.style.setProperty('--bx', (tx - sx) + 'px');
+      b.style.setProperty('--by', (ty - sy) + 'px');
+      document.body.appendChild(b);
+      requestAnimationFrame(function () { b.classList.add('go'); });
+      setTimeout(function () { b.remove(); }, 260);
+    }
+  }
+
   function applyFrame(fr) {
     try {
       G._fxHitsThisFrame = 0;
@@ -3346,10 +3413,17 @@
       }
       if (fr.ally) fr.ally.forEach(s => updateUnit(s));
       if (fr.enemy) fr.enemy.forEach(s => updateUnit(s));
-      // 施法闪光
+      // v2.5 弹道：帧攻击事件 → 光弹
+      if (fr.fx) playAttackFx(fr.fx);
+      // 施法闪光 + 技能特效场（蓝色技能圈 + 技能名飘字）
       if (fr.casts && fr.casts.length) fr.casts.forEach(c => {
         const el = G._bfEls[c.uid];
-        if (el) { el.classList.add('casting'); setTimeout(() => el.classList.remove('casting'), 280); }
+        if (el) {
+          el.classList.add('casting'); setTimeout(() => el.classList.remove('casting'), 280);
+          if (!FX.reduced) {
+            try { const r = el.getBoundingClientRect(); if (r && r.width) { FX.ripple(r.left + r.width / 2, r.top + r.height / 2, '#7fdff0'); FX.floatText(r.left + r.width / 2, r.top - 14, c.name, 'blue'); } } catch (e) {}
+          }
+        }
       });
       if (fr.lines && fr.lines.length) {
         const log = $('battleLog');
@@ -3761,7 +3835,23 @@
     const el = elementAt(x, y);
     if (!el) return;
     const cell = el.closest('.board-cell');
-    if (cell && !cell.classList.contains('enemy-zone')) { cell.classList.add('drop-hover'); return; }
+    if (cell && !cell.classList.contains('enemy-zone')) {
+      cell.classList.add('drop-hover');
+      // v2.5 不可部署预提示：商店卡金币不足/人口满无法升星/备战席满无法换位 → 红闪（与 dropOnCell 校验一致）
+      try {
+        if (drag && drag.from === 'shop') {
+          let bad = G.gold < effCost(drag.op);
+          if (!bad) {
+            if (!cell.classList.contains('filled')) { if (Object.keys(G.board).length >= boardCap() && predictStarGain(drag.op) === 0) bad = true; }
+            else if (G.bench.length >= BENCH_CAP && predictStarGain(drag.op) === 0) bad = true;
+          }
+          if (bad) { cell.classList.remove('drop-hover'); cell.classList.add('drop-bad'); }
+        } else if (drag && drag.from !== 'shop' && drag.uid != null && !cell.classList.contains('filled')) {
+          if (Object.keys(G.board).length >= boardCap()) { cell.classList.remove('drop-hover'); cell.classList.add('drop-bad'); }
+        }
+      } catch (e) {}
+      return;
+    }
     const bench = el.closest('#bench');
     if (bench) { bench.classList.add('drop-hover'); return; }
     const sz = el.closest('#sellZone');
@@ -3848,15 +3938,45 @@
     document.querySelectorAll('.ucard.dragging').forEach(c => c.classList.remove('dragging'));
 
     if (!d.active) {
+      if (d.ghost) { d.ghost.remove(); d.ghost = null; }
       if (d.from !== 'shop' && d.uid != null) { clickSuppress = true; selectUnit(d.uid); }
       return;
     }
     clickSuppress = true;
     const tgt = pickTarget(e.clientX, e.clientY);
-    if (tgt && tgt.type === 'cell') dropOnCell(d, tgt.idx);
-    else if (tgt && tgt.type === 'bench') dropOnBench(d);
-    else if (tgt && tgt.type === 'sell' && d.uid != null) sellUnit(d.uid);
-    renderAll();
+    // v2.5 拖拽吸附：ghost 飞向目标格中心（或无效落点回弹原位）后再落子，落格涟漪/弹跳在 renderAll 后触发
+    const flyTo = function (cb) {
+      const g = d.ghost;
+      if (!g) { cb(); return; }
+      let target = null;
+      if (tgt && tgt.type === 'cell') {
+        const cell = document.querySelector('.board-cell[data-slot="' + tgt.idx + '"]');
+        if (cell) { const r = cell.getBoundingClientRect(); if (r && (r.width || r.height)) target = { x: r.left + r.width / 2 - 39, y: r.top + r.height / 2 - 46 }; }
+      } else if (tgt && tgt.type === 'bench') {
+        const bench = document.querySelector('#bench');
+        if (bench) { const r = bench.getBoundingClientRect(); if (r && (r.width || r.height)) target = { x: r.left + r.width / 2 - 39, y: r.top + r.height / 2 - 46 }; }
+      } else if (tgt && tgt.type === 'sell') {
+        const sz = document.querySelector('#sellZone');
+        if (sz) { const r = sz.getBoundingClientRect(); if (r && (r.width || r.height)) target = { x: r.left + r.width / 2 - 39, y: r.top + r.height / 2 - 46 }; }
+      }
+      if (!target) {
+        const src = d.from === 'shop' ? document.querySelector('.ucard[data-shop="' + d.shopIdx + '"]')
+          : document.querySelector('.ucard[data-uid="' + d.uid + '"][data-where="' + d.from + '"]');
+        if (src) { const r = src.getBoundingClientRect(); if (r && (r.width || r.height)) target = { x: r.left, y: r.top }; }
+      }
+      if (!target) { g.remove(); d.ghost = null; cb(); return; }
+      g.style.transition = 'left .22s cubic-bezier(.3,.9,.4,1), top .22s cubic-bezier(.3,.9,.4,1), opacity .22s ease';
+      g.style.left = target.x + 'px';
+      g.style.top = target.y + 'px';
+      g.style.opacity = '.3';
+      setTimeout(function () { g.remove(); d.ghost = null; cb(); }, 230);
+    };
+    flyTo(function () {
+      if (tgt && tgt.type === 'cell') dropOnCell(d, tgt.idx);
+      else if (tgt && tgt.type === 'bench') dropOnBench(d);
+      else if (tgt && tgt.type === 'sell' && d.uid != null) sellUnit(d.uid);
+      renderAll();
+    });
   }
 
   // —— v2.4 装备拖拽：背包装备卡拖到干员卡穿戴 ——
@@ -3909,7 +4029,7 @@
   function dropOnCell(d, idx) {
     const cellEl = function () { return document.querySelector('.board-cell[data-slot="' + idx + '"]'); };
     const reject = function (msg) { flash(msg); const ce = cellEl(); if (ce) { ce.classList.add('drop-reject'); setTimeout(function () { ce.classList.remove('drop-reject'); }, 450); } FX.shake(120, 4); };
-    const okFx = function () { const ce = cellEl(); if (ce) { ce.classList.add('drop-ok'); setTimeout(function () { ce.classList.remove('drop-ok'); }, 600); } };
+    const okFx = function () { setTimeout(function () { const ce = cellEl(); if (ce) { ce.classList.add('drop-ok'); setTimeout(function () { ce.classList.remove('drop-ok'); }, 600); const r = ce.getBoundingClientRect(); if (r && r.width) FX.ripple(r.left + r.width / 2, r.top + r.height / 2); const uc = ce.querySelector('.ucard'); if (uc) { uc.classList.add('card-settle'); setTimeout(function () { uc.classList.remove('card-settle'); }, 340); } } }, 320); };
     if (!isLeftSlot(idx)) { reject('右侧为敌方站位预览，无法部署'); return; }
     const occU = G.board[idx];
     const curCount = boardCount();
@@ -4022,6 +4142,42 @@
     });
     document.body.addEventListener('keydown', e => {
       if (e.key === 'Escape' && G.selected != null) { selectUnit(G.selected); return; }
+      // v2.5 快捷键：1-5 买商店卡 / E 部署选中干员到棋盘 / F 开战（仅非 overlay 且非战斗中）
+      if (!$('arena').classList.contains('hidden') && !document.querySelector('.overlay:not(.hidden)')) {
+        const k = e.key;
+        if (k >= '1' && k <= '5') {
+          const i = +k - 1;
+          if (G.shop[i]) { buy(i); e.preventDefault(); return; }
+        } else if (k === 'e' || k === 'E') {
+          if (G.selected == null) { flash('先选中一名干员（点击卡牌）再按 E 部署'); return; }
+          const u = findUnit(G.selected);
+          if (!u) return;
+          if (G.bench.some(x => x.uid === u.uid)) {
+            const slot = firstFreeSlot();
+            if (slot == null) { flash('棋盘已满或人口已满'); return; }
+            dropOnCell({ from: 'bench', uid: u.uid, unit: u, op: u.op, shopIdx: null }, slot);
+            G.selected = null; renderBoard(); renderTop();
+          } else { flash('该干员已在棋盘上'); }
+        } else if (k === 'f' || k === 'F') { onFight(); e.preventDefault(); return; }
+      }
+      // v2.5 快捷键：1-5 买商店卡 / E 部署选中干员到棋盘 / F 开战（仅非 overlay 且非战斗中）
+      if (!$('arena').classList.contains('hidden') && !document.querySelector('.overlay:not(.hidden)')) {
+        const k = e.key;
+        if (k >= '1' && k <= '5') {
+          const i = +k - 1;
+          if (G.shop[i]) { buy(i); e.preventDefault(); return; }
+        } else if (k === 'e' || k === 'E') {
+          if (G.selected == null) { flash('先选中一名干员（点击卡牌）再按 E 部署'); return; }
+          const u = findUnit(G.selected);
+          if (!u) return;
+          if (G.bench.some(x => x.uid === u.uid)) {
+            const slot = firstFreeSlot();
+            if (slot == null) { flash('棋盘已满或人口已满'); return; }
+            dropOnCell({ from: 'bench', uid: u.uid, unit: u, op: u.op, shopIdx: null }, slot);
+            G.selected = null; renderBoard(); renderTop();
+          } else { flash('该干员已在棋盘上'); }
+        } else if (k === 'f' || k === 'F') { onFight(); e.preventDefault(); return; }
+      }
       if ((e.key === 'Enter' || e.key === ' ') && G.selected != null) {
         const cell = e.target.closest && e.target.closest('.board-cell');
         if (cell && !cell.classList.contains('enemy-zone')) {
