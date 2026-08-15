@@ -3303,40 +3303,20 @@
       }
 
       // v2.4 战斗射程可视化：hover 单位显示其 Chebyshev 射程覆盖格（一次性绑定）
+      // v2.6 重构：mouseover 只记录悬停 uid，层由 drawRangeLayer 每帧按当前坐标重画 → 跟随单位移动
       if (!g.dataset.rangeBound) {
         g.dataset.rangeBound = '1';
-        let _bfLayer = null;
-        const clearLayer = function () { if (_bfLayer) { _bfLayer.remove(); _bfLayer = null; } };
         g.addEventListener('mouseover', function (e) {
           const t = e.target.closest && e.target.closest('.bf-unit');
           if (!t) return;
-          const u = G._bfUnits && G._bfUnits[t.dataset.uid];
-          if (!u || G._bfCell == null) return;
-          clearLayer();
-          const layer = document.createElement('div');
-          layer.className = 'bf-range-layer';
-          const _c = G._bfCell;
-          for (let x = 0; x < FIELD_W; x++) for (let y = 0; y < FIELD_H; y++) {
-            const d = Math.max(Math.abs(u.x - x), Math.abs(u.y - y));
-            if (d >= 1 && d <= u.range) {
-              const cell = document.createElement('div');
-              cell.className = 'bf-range-cell' + (d === 1 ? ' near' : '');
-              cell.style.left = (x * _c.cw) + 'px'; cell.style.top = (y * _c.ch) + 'px';
-              cell.style.width = _c.cw + 'px'; cell.style.height = _c.ch + 'px';
-              layer.appendChild(cell);
-            }
-          }
-          const tag = document.createElement('div');
-          tag.className = 'bf-range-tag';
-          tag.textContent = u.name + ' · 射程 ' + u.range;
-          tag.style.left = ((u.x + 0.5) * _c.cw) + 'px';
-          tag.style.top = (u.y * _c.ch - 22) + 'px';
-          layer.appendChild(tag);
-          g.appendChild(layer);
-          _bfLayer = layer;
+          G._bfHoverUid = t.dataset.uid;
+          drawRangeLayer(G._bfHoverUid);
         });
         g.addEventListener('mouseout', function (e) {
-          if (e.target.closest && e.target.closest('.bf-unit')) clearLayer();
+          if (e.target.closest && e.target.closest('.bf-unit')) {
+            G._bfHoverUid = null;
+            if (G._bfLayer) { G._bfLayer.remove(); G._bfLayer = null; }
+          }
         });
       }
       // 启动帧动画
@@ -3466,6 +3446,68 @@
     }
   }
 
+  // v2.6 战斗射程层：按 uid 当前坐标重画（单位移动时实时跟随，修复"悬停射程停留在原始位置"）
+  function drawRangeLayer(uid) {
+    if (typeof document === 'undefined') return;
+    const g = document.getElementById('bfGrid');
+    if (!g || !G._bfCell) return;
+    if (G._bfLayer) { G._bfLayer.remove(); G._bfLayer = null; }
+    const u = G._bfUnits && G._bfUnits[uid];
+    if (!u) return;
+    const layer = document.createElement('div');
+    layer.className = 'bf-range-layer';
+    const _c = G._bfCell;
+    for (let x = 0; x < FIELD_W; x++) for (let y = 0; y < FIELD_H; y++) {
+      const d = Math.max(Math.abs(u.x - x), Math.abs(u.y - y));
+      if (d >= 1 && d <= u.range) {
+        const cell = document.createElement('div');
+        cell.className = 'bf-range-cell' + (d === 1 ? ' near' : '');
+        cell.style.left = (x * _c.cw) + 'px'; cell.style.top = (y * _c.ch) + 'px';
+        cell.style.width = _c.cw + 'px'; cell.style.height = _c.ch + 'px';
+        layer.appendChild(cell);
+      }
+    }
+    const tag = document.createElement('div');
+    tag.className = 'bf-range-tag';
+    tag.textContent = (u.name || '干员') + ' · 射程 ' + u.range;
+    tag.style.left = ((u.x + 0.5) * _c.cw) + 'px';
+    tag.style.top = (u.y * _c.ch - 22) + 'px';
+    layer.appendChild(tag);
+    g.appendChild(layer);
+    G._bfLayer = layer;
+  }
+
+  // v2.6 战斗射程层：按 uid 当前坐标重画（单位移动时实时跟随，修复"悬停射程停留在原始位置"）
+  function drawRangeLayer(uid) {
+    if (typeof document === 'undefined') return;
+    const g = document.getElementById('bfGrid');
+    if (!g || !G._bfCell) return;
+    if (G._bfLayer) { G._bfLayer.remove(); G._bfLayer = null; }
+    const u = G._bfUnits && G._bfUnits[uid];
+    if (!u) return;
+    const layer = document.createElement('div');
+    layer.className = 'bf-range-layer';
+    const _c = G._bfCell;
+    for (let x = 0; x < FIELD_W; x++) for (let y = 0; y < FIELD_H; y++) {
+      const d = Math.max(Math.abs(u.x - x), Math.abs(u.y - y));
+      if (d >= 1 && d <= u.range) {
+        const cell = document.createElement('div');
+        cell.className = 'bf-range-cell' + (d === 1 ? ' near' : '');
+        cell.style.left = (x * _c.cw) + 'px'; cell.style.top = (y * _c.ch) + 'px';
+        cell.style.width = _c.cw + 'px'; cell.style.height = _c.ch + 'px';
+        layer.appendChild(cell);
+      }
+    }
+    const tag = document.createElement('div');
+    tag.className = 'bf-range-tag';
+    tag.textContent = (u.name || '干员') + ' · 射程 ' + u.range;
+    tag.style.left = ((u.x + 0.5) * _c.cw) + 'px';
+    tag.style.top = (u.y * _c.ch - 22) + 'px';
+    layer.appendChild(tag);
+    g.appendChild(layer);
+    G._bfLayer = layer;
+  }
+
   function applyFrame(fr) {
     try {
       G._fxHitsThisFrame = 0;
@@ -3481,6 +3523,8 @@
       if (fr.enemy) fr.enemy.forEach(s => updateUnit(s));
       // v2.5 弹道：帧攻击事件 → 光弹
       if (fr.fx) playAttackFx(fr.fx);
+      if (G._bfHoverUid) drawRangeLayer(G._bfHoverUid); // v2.6 射程层实时跟随单位移动
+      if (G._bfHoverUid) drawRangeLayer(G._bfHoverUid); // v2.6 射程层实时跟随单位移动
       // 施法闪光 + 技能特效场（蓝色技能圈 + 技能名飘字）
       if (fr.casts && fr.casts.length) fr.casts.forEach(c => {
         const el = G._bfEls[c.uid];
@@ -4040,6 +4084,11 @@
 
     if (!d.active) {
       if (d.ghost) { d.ghost.remove(); d.ghost = null; }
+      // v3.0 修复：点击穿戴路径——装备待穿时点干员卡直接穿戴（原 4281 在 click handler 被 clickSuppress 吞没，导致点击穿戴全失效）
+      if (G._eqPending != null && d.uid != null && findUnit(d.uid)) {
+        const eqId = G.equipState && G.equipState.bag[G._eqPending];
+        if (eqId) { equipToUnit(d.uid, eqId); return; }
+      }
       if (d.from !== 'shop' && d.uid != null) { clickSuppress = true; selectUnit(d.uid); }
       return;
     }
@@ -4562,7 +4611,7 @@
   }
 
   /* ---- 调试钩子（仅浏览器，方便控制台/自动化验证；不影响玩法） ---- */
-  if (typeof window !== 'undefined') window.__RH = { FX, G, buy, startTutorial, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, showStrategyScreen, renderUnitBar, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
+  if (typeof window !== 'undefined') window.__RH = { FX, G, buy, startTutorial, drawRangeLayer, onFight, simulateBattleGrid, simulateBattle, applyBonds, computeBonds, makeCombatSummon, placeAdjacentSummons, grantSummonExp, summonLevelFromExp, autoPositions, renderAll, renderBonds, showBondModal, showBondBanner, renderNodeFlow, togglePlace, selectUnit, buildNodes, getMeta, addMetaCoins, DEPLOY_PASSIVE, makeCombatUnit, buildRecap, generateEnemyTeam, reset, renderEnv, boardCap, isLeftSlot, boardCount, dropOnCell, dropOnBench, firstFreeSlot, tryCombine, STRATEGY_POOL, STRATEGY_BY_ID, aggregateStrategies, pickDiverseStrategies, showStrategyScreen, renderUnitBar, BONDS, SPECIAL, EQUIP_POOL, EQUIP_BY_ID, equipFor, buyEquip, equipToUnit, unequip, sellEquip, rollEquipShop, maxEquipRarity, renderEquipPanel, showMarketScreen, factionTrackBias, pickShop, skillFor, skillLabelFor };
 
   /* ---- 启动 ---- */
   buildNodes();
