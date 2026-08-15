@@ -30,10 +30,11 @@
   // v3.0 阵营行为模板：4 类型组（heal/defense/attack/support），3/5 阶行为（7+ 走 SPECIAL.deep 觉醒）
   // 全部复用现成 kw 家族，零新引擎；数值 [PLACEHOLDER] 待 balance_sim 标定
   const FAC_BEHAVIOR_TMPL = {
-    heal:    { 3: [{ kw: 'healAura', params: { regen: 0.02 } }], 5: [{ kw: 'healCrit', params: { pct: 0.20 } }] },
-    defense: { 3: [{ kw: 'shieldPeriodic', params: { frac: 0.06, period: 5 } }], 5: [{ kw: 'counter', params: { value: 0.10 } }] },
-    attack:  { 3: [{ kw: 'critDmg', params: { value: 1.15 } }], 5: [{ kw: 'splash', params: { pct: 0.20 } }] },
-    support: { 3: [{ kw: 'spRegenBuff', params: { value: 0.20 } }], 5: [{ kw: 'goldOnKill', params: { amount: 1 } }] },
+    // v3.0 标定（balance_sim 500局）：行为单独贡献 ≈50% 无感 → 回调至微感带（52-60%）；数值 [PLACEHOLDER] 待终标
+    heal:    { 3: [{ kw: 'healAura', params: { regen: 0.03 } }], 5: [{ kw: 'healCrit', params: { pct: 0.35 } }] },
+    defense: { 3: [{ kw: 'shieldPeriodic', params: { frac: 0.08, period: 5 } }], 5: [{ kw: 'counter', params: { value: 0.10 } }] },
+    attack:  { 3: [{ kw: 'critDmg', params: { value: 1.40 } }], 5: [{ kw: 'splash', params: { pct: 0.20 } }] },
+    support: { 3: [{ kw: 'spRegenBuff', params: { value: 0.30 } }], 5: [{ kw: 'goldOnKill', params: { amount: 1 } }] },
   };
   const BONDS = {
     '职业': {
@@ -336,11 +337,11 @@
   // 11 个独行干员各 1 独门绝学（复用现成 kw 家族，零新引擎）；数值 [PLACEHOLDER] 待 balance_sim 标定。
   // 键名与 data.json 池=1 阵营一致；若未来池变化需同步增删。
   const DEPLOY_PASSIVE = {
-    '格拉斯哥帮': { attr: { atk: 0.15, hp: 0.10, spInit: 6 }, behavior: [{ kw: 'knightBanner', params: { base: 0.10, per: 0.02 } }], desc: SOLO_FLAVOR['格拉斯哥帮'] },   // 王之旗：全队攻光环
+    '格拉斯哥帮': { attr: { atk: 0.15, hp: 0.10, spInit: 6 }, behavior: [{ kw: 'knightBanner', params: { base: 0.12, per: 0.02 } }], desc: SOLO_FLAVOR['格拉斯哥帮'] },   // 王之旗：全队攻光环
     'Ave Mujica': { attr: { atk: 0.12, aspd: 0.10 }, behavior: [{ kw: 'barrage', params: { hits: 2, spread: 0 } }], desc: SOLO_FLAVOR['Ave Mujica'] },               // 面具之舞：普攻多段连击
     '米诺斯':     { attr: { atk: 0.10, def: 0.08 }, behavior: [{ kw: 'berzerk', params: { thresh: 0.30, atkPct: 0.25, leech: 0.10 } }], desc: SOLO_FLAVOR['米诺斯'] }, // 米诺斯之盾：低血狂暴
     '黑钢国际':   { attr: { hp: 0.12, def: 0.12 }, behavior: [{ kw: 'counter', params: { value: 0.15 } }], desc: SOLO_FLAVOR['黑钢国际'] },                         // 黑钢协议：受击反伤
-    '萨米':       { attr: { atk: 0.12, crit: 0.10 }, behavior: [{ kw: 'critDmg', params: { value: 1.30 } }], desc: SOLO_FLAVOR['萨米'] },                           // 萨米弓术：暴伤
+    '萨米':       { attr: { atk: 0.12, crit: 0.10 }, behavior: [{ kw: 'critDmg', params: { value: 1.40 } }], desc: SOLO_FLAVOR['萨米'] },                           // 萨米弓术：暴伤
     '行动预备组A6': { attr: { atk: 0.10, aspd: 0.08 }, behavior: [{ kw: 'quickStart', params: { aspd: 0.25 } }], desc: SOLO_FLAVOR['行动预备组A6'] },                // 预备组：开局攻速
     '汐斯塔':     { attr: { atk: 0.10, crit: 0.10 }, behavior: [{ kw: 'berzerk', params: { thresh: 0.40, atkPct: 0.30 } }], desc: SOLO_FLAVOR['汐斯塔'] },           // 汐斯塔狂热：低血狂击
     '莱欧斯小队': { attr: { magicAmp: 0.15, spInit: 4 }, behavior: [{ kw: 'castAmp', params: { amp: 0.15, aspd: 0 } }], desc: SOLO_FLAVOR['莱欧斯小队'] },           // 莱欧斯共振：技能增幅
@@ -1165,7 +1166,7 @@
     let tickIdx = Math.random() < 0.5 ? 0 : 1; // 行动顺序计数器（初始奇偶随机）：每 tick 交替先手方，抵消先手滚雪球偏置；初始随机使决定性技能齐放先手方随机化
     let suddenDeath = false; // 猝死阶段：禁用续航、无视护盾、伤害翻倍，强制终结僵局
     // P2-4：战斗统计（复盘用）——双方累计伤害与阵亡数
-    const stats = { allyDmg: 0, enemyDmg: 0, allyDeaths: 0, enemyDeaths: 0, summonKills: 0, goldEarned: 0 };
+    const stats = { allyDmg: 0, enemyDmg: 0, allyDeaths: 0, enemyDeaths: 0, summonKills: 0, goldEarned: 0, dmgBy: {}, takenBy: {}, healBy: {} };
     // 行动间隔：受减速(slowFactor)与施法加速(castAspd)影响
     const ATK = u => {
       const slowF = (u.slowFactor && t < u.slowUntil) ? u.slowFactor : 1;
@@ -1213,7 +1214,7 @@
       // v2 装备·战意核心（berzerk）：血量低于阈值时增伤 + 吸血（动态判定，非一次性）
       if (src.berzerk && src.hp / src.maxHp < src.berzerk.thresh) {
         finalDmg *= (1 + src.berzerk.atkPct);
-        if (src.alive) src.hp = Math.min(src.maxHp, src.hp + Math.round(finalDmg * src.berzerk.leech));
+        if (src.alive) { const _hb = Math.round(finalDmg * src.berzerk.leech); src.hp = Math.min(src.maxHp, src.hp + _hb); if (src.uid) stats.healBy[src.uid] = (stats.healBy[src.uid] || 0) + _hb; }
       }
       // 处决（萨尔贡特殊 / v2.4 装备·处决刃）
       if ((src.specialKw.includes('execute') || src.executeThresh) && tgt.hp / tgt.maxHp < (src.executeThresh || (src.specialParams['execute'] || {}).thresh || 0.3)) {
@@ -1239,6 +1240,7 @@
         tgt.shield -= absorb; finalDmg -= absorb;
       }
       tgt.hp -= finalDmg;
+      if (src) { stats.dmgBy[src.uid] = (stats.dmgBy[src.uid] || 0) + dealtTotal; stats.takenBy[tgt.uid] = (stats.takenBy[tgt.uid] || 0) + dealtTotal; }
       if (src && src.side === 'ally') stats.allyDmg += dealtTotal; else if (src) stats.enemyDmg += dealtTotal;
       if (tgt.hp <= 0) {
         if (tgt.reviveCharges > 0 && !suddenDeath) { // 罗德岛[9→深度阶] 不抛下任何人：阵亡复活一次
@@ -1256,7 +1258,7 @@
       // 命中减速（水月）
       if (src.slow && tgt.alive) { tgt.slowFactor = Math.min(tgt.slowFactor == null ? 1 : tgt.slowFactor, 1 - src.slow); tgt.slowUntil = t + 2; }
       // 吸血（山）
-      if (src.lifesteal && src.alive) src.hp = Math.min(src.maxHp, src.hp + Math.round(finalDmg * src.lifesteal));
+      if (src.lifesteal && src.alive) { const _hl = Math.round(finalDmg * src.lifesteal); src.hp = Math.min(src.maxHp, src.hp + _hl); if (src.uid) stats.healBy[src.uid] = (stats.healBy[src.uid] || 0) + _hl; }
       // 反伤（棘刺）
       if (tgt.counter && src !== tgt && src.alive) src.hp -= Math.max(1, Math.round(finalDmg * tgt.counter));
       // 灼烧（炎特殊）
@@ -1540,7 +1542,7 @@
       // v2.4 可视化层：帧携带 burn/slow/revive 状态，供战斗演出切换视觉类
       const map = u => {
         const st = {
-          uid: u.uid, hp: Math.max(0, Math.round(u.hp)), max: u.maxHp, alive: u.alive, x: u.x, y: u.y,
+          uid: u.uid, name: u.name, hp: Math.max(0, Math.round(u.hp)), max: u.maxHp, alive: u.alive, x: u.x, y: u.y,
           sp: Math.round(u.sp), spMax: u.spMax, shield: Math.round(u.shield),
           burn: u.burn && t < u.burn.until ? 1 : 0,
           slow: u.slowUntil && t < u.slowUntil ? 1 : 0,
@@ -1885,6 +1887,44 @@
     }
     G._lastGold = G.gold;
     ge.textContent = G.gold;
+    // v2.5 经济可视化：顶栏显示下回合预期收入（基础 + 利息 + 连胜，hover 看明细）
+    try {
+      const gn = $('goldNext');
+      if (gn) {
+        const se = (typeof aggregateStrategies === 'function') ? aggregateStrategies() : {};
+        const ef = (G.env && G.env.effects) || {};
+        const round = G.nodeIdx + 1;
+        const interestMax = 5 + (ef.interestMax || 0);
+        const interest = Math.min(interestMax, Math.floor(G.gold / 10) * (1 + (se.interestRate || 0)));
+        const stk = Math.max(G.winStreak, G.lossStreak);
+        let streakBonus = 0;
+        if (stk >= 2 && stk <= 3) streakBonus = 1; else if (stk >= 4 && stk <= 5) streakBonus = 2; else if (stk >= 6) streakBonus = 3;
+        if (stk >= 2) streakBonus += (se.winStreakGold || 0);
+        const base = Math.min(round + 2, 7);
+        const total = base + interest + streakBonus + (se.goldPerRound || 0);
+        gn.textContent = '＋' + total;
+        gn.title = '下回合收入：基础 ' + base + ' + 利息 ' + interest + (streakBonus ? ' + 连胜 ' + streakBonus : '') + (se.goldPerRound ? ' + 策略 ' + se.goldPerRound : '');
+      }
+    } catch (e) {}
+    // v2.5 经济可视化：顶栏显示下回合预期收入（基础 + 利息 + 连胜，hover 看明细）
+    try {
+      const gn = $('goldNext');
+      if (gn) {
+        const se = (typeof aggregateStrategies === 'function') ? aggregateStrategies() : {};
+        const ef = (G.env && G.env.effects) || {};
+        const round = G.nodeIdx + 1;
+        const interestMax = 5 + (ef.interestMax || 0);
+        const interest = Math.min(interestMax, Math.floor(G.gold / 10) * (1 + (se.interestRate || 0)));
+        const stk = Math.max(G.winStreak, G.lossStreak);
+        let streakBonus = 0;
+        if (stk >= 2 && stk <= 3) streakBonus = 1; else if (stk >= 4 && stk <= 5) streakBonus = 2; else if (stk >= 6) streakBonus = 3;
+        if (stk >= 2) streakBonus += (se.winStreakGold || 0);
+        const base = Math.min(round + 2, 7);
+        const total = base + interest + streakBonus + (se.goldPerRound || 0);
+        gn.textContent = '＋' + total;
+        gn.title = '下回合收入：基础 ' + base + ' + 利息 ' + interest + (streakBonus ? ' + 连胜 ' + streakBonus : '') + (se.goldPerRound ? ' + 策略 ' + se.goldPerRound : '');
+      }
+    } catch (e) {}
     $('level').textContent = G.level;
     $('hp').textContent = Math.max(0, G.hp);
     $('nodeIdx').textContent = G.nodeIdx + 1;
@@ -2215,6 +2255,22 @@
   function renderBonds() {
     const boardMembers = Object.values(G.board).map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star }));
     const { active } = computeBonds(boardMembers);
+    // v2.5 羁绊规划器：统计场上各 (axis|value) 计数，未激活条目给出「还差 N 激活」；已激活 chip 给「下一阶还差 N」
+    // v2.5 羁绊规划器：统计场上各 (axis|value) 计数，未激活条目给出「还差 N 激活」；已激活 chip 给「下一阶还差 N」
+    const cntMap = {};
+    boardMembers.forEach(m => { if (m.bonds) for (const ax in m.bonds) { const key = ax + '|' + m.bonds[ax]; cntMap[key] = (cntMap[key] || 0) + 1; } });
+    const activeKeys = new Set(active.map(b => b.axis + '|' + b.value));
+    const pendHtml = [];
+    for (const key in cntMap) {
+      if (activeKeys.has(key)) continue;
+      const sp = key.indexOf('|');
+      const ax = key.slice(0, sp), val = key.slice(sp + 1);
+      const cfg = BONDS[ax] && BONDS[ax][val];
+      if (!cfg || !cfg.thr || !cfg.thr.length) continue;
+      const need = cfg.thr[0] - cntMap[key];
+      if (need <= 0) continue;
+      pendHtml.push('<div class="bond pending" data-axis="' + ax + '" data-value="' + val + '" title="再上 ' + need + ' 名「' + val + '」干员可激活首阶"><b>' + ax + '·' + val + '</b> <span class="tier">还差 ' + need + ' 激活</span></div>');
+    }
     // —— 跨阵营呼应（Narrative Resonance）：取作战区所有阵营键，二次结算隐藏呼应对 ——
     const facSet = new Set();
     Object.values(G.board).forEach(u => { const f = u.op.bonds && u.op.bonds['阵营']; if (f) facSet.add(f); });
@@ -2257,8 +2313,16 @@
       const tip = (flav && flav.cap) ? flavorText(flav.cap).slice(0, 46) : '点击查看羁绊详情';
       // v3.0 行为标签（职业/阵营 behavior）：3/5 阶质变提示
       const behTxt = b.beh ? ' <span class="beh">' + b.beh.split('+').map(k => kwLabel(k)).join('+') + '</span>' : '';
-      return '<div class="bond' + (freshKeys.has(b.axis + '|' + b.value + '|' + b.tier) ? ' fresh' : '') + '" data-axis="' + b.axis + '" data-value="' + b.value + '" data-tier="' + b.tier + '" title="' + tip.replace(/"/g, '&quot;') + '"><b>' + b.axis + '·' + b.value + '</b> <span class="tier">' + b.tier + '阶 (' + b.count + ')</span> ' + parts.join(' ') + behTxt + '</div>';
+      const _thr = (BONDS[b.axis] && BONDS[b.axis][b.value] && BONDS[b.axis][b.value].thr) || [];
+      const _ti = _thr.indexOf(b.tier);
+      const _next = _thr[_ti + 1];
+      const _need = _next ? (_next - b.count) : 0;
+      return '<div class="bond' + (freshKeys.has(b.axis + '|' + b.value + '|' + b.tier) ? ' fresh' : '') + '" data-axis="' + b.axis + '" data-value="' + b.value + '" data-tier="' + b.tier + '" title="' + tip.replace(/"/g, '&quot;') + '"><b>' + b.axis + '·' + b.value + '</b> <span class="tier">' + b.tier + '阶 (' + b.count + ')</span> ' + parts.join(' ') + behTxt + (_need > 0 ? ' <span class="bond-next">下一阶还差' + _need + '</span>' : '') + '</div>';
     }).join('');
+    // v2.5 规划器：未激活但有干员的条目（淡色，提示还差几张激活）
+    html += pendHtml.join('');
+    // v2.5 规划器：未激活但有干员的条目（淡色，提示还差几张激活）
+    html += pendHtml.join('');
     // 呼应 chips：独立于普通羁绊，青色标识，点击看呼应详情
     html += reso.map(p => {
       const cls = 'reso' + (p.confidence === 'gap' ? ' gap' : '') + (p.creative ? ' creative' : '');
@@ -3137,6 +3201,8 @@
     const lvlUp = grantSummonExp(xilaCount, xilaTier, res, ss, 1 + (se.summonExpMult || 0));
     G._summonLevelUp = lvlUp; // 供复盘/recap 提示（升级：下一场以新等级重生）
     ss.feedAtk = 0; ss.feedHp = 0; // 清空一次性战前口粮
+    G._lastAll = { ally: allyAll, enemy: enemyUnits }; // v2.5 回放：保存战斗单位供重播
+    G._lastAll = { ally: allyAll, enemy: enemyUnits }; // v2.5 回放：保存战斗单位供重播
     showBattle(res, allyAll, enemyUnits);
   }
 
@@ -3279,6 +3345,7 @@
       const speed = 300;
       if (G.frameTimer) clearInterval(G.frameTimer);
       G.frameTimer = setInterval(() => {
+        if (G._playPaused) return; // v2.5 暂停/继续
         if (fi >= res.frames.length) { clearInterval(G.frameTimer); endBattle(res); return; }
         applyFrame(res.frames[fi]); fi++;
       }, speed);
@@ -3464,9 +3531,12 @@
 
   function finishBattle(res) {
     G.phase = 'result';
+    G._lastRes = res; // v2.5 回放：结算后保留战斗帧供「回放战斗」
     const node = G.nodes[G.nodeIdx];
     // P2-4：复盘数据（胜利/失败都展示，失败额外给死因提示）
     const recap = buildRecap(res);
+    // v2.5 战报：输出/承伤/治疗三榜（HTML，追加在复盘后）
+    const report = buildReport(res);
     // v2.1 养狼：召唤物升级时播专属升级音（W2 音频契约兑现）
     if (G._summonLevelUp && G._summonLevelUp.length && !G._audioSkip && window.AUDIO) AUDIO.play('wolf/levelup');
     if (window.AUDIO) {
@@ -3484,7 +3554,7 @@
         const gain = 8 + G.difficulty * 2;
         const meta = addMetaCoins(gain);
         G._result = { title: '🏆 通关！晋升达成', body: '你击败了最终首领，棋局晋升至 Lv.' + p + '。获得战利品币 💎' + gain + '（累计 ' + meta.coins + '）。', btn: '再来一局', kind: 'reset' };
-        showResult(G._result.title, G._result.body, G._result.btn, () => reset(), recap);
+        showResult(G._result.title, G._result.body, G._result.btn, () => reset(), recap + report);
         saveGame();
         return;
       }
@@ -3509,7 +3579,7 @@
         G.gold += er; levelUp(); body += ' 遭遇奖励 +' + er + '💰。';
       }
       G._result = { title: '胜利', body, btn: '前进 →', kind: 'next' };
-      showResult(G._result.title, G._result.body, G._result.btn, () => nextNode(), recap);
+      showResult(G._result.title, G._result.body, G._result.btn, () => nextNode(), recap + report);
       saveGame();
     } else {
       G.lossStreak++; G.winStreak = 0;
@@ -3524,23 +3594,55 @@
       renderTop();
       if (node.type === 'boss') {
         G._result = { title: '⚔ 败于最终首领', body: '你倒在了最终首领面前（剩余生命 ' + Math.max(0, G.hp) + '）。历史最高晋升：Lv.' + getPromote(), btn: '再来一局', kind: 'reset' };
-        showResult(G._result.title, G._result.body, G._result.btn, () => reset(), recap);
+        showResult(G._result.title, G._result.body, G._result.btn, () => reset(), recap + report);
         saveGame();
         return;
       }
       if (G.hp <= 0) {
         G._result = { title: '💀 棋局崩盘', body: '小队生命归零。历史最高晋升：Lv.' + getPromote(), btn: '再来一局', kind: 'reset' };
-        showResult(G._result.title, G._result.body, G._result.btn, () => reset(), recap);
+        showResult(G._result.title, G._result.body, G._result.btn, () => reset(), recap + report);
         saveGame();
         return;
       }
       G._result = { title: '战败', body: '损失 ' + dmg + ' 生命（剩余 ' + Math.max(0, G.hp) + '）。连败补给：下次刷新免费。整顿后再战。', btn: '前进 →', kind: 'next' };
-      showResult(G._result.title, G._result.body, G._result.btn, () => nextNode(), recap);
+      showResult(G._result.title, G._result.body, G._result.btn, () => nextNode(), recap + report);
       saveGame();
     }
   }
 
   // P2-4：战败/胜利复盘面板——把战斗统计与阵容信息合成为可读取的反馈（补上 F9 缺失的反馈通道）
+  // v2.5 战报：输出/承伤/治疗三榜（per-unit，前 3 名，HTML）
+  function buildReport(res) {
+    try {
+      const st = res && res.stats;
+      if (!st || !res.frames) return '';
+      const nameOf = function (uid) {
+        if (!uid) return '?';
+        for (const fr of res.frames) {
+          const a = fr.ally.find(u => u.uid === uid), e = fr.enemy.find(u => u.uid === uid);
+          if (a) return a.name || '干员';
+          if (e) return e.name || '敌方';
+        }
+        return uid.charAt(0) === 'a' ? '我方干员' : '敌方单位';
+      };
+      const top = function (obj, n) {
+        const arr = [];
+        for (const k in obj) if (obj[k] > 0) arr.push([nameOf(k), obj[k]]);
+        arr.sort((a, b) => b[1] - a[1]);
+        return arr.slice(0, n);
+      };
+      const row = function (arr) {
+        if (!arr.length) return '';
+        return arr.map((x, i) => '<div style="display:flex;justify-content:space-between;gap:10px;line-height:1.5"><span>' + (i + 1) + '. ' + x[0] + '</span><b>' + x[1] + '</b></div>').join('');
+      };
+      const sec = function (title, arr) {
+        if (!arr.length) return '';
+        return '<div style="margin-top:7px;font-weight:700;font-size:12px;color:#8a6d1a">' + title + '</div>' + row(arr);
+      };
+      return sec('⚔ 输出榜', top(st.dmgBy, 3)) + sec('🛡 承伤榜', top(st.takenBy, 3)) + sec('✚ 治疗榜', top(st.healBy, 3));
+    } catch (e) { return ''; }
+  }
+
   function buildRecap(res) {
     const board = Object.keys(G.board).map(k => G.board[k]);
     if (!board.length) return '';
@@ -3568,7 +3670,7 @@
     $('resultTitle').textContent = title;
     $('resultBody').textContent = body;
     const rc = $('resultRecap');
-    if (rc) { if (recap) { rc.textContent = recap; rc.classList.remove('hidden'); } else rc.classList.add('hidden'); }
+    if (rc) { if (recap) { rc.innerHTML = recap; rc.classList.remove('hidden'); } else rc.classList.add('hidden'); }
     const b = $('btnResult');
     b.textContent = btn;
     b.onclick = () => { if (window.SFX) SFX.play('click'); cb(); };
@@ -4201,6 +4303,19 @@
     if ($('btnFeedMeat')) $('btnFeedMeat').onclick = () => buyFeed('meat');
     if ($('btnFeedRation')) $('btnFeedRation').onclick = () => buyFeed('ration');
     $('btnFight').onclick = onFight;
+    if ($('btnPause')) $('btnPause').onclick = () => {
+      G._playPaused = !G._playPaused;
+      $('btnPause').textContent = G._playPaused ? '▶ 继续' : '⏸ 暂停';
+      if (window.SFX) SFX.play('click');
+    };
+    if ($('btnReplay')) $('btnReplay').onclick = () => {
+      if (!G._lastRes) return;
+      if (window.SFX) SFX.play('click');
+      G._playPaused = false;
+      $('resultScreen').classList.add('hidden');
+      $('battleScreen').classList.remove('hidden');
+      showBattle(G._lastRes, G._lastAll ? G._lastAll.ally : [], G._lastAll ? G._lastAll.enemy : []);
+    };
     $('btnSkip').onclick = () => { if (G._skip) G._skip(); };
     $('ubSell').onclick = sell;
     // 新游戏：清除存档并进入难度选择（始终可用，不依赖是否存在存档）
@@ -4381,6 +4496,7 @@
       if (gi < cur) cls += ' done';
       else if (gi === cur) cls += ' current';
       else cls += ' upcoming';
+      if (n.type === 'fork') cls += ' fork'; // v2.5 地图化：抉择点分叉标记
       html += '<div class="' + cls + '"><span class="nf-ico">' + NODE_ICON[n.type] + '</span>' +
         '<span class="nf-num">' + (pIdx + 1) + '</span><span class="nf-tag">' + NODE_LABEL[n.type] + '</span></div>';
       if (pIdx < phaseNodes.length - 1) html += '<span class="nf-link ' + (gi < cur ? 'passed' : '') + '"></span>';
