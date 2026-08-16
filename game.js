@@ -2488,8 +2488,14 @@
     // 呼应 chips：独立于普通羁绊，青色标识，点击看呼应详情
     html += reso.map(p => {
       const cls = 'reso' + (p.confidence === 'gap' ? ' gap' : '') + (p.creative ? ' creative' : '');
-      return '<div class="' + cls + '" data-a="' + p.a + '" data-b="' + p.b + '" title="' + (p.flavor ? flavorText(p.flavor).slice(0, 46).replace(/"/g, '&quot;') : '点击查看阵营呼应') + '">' +
-        '<b>呼应 · ' + p.a + ' ⊕ ' + p.b + '</b>' + (p.creative ? '<span class="reso-flag">✦推演</span>' : '') + '</div>';
+      // v3.0 共鸣觉醒：双方阵营真实人数 ≥ SPECIAL.capstone tier → chip 高亮「觉醒 ×1.5」（与引擎 resonanceAwaken 同判定，UI 用真实干员数）
+      const na = cntMap['阵营|' + p.a] || 0, nb = cntMap['阵营|' + p.b] || 0;
+      const sa = SPECIAL[p.a], sb = SPECIAL[p.b];
+      const awoken = sa && sb && na >= sa.tier && nb >= sb.tier;
+      return '<div class="' + cls + (awoken ? ' awaken' : '') + '" data-a="' + p.a + '" data-b="' + p.b + '" title="' + (p.flavor ? flavorText(p.flavor).slice(0, 46).replace(/"/g, '&quot;') : '点击查看阵营呼应') + '">' +
+        '<b>呼应 · ' + p.a + ' ⊕ ' + p.b + '</b>' +
+        (awoken ? '<span class="reso-flag">觉醒 ×1.5</span>' : '') +
+        (p.creative ? '<span class="reso-flag">✦推演</span>' : '') + '</div>';
     }).join('');
     bar.innerHTML = html;
     const c1=$('bondsCount'); if(c1) c1.textContent=active.length + reso.length;

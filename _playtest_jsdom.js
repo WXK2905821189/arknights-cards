@@ -666,6 +666,20 @@ async function run(dom) {
     ok('共鸣深化：炎|龙门 行为共鸣已配置（burnDoT 渗透）',
       !!R9.SPECIAL_EFF_AURA['炎|龙门'] && R9.SPECIAL_EFF_AURA['炎|龙门'].kw === 'burnDoT',
       JSON.stringify(R9.SPECIAL_EFF_AURA['炎|龙门'] || null));
+    // 4. UI 觉醒标记：双满配 chip 高亮「觉醒 ×1.5」，1+1 无标记
+    const G9 = RH.G;
+    G9.board = {};
+    yanA.slice(0, 5).forEach((o, i) => G9.board[i] = { uid: 88000 + i, op: o, star: 1 });
+    lmA.slice(0, 3).forEach((o, i) => G9.board[10 + i] = { uid: 89000 + i, op: o, star: 1 });
+    G9.bench = []; G9.equipState = { bag: [], slots: {} };
+    RH.renderBonds();
+    const barA = d.getElementById('bondsBar');
+    const hA = barA ? barA.innerHTML : '';
+    ok('共鸣深化：双满配 chip 显示「觉醒 ×1.5」', hA.indexOf('觉醒 ×1.5') >= 0, 'awaken=' + (hA.indexOf('觉醒 ×1.5') >= 0));
+    G9.board = { 0: { uid: 1, op: yanA[0], star: 1 }, 1: { uid: 2, op: lmA[0], star: 1 } };
+    RH.renderBonds();
+    const hB = barA ? barA.innerHTML : '';
+    ok('共鸣深化：1+1 chip 无觉醒标记', hB.indexOf('觉醒 ×1.5') < 0, 'awaken=' + (hB.indexOf('觉醒 ×1.5') >= 0));
   } catch (e) { fail++; console.log('  FAIL 共鸣深化: ' + e.message); }
 
   // 启动期零脚本错误（jsdomError = 未捕获异常 / 资源加载失败）

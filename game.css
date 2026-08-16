@@ -933,3 +933,7 @@ body[data-theme="brief"]{
 .feed-toggle[aria-expanded="true"] .feed-chev{transform:rotate(180deg)}
 .feed-body{margin-top:8px;padding-top:6px;border-top:1px solid var(--line-soft)}
 .feed-body.hidden{display:none}
+/* v3.0 共鸣觉醒：双阵营满配 → 呼应对金色高亮 */
+.reso.awaken{border-color:var(--gold);background:linear-gradient(135deg,rgba(230,170,60,.16),rgba(180,60,200,.10));box-shadow:0 0 6px rgba(230,170,60,.35)}
+.reso.awaken b{color:var(--gold-strong)}
+.reso-flag.awaken-flag{color:var(--gold-strong);font-size:10px}
