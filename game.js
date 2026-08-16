@@ -631,14 +631,18 @@
     // 数值为保守占位 [PLACEHOLDER]，须经蒙特卡洛 + 试玩标定；EFF 无条目（tension/gap）的 pair 不生效。
     if (typeof RESONANCE !== 'undefined' && RESONANCE.EFF) {
       const activeFactions = new Set(boardUnits.map(u => (u.bonds || {}).阵营).filter(Boolean));
+      // v3.0 修：铭刻阵营计入共鸣触发（勋章也能点亮呼应）
+      boardUnits.forEach(u => engravingFacs(u).forEach(f => activeFactions.add(f)));
       RESONANCE.compute(activeFactions, boardUnits).forEach(p => {
         const eff = RESONANCE.EFF[p.a + '|' + p.b];
         if (!eff) return;
         boardUnits.forEach(u => {
           const f = (u.bonds || {}).阵营;
-          if (eff[f]) {
+          const facs = [f].concat(engravingFacs(u)); // 原阵营 + 铭刻阵营都吃共鸣加成
+          const hitFac = facs.find(fx => eff[fx]);   // 命中阵营（原阵营优先，其次铭刻）
+          if (hitFac) {
             const scaled = {};
-            Object.keys(eff[f]).forEach(k => { scaled[k] = eff[f][k] * (1 + resoBonus); });
+            Object.keys(eff[hitFac]).forEach(k => { scaled[k] = eff[hitFac][k] * (1 + resoBonus); });
             applyMult(mult[u.name], scaled);
           }
         });
@@ -649,6 +653,8 @@
     const resoKw = {}; // name -> { kw, params, label }
     if (typeof RESONANCE !== 'undefined') {
       const activeFactions = new Set(boardUnits.map(u => (u.bonds || {}).阵营).filter(Boolean));
+      // v3.0 修：铭刻阵营计入共鸣触发
+      boardUnits.forEach(u => engravingFacs(u).forEach(f => activeFactions.add(f)));
       const effEntries = Object.assign({}, RESONANCE.SPECIAL_EFF || {}, RESONANCE.SPECIAL_EFF_AURA || {});
       RESONANCE.compute(activeFactions, boardUnits).forEach(p => {
         const se = effEntries[p.a + '|' + p.b];
@@ -662,11 +668,25 @@
         if (auraScale !== 1) params = scaleAuraParams(se.kw, params, auraScale);
         boardUnits.forEach(u => {
           const f = (u.bonds || {}).阵营;
-          if (se.factions.indexOf(f) >= 0) resoKw[u.name] = { kw: se.kw, params, label: se.label };
+          const hit = se.factions.indexOf(f) >= 0 || engravingFacs(u).some(fx => se.factions.indexOf(fx) >= 0);
+          if (hit) resoKw[u.name] = { kw: se.kw, params, label: se.label };
         });
       });
     }
     return { active, potential, mult, sig, special, resoKw };
+  }
+
+  // v3.0 修：单位铭刻（勋章）阵营列表——engraving 装备的 countAsFaction
+  // 供共鸣（RESONANCE）计算使用：铭刻阵营既计入呼应触发，也让佩戴者吃到该阵营的共鸣加成
+  function engravingFacs(u) {
+    const out = [];
+    if (u && u.uid && typeof G !== 'undefined' && G && G.equipState) {
+      (G.equipState.slots[u.uid] || []).forEach(eqId => {
+        const eq = EQUIP_BY_ID[eqId];
+        if (eq && eq.type === 'engraving' && eq.countAsFaction) out.push(eq.countAsFaction);
+      });
+    }
+    return out;
   }
 
   // 把效果包（属性乘数）并入 mult
@@ -2287,7 +2307,7 @@
   }
 
   function renderBonds() {
-    const boardMembers = Object.values(G.board).map(u => ({ name: u.op.name, bonds: u.op.bonds, star: u.star }));
+    const boardMembers = Object.values(G.board).map(u => ({ uid: u.uid, name: u.op.name, bonds: u.op.bonds, star: u.star })); // v3.0 修：带 uid 让铭刻参与羁绊/共鸣计算
     const { active } = computeBonds(boardMembers);
     // v2.5 羁绊规划器：统计场上各 (axis|value) 计数，未激活条目给出「还差 N 激活」；已激活 chip 给「下一阶还差 N」
     // v2.5 羁绊规划器：统计场上各 (axis|value) 计数，未激活条目给出「还差 N 激活」；已激活 chip 给「下一阶还差 N」
@@ -2307,7 +2327,17 @@
     }
     // —— 跨阵营呼应（Narrative Resonance）：取作战区所有阵营键，二次结算隐藏呼应对 ——
     const facSet = new Set();
-    Object.values(G.board).forEach(u => { const f = u.op.bonds && u.op.bonds['阵营']; if (f) facSet.add(f); });
+    Object.values(G.board).forEach(u => {
+      const f = u.op.bonds && u.op.bonds['阵营'];
+      if (f) facSet.add(f);
+      // v3.0 修：铭刻阵营计入共鸣展示（勋章也能点亮呼应对）
+      if (u.uid && G.equipState && G.equipState.slots && G.equipState.slots[u.uid]) {
+        G.equipState.slots[u.uid].forEach(eqId => {
+          const eq = EQUIP_BY_ID[eqId];
+          if (eq && eq.type === 'engraving' && eq.countAsFaction) facSet.add(eq.countAsFaction);
+        });
+      }
+    });
     const reso = (typeof RESONANCE !== 'undefined') ? RESONANCE.compute(facSet) : [];
     const bar = $('bondsBar');
     if (!active.length && !reso.length) { bar.innerHTML = '<span class="hint" style="font-size:12px">上场干员凑齐同职业/阵营可触发羁绊；部分阵营同场会触发隐藏呼应</span>'; G._activeBondKeys = null; const c0=$('bondsCount'); if(c0) c0.textContent='0'; return; }
@@ -2354,7 +2384,11 @@
       const _ti = _thr.indexOf(b.tier);
       const _next = _thr[_ti + 1];
       const _need = _next ? (_next - b.count) : 0;
-      return '<div class="bond' + (freshKeys.has(b.axis + '|' + b.value + '|' + b.tier) ? ' fresh' : '') + '" data-axis="' + b.axis + '" data-value="' + b.value + '" data-tier="' + b.tier + '" title="' + tip.replace(/"/g, '&quot;') + '"><b>' + b.axis + '·' + b.value + '</b> <span class="tier">' + b.tier + '阶 (' + b.count + ')</span> ' + parts.join(' ') + behTxt + spTxt + (_need > 0 ? ' <span class="bond-next">下一阶还差' + _need + '</span>' : '') + '</div>';
+      // v3.0 签名标题：显示明日方舟风味技能名（签名·宁作吾），而非「签名·令」
+      const sigTitle = (b.axis === '签名' && (typeof SIGNATURE_DESC !== 'undefined') && SIGNATURE_DESC[b.value])
+        ? SIGNATURE_DESC[b.value].title : null;
+      const axisLabel = sigTitle ? ('签名·' + sigTitle) : (b.axis + '·' + b.value);
+      return '<div class="bond' + (freshKeys.has(b.axis + '|' + b.value + '|' + b.tier) ? ' fresh' : '') + '" data-axis="' + b.axis + '" data-value="' + b.value + '" data-tier="' + b.tier + '" title="' + tip.replace(/"/g, '&quot;') + '"><b>' + axisLabel + '</b> <span class="tier">' + b.tier + '阶 (' + b.count + ')</span> ' + parts.join(' ') + behTxt + spTxt + (_need > 0 ? ' <span class="bond-next">下一阶还差' + _need + '</span>' : '') + '</div>';
     }).join('');
     // v2.5 规划器：未激活但有干员的条目（淡色，提示还差几张激活）
     html += pendHtml.join('');

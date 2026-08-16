@@ -472,6 +472,42 @@ async function run(dom) {
       'struct=' + s1 + ' follow=' + followOk + ' clear=' + clearOk);
   } catch (e) { fail++; console.log('  FAIL 全屏战场: ' + e.message); }
 
+  // —— v3.0 铭刻（勋章）触发共鸣：engraving 的 countAsFaction 计入呼应触发 + 佩戴者吃加成 + 显示层点亮 ——
+  try {
+    const d = window.document;
+    const G6 = RH.G;
+    const ops6 = window.eval('__DATA').operators;
+    const yan6 = ops6.find(o => (o.bonds || {}).阵营 === '炎');
+    const rh6 = ops6.find(o => (o.bonds || {}).阵营 === '罗德岛');
+    G6.equipState = { bag: [], slots: { 8101: ['e_m_longmen'] } };
+    const bu6 = [
+      { uid: 8100, name: yan6.name, bonds: yan6.bonds, star: 1 },
+      { uid: 8101, name: rh6.name, bonds: rh6.bonds, star: 1 }, // 罗德岛穿龙门徽章
+    ];
+    const cb6 = RH.computeBonds(bu6);
+    // 战斗层：炎吃 炎|龙门 的 def+6%、穿徽章者吃 龙门 的 atk+6%
+    const eff6 = (window.RESONANCE && window.RESONANCE.EFF['炎|龙门']) || null;
+    ok('铭刻触发共鸣：炎-龙门 EFF 存在', !!eff6, JSON.stringify(eff6));
+    ok('铭刻触发共鸣：炎干员吃 def 加成（+6%）', eff6 && Math.abs(cb6.mult[yan6.name].def - (1 + eff6['炎'].def)) < 1e-9,
+      'def=' + cb6.mult[yan6.name].def);
+    ok('铭刻触发共鸣：穿徽章者吃龙门 atk 加成（+6%）', eff6 && Math.abs(cb6.mult[rh6.name].atk - (1 + eff6['龙门'].atk)) < 1e-9,
+      'atk=' + cb6.mult[rh6.name].atk);
+    // 对照组：卸徽章 → 无共鸣加成
+    G6.equipState = { bag: [], slots: {} };
+    const cb6b = RH.computeBonds(bu6);
+    ok('铭刻触发共鸣：卸徽章后无加成（对照组）',
+      Math.abs(cb6b.mult[yan6.name].def - 1) < 1e-9 && Math.abs(cb6b.mult[rh6.name].atk - 1) < 1e-9,
+      'def=' + cb6b.mult[yan6.name].def + ' atk=' + cb6b.mult[rh6.name].atk);
+    // 显示层：renderBonds 点亮呼应对
+    G6.board = { 0: { uid: 8100, op: yan6, star: 1 }, 1: { uid: 8101, op: rh6, star: 1 } };
+    G6.bench = [];
+    G6.equipState = { bag: [], slots: { 8101: ['e_m_longmen'] } };
+    RH.renderBonds();
+    const bar6 = d.getElementById('bondsBar');
+    const html6 = bar6 ? bar6.innerHTML : '';
+    ok('铭刻触发共鸣：羁绊面板点亮「龙门」呼应对', html6.indexOf('龙门') >= 0, 'html 含龙门=' + (html6.indexOf('龙门') >= 0));
+  } catch (e) { fail++; console.log('  FAIL 铭刻共鸣: ' + e.message); }
+
   // 启动期零脚本错误（jsdomError = 未捕获异常 / 资源加载失败）
   ok('启动期零运行时错误', errors.length === 0, errors.length ? errors.join(' | ') : 'clean');
 
