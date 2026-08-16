@@ -597,6 +597,23 @@ async function run(dom) {
     const saria8 = window.eval('__DATA').operators.find(o => o.name === '塞雷娅');
     ok('B3：塞雷娅钙质化 群疗+敌防55%', saria8.skill.effect.all === true && saria8.skill.effect.enemyShred === 0.55,
       JSON.stringify(saria8.skill.effect));
+    // 5. 防御型大招 + B4 形态机
+    const shan8 = window.eval('__DATA').operators.find(o => o.name === '闪灵');
+    ok('防御型：闪灵教条力场 友军防+100%', shan8.skill.effect.def === 1.0, JSON.stringify(shan8.skill.effect));
+    const yh8 = window.eval('__DATA').operators.find(o => o.name === '银灰');
+    ok('B4：银灰雪境生存法则 morph（防御+100%）', yh8.skillsAll[1].effect.morph === true && yh8.skillsAll[1].effect.mDef === 1.0,
+      JSON.stringify(yh8.skillsAll[1].effect));
+    // 形态开/关实战（银灰 2★：防 85→170→85）
+    const DM8 = { atk:1, hp:1, def:1, aspd:1, crit:0, magicAmp:1, healAmp:1, spInit:0, spRegen:1 };
+    const um = RH.makeCombatUnit(yh8, 2, 'ally', DM8, {}, null, null, []);
+    const defM0 = um.def;
+    const foeM = window.eval('__DATA').operators.filter(o => o.stats.cost <= 2).slice(0, 1)
+      .map(o => RH.makeCombatUnit(o, 1, 'enemy', DM8, {}, null, null, []));
+    um.sp = um.spMax;
+    const rM2 = RH.simulateBattleGrid([um], foeM, [{x:0,y:3}], [{x:4,y:3}]);
+    const sM = JSON.stringify(rM2.frames || []);
+    ok('B4：形态机开/关实战（帧含开启+关闭形态）', sM.indexOf('开启形态') >= 0 && sM.indexOf('关闭形态') >= 0,
+      '开=' + (sM.indexOf('开启形态') >= 0) + ' 关=' + (sM.indexOf('关闭形态') >= 0));
   } catch (e) { fail++; console.log('  FAIL 弹窗/借据/刷新: ' + e.message); }
 
   // 启动期零脚本错误（jsdomError = 未捕获异常 / 资源加载失败）

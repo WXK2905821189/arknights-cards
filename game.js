@@ -773,7 +773,7 @@
     const u = {
       op, name: op.name, cls: op.class, avatar: op.avatar, traits: op.traits || [],
       dmgType: op.stats.dmgType, range: rangeOf(op), cost: op.stats.cost, star,
-      maxHp: hp, hp, atk, baseAtk: atk,
+      maxHp: hp, hp, atk, baseAtk: atk, baseDef: Math.round(op.stats.def * sm * (m.def || 1)),
       def: Math.round(op.stats.def * sm * (m.def || 1)),
       spd: op.stats.spd * aspd,
       side,
@@ -1338,6 +1338,24 @@
       const amp = (u.skillAmp || 1) * ramp;   // 技能增幅 × 暖机
       // 技能独立射程：默认沿用施法者自身 range，支持单技能 skill.range 覆盖（干员技能单独做射程）
       const skRange = (u.skill && u.skill.range != null) ? u.skill.range : u.range;
+      // v3.0 B4 形态机：切换型技能（银灰雪境生存法则/山横扫架势）——再次施放切换开/关，开关都消耗技力
+      if (eff.morph) {
+        if (u._morph && u._morph.on) {
+          if (u._morph.atk) u.atk = u._morph.atk0;
+          if (u._morph.def) u.def = u._morph.def0;
+          if (u._morph.spd) u.spd = u._morph.spd0;
+          u._morph = null;
+          line += ' → 关闭形态';
+        } else {
+          u._morph = { on: true };
+          if (eff.mAtk) { u._morph.atk0 = u.atk; u._morph.atk = true; u.atk = Math.round(u.atk * (1 + eff.mAtk)); }
+          if (eff.mDef) { u._morph.def0 = u.def; u._morph.def = true; u.def = Math.max(1, Math.round(u.def * (1 + eff.mDef))); }
+          if (eff.mSpd) { u._morph.spd0 = u.spd; u._morph.spd = true; u.spd = Math.round(u.spd * (1 + eff.mSpd)); }
+          line += ' → 开启形态';
+        }
+        logBuf.push({ k: 'morph', line, side: u.side });
+        return;
+      }
       if (arch === 'burst' || arch === 'lifesteal' || arch === 'execute') {
         // v3.0 原版机制：hits 连射（目标死亡自动重选）+ radius 溅射 + spReset 击杀回技力（史尔特尔烈焰魔剑）
         const hits = eff.hits || 1;
@@ -1406,9 +1424,12 @@
         const dur = (eff.dur || 1.2);
         if (tgt) { tgt.stunUntil = t + dur; line += ' 眩晕 ' + tgt.name + ' ' + dur.toFixed(1) + 's'; } else line += '（射程外）';
       } else if (arch === 'buff') {
-        const ba = (eff.atk || 0.3);
-        allies.forEach(a => { a.atk = Math.min(Math.round(a.baseAtk * 2.5), Math.round(a.atk * (1 + ba))); });
-        line += ' 全军攻击力+' + Math.round(ba * 100) + '%';
+        // v3.0 防御型：eff.atk 攻击 / eff.def 防御（闪灵教条力场）/ eff.res 法抗（夜莺圣域，法术减免并入 def 通道）
+        const ba = eff.atk || 0, bd = (eff.def || 0) + (eff.res || 0);
+        const tags = [];
+        if (ba) { allies.forEach(a => { a.atk = Math.min(Math.round(a.baseAtk * 2.5), Math.round(a.atk * (1 + ba))); }); tags.push('攻+' + Math.round(ba * 100) + '%'); }
+        if (bd) { allies.forEach(a => { a.def = Math.min(Math.round(a.baseDef * 4), Math.round(a.def * (1 + bd))); }); tags.push('防+' + Math.round(bd * 100) + '%'); }
+        line += ' 全军' + (tags.join('、') || '—');
       } else if (arch === 'debuff') {
         const bd = (eff.def || 0.3);
         foes.forEach(f => { f.def = Math.round(f.def * (1 - bd)); });
