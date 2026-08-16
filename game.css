@@ -62,7 +62,7 @@ a{color:var(--gold-strong);text-decoration:none}
 .board-label #boardCap,.board-label #benchCap{color:var(--gold-strong);font-weight:700}
 .board-grid{display:grid;grid-template-columns:repeat(8,80px);grid-template-rows:repeat(6,80px);
   gap:4px;justify-content:center;padding:10px;background:#0c0f14;border:1px solid var(--line);border-radius:8px}
-.board-cell{width:100%;height:100%;border:1px dashed #2a3340;border-radius:8px;display:flex;align-items:center;
+.board-cell{width:100%;height:100%;border-radius:8px;display:flex;align-items:center;
   justify-content:center;background:#10141b;position:relative}
 /* 部署区卡面适配 8×6 大格子 */
 .board-cell .ucard{width:100%;height:100%}
@@ -335,6 +335,28 @@ a{color:var(--gold-strong);text-decoration:none}
   background:linear-gradient(90deg,transparent,var(--c-stone),transparent);opacity:.7}
 .feed-head{font-family:var(--font-display);font-size:15px;color:var(--gold-strong);letter-spacing:.5px;
   display:flex;align-items:center;gap:8px;margin-bottom:9px}
+/* v4.5 养狼折叠按钮：默认折叠为单行 🐺 养狼 Lv.X，点击展开喂养选项 */
+.feed-toggle{width:100%;display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(20,26,34,.5);
+  border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:13px;
+  cursor:pointer;transition:background .15s,border-color .15s}
+.feed-toggle:hover{background:rgba(30,40,52,.7);border-color:var(--gold)}
+.feed-toggle-label{color:var(--gold-strong);font-weight:700;letter-spacing:.4px}
+.feed-toggle .feed-lv{margin-left:auto;margin-right:6px;color:var(--text-2);font-size:11px}
+.feed-chev{color:var(--text-3);font-size:10px;transition:transform .15s}
+.feed-toggle[aria-expanded="true"] .feed-chev{transform:rotate(180deg)}
+.feed-body{margin-top:8px;padding-top:6px;border-top:1px solid var(--line-soft)}
+.feed-body.hidden{display:none}
+/* v4.5 养狼折叠按钮：默认折叠为单行 🐺 养狼 Lv.X，点击展开喂养选项 */
+.feed-toggle{width:100%;display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(20,26,34,.5);
+  border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:13px;
+  cursor:pointer;transition:background .15s,border-color .15s}
+.feed-toggle:hover{background:rgba(30,40,52,.7);border-color:var(--gold)}
+.feed-toggle-label{color:var(--gold-strong);font-weight:700;letter-spacing:.4px}
+.feed-toggle .feed-lv{margin-left:auto;margin-right:6px;color:var(--text-2);font-size:11px}
+.feed-chev{color:var(--text-3);font-size:10px;transition:transform .15s}
+.feed-toggle[aria-expanded="true"] .feed-chev{transform:rotate(180deg)}
+.feed-body{margin-top:8px;padding-top:6px;border-top:1px solid var(--line-soft)}
+.feed-body.hidden{display:none}
 .feed-form-ico{font-size:18px;line-height:1;filter:drop-shadow(0 0 4px rgba(232,184,75,.45))}
 .feed-lv{font-family:var(--font-display);font-size:12px;color:var(--text-2);margin-left:auto}
 /* 经验条 */
@@ -878,14 +900,15 @@ body[data-theme="brief"]{
 .bench-cell.filled::before{content:none}
 .bench-cell .ucard{width:100%;height:100%}
 
-/* 棋盘：8×6 正方形（格子最大 80×80，viewport 大时棋盘整体 640×480，小时整体缩但格子仍正方形） */
-.board-wrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden;align-items:stretch}
-.board-battle{position:relative;width:min(100%, 640px);aspect-ratio:8/6;margin:0 auto;flex:1 1 auto;
-  display:flex;align-items:center;justify-content:center;
+/* 棋盘：8×6 硬编码 640×480 / 80×80 正方形格子（v4.5 修复：弃 grid 1fr，
+   改回 v3.5 固定像素方案 → cell 内 ucard 内容不再撑开 1fr，格子永远正方形；
+   部署棋盘与战斗 bf-grid 坐标映射完全一致，玩家看到的位置 = 战斗初始位置） */
+.board-wrap{flex:1 1 auto;min-height:0;display:grid;place-items:center;overflow:hidden}
+.board-battle{position:relative;width:fit-content;height:fit-content;margin:0;flex:none;
   background:#0c0f14;border:1px solid var(--line);border-radius:8px;padding:0;overflow:hidden}
-.board-grid{width:100%;height:100%;max-width:640px;max-height:480px;aspect-ratio:8/6;
-  display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr));gap:0;background:transparent}
-.board-cell{width:100%;height:100%;min-width:0;min-height:0}
+.board-grid{position:relative;width:640px;height:480px;margin:0;
+  display:grid;grid-template-columns:repeat(8,80px);grid-template-rows:repeat(6,80px);gap:0;background:transparent}
+.board-cell{width:80px;height:80px;outline:1px dashed #2a3340;outline-offset:-1px;background:transparent;position:relative}
 #board::after{left:calc(50% - 1px);top:6px;bottom:6px}
 .enemy-overlay{left:50%;top:0;right:0;bottom:0;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr));gap:0}
 
@@ -900,3 +923,13 @@ body[data-theme="brief"]{
   .arena{grid-template-columns:200px 1fr}
   .arena-side{width:200px}
 }
+
+/* v4.5 养狼折叠按钮：默认折叠为单行 🐺 养狼 Lv.X，点击展开喂养选项 */
+.feed-toggle{width:100%;display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(20,26,34,.5);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:13px;cursor:pointer;transition:background .15s,border-color .15s}
+.feed-toggle:hover{background:rgba(30,40,52,.7);border-color:var(--gold)}
+.feed-toggle-label{color:var(--gold-strong);font-weight:700;letter-spacing:.4px}
+.feed-toggle .feed-lv{margin-left:auto;margin-right:6px;color:var(--text-2);font-size:11px}
+.feed-chev{color:var(--text-3);font-size:10px;transition:transform .15s}
+.feed-toggle[aria-expanded="true"] .feed-chev{transform:rotate(180deg)}
+.feed-body{margin-top:8px;padding-top:6px;border-top:1px solid var(--line-soft)}
+.feed-body.hidden{display:none}

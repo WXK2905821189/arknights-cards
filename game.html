@@ -95,13 +95,20 @@
             <div id="equipMsg" class="equip-msg"></div>
           </div>
           <div id="feedPanel" class="feed-panel hidden">
-            <div class="feed-head"><span id="feedForm" class="feed-form-ico">🐺</span>养狼 · 局内成长 <span id="feedLv" class="feed-lv"></span></div>
-            <div id="feedExpBar" class="feed-expbar"><div id="feedExpFill" class="feed-expfill"></div><span id="feedExpTxt" class="feed-exptxt"></span></div>
-            <div class="feed-actions">
-              <button id="btnFeedMeat" class="btn small" type="button">生肉 +30EXP (3💰)</button>
-              <button id="btnFeedRation" class="btn small" type="button">战前口粮 (5💰)</button>
+            <button id="btnFeedToggle" class="feed-toggle" type="button" aria-expanded="false">
+              <span id="feedForm" class="feed-form-ico">🐺</span>
+              <span class="feed-toggle-label">养狼</span>
+              <span id="feedLv" class="feed-lv"></span>
+              <span class="feed-chev">▾</span>
+            </button>
+            <div class="feed-body hidden" id="feedBody">
+              <div id="feedExpBar" class="feed-expbar"><div id="feedExpFill" class="feed-expfill"></div><span id="feedExpTxt" class="feed-exptxt"></span></div>
+              <div class="feed-actions">
+                <button id="btnFeedMeat" class="btn small" type="button">生肉 +30EXP (3💰)</button>
+                <button id="btnFeedRation" class="btn small" type="button">战前口粮 (5💰)</button>
+              </div>
+              <div id="feedMsg" class="feed-msg"></div>
             </div>
-            <div id="feedMsg" class="feed-msg"></div>
           </div>
 
       </div>
