@@ -636,13 +636,15 @@
       RESONANCE.compute(activeFactions, boardUnits).forEach(p => {
         const eff = RESONANCE.EFF[p.a + '|' + p.b];
         if (!eff) return;
+        // v3.0 共鸣觉醒：双方阵营均达 capstone → 数值 ×1.5（深层共鸣）
+        const awaken = resonanceAwaken(p.a, p.b, seen);
         boardUnits.forEach(u => {
           const f = (u.bonds || {}).阵营;
           const facs = [f].concat(engravingFacs(u)); // 原阵营 + 铭刻阵营都吃共鸣加成
           const hitFac = facs.find(fx => eff[fx]);   // 命中阵营（原阵营优先，其次铭刻）
           if (hitFac) {
             const scaled = {};
-            Object.keys(eff[hitFac]).forEach(k => { scaled[k] = eff[hitFac][k] * (1 + resoBonus); });
+            Object.keys(eff[hitFac]).forEach(k => { scaled[k] = eff[hitFac][k] * awaken * (1 + resoBonus); });
             applyMult(mult[u.name], scaled);
           }
         });
@@ -664,7 +666,9 @@
         if (!params && se.src && typeof SPECIAL !== 'undefined' && SPECIAL[se.src]) params = SPECIAL[se.src].params || {};
         params = params || {};
         // 回声强度系数 scale（默认 1）：令跨阵营回声弱于原生 capstone（设计原则），0.6 为 MC 保守安全值
-        const auraScale = (se.scale != null) ? se.scale : 1;
+        let auraScale = (se.scale != null) ? se.scale : 1;
+        // v3.0 共鸣觉醒：双方 capstone 齐备 → 回声 ×1.5（深层共鸣强化）
+        auraScale *= resonanceAwaken(p.a, p.b, seen);
         if (auraScale !== 1) params = scaleAuraParams(se.kw, params, auraScale);
         boardUnits.forEach(u => {
           const f = (u.bonds || {}).阵营;
@@ -674,6 +678,18 @@
       });
     }
     return { active, potential, mult, sig, special, resoKw };
+  }
+
+  // v3.0 共鸣深化：双方阵营均达 SPECIAL capstone（tier）→ 共鸣觉醒（强度 ×1.5）
+  // 玩家凑出"双阵营满配"才有深层共鸣——单边满配只有 1.0
+  function resonanceAwaken(a, b, seenMap) {
+    try {
+      const s1 = SPECIAL[a], s2 = SPECIAL[b];
+      if (!s1 || !s2) return 1;
+      const n1 = seenMap['阵营'][a] ? seenMap['阵营'][a].size : 0;
+      const n2 = seenMap['阵营'][b] ? seenMap['阵营'][b].size : 0;
+      return (n1 >= s1.tier && n2 >= s2.tier) ? 1.5 : 1;
+    } catch (e) { return 1; }
   }
 
   // v3.0 修：单位铭刻（勋章）阵营列表——engraving 装备的 countAsFaction

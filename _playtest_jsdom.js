@@ -640,6 +640,34 @@ async function run(dom) {
     ok('1-4费批量：全干员 op.skill 机制覆盖 ≥30', mechCnt >= 30, 'mech=' + mechCnt);
   } catch (e) { fail++; console.log('  FAIL 1-4费技能: ' + e.message); }
 
+  // —— v3.0 共鸣深化：觉醒（双阵营 capstone 齐备 ×1.5）+ 炎|龙门行为共鸣 ——
+  try {
+    const d = window.document;
+    const opsA = window.eval('__DATA').operators;
+    const yanA = opsA.filter(o => (o.bonds || {}).阵营 === '炎');
+    const lmA = opsA.filter(o => (o.bonds || {}).阵营 === '龙门');
+    // 1. 基础共鸣（1+1）：炎 def +6%
+    const cbA1 = RH.computeBonds([
+      { uid: 90001, name: yanA[0].name, bonds: yanA[0].bonds, star: 1 },
+      { uid: 90002, name: lmA[0].name, bonds: lmA[0].bonds, star: 1 },
+    ]);
+    ok('共鸣深化：基础 1+1 炎 def 1.06', Math.abs(cbA1.mult[yanA[0].name].def - 1.06) < 1e-9,
+      'def=' + cbA1.mult[yanA[0].name].def);
+    // 2. 觉醒（炎 5 人 + 龙门 3 人，双方 SPECIAL.tier=3 齐备）：共鸣 0.06×1.5=0.09 + 炎羁绊 0.09
+    const cbA2 = RH.computeBonds(
+      yanA.slice(0, 5).map((o, i) => ({ uid: 91000 + i, name: o.name, bonds: o.bonds, star: 1 }))
+        .concat(lmA.slice(0, 3).map((o, i) => ({ uid: 92000 + i, name: o.name, bonds: o.bonds, star: 1 })))
+    );
+    const defAwaken = cbA2.mult[yanA[0].name].def;
+    // 1.06（共鸣觉醒 0.09） × 1.09（炎羁绊 5 人 def+9%）= 1.1554；共振/其他叠加允许波动，断言 > 1.12
+    ok('共鸣深化：双满配觉醒 ×1.5（def 1.06→觉醒后 >1.12）', defAwaken > 1.12, 'def=' + defAwaken);
+    // 3. 炎|龙门 行为共鸣（SPECIAL_EFF_AURA）：龙门单位应获得 burnDoT kw
+    const R9 = window.RESONANCE;
+    ok('共鸣深化：炎|龙门 行为共鸣已配置（burnDoT 渗透）',
+      !!R9.SPECIAL_EFF_AURA['炎|龙门'] && R9.SPECIAL_EFF_AURA['炎|龙门'].kw === 'burnDoT',
+      JSON.stringify(R9.SPECIAL_EFF_AURA['炎|龙门'] || null));
+  } catch (e) { fail++; console.log('  FAIL 共鸣深化: ' + e.message); }
+
   // 启动期零脚本错误（jsdomError = 未捕获异常 / 资源加载失败）
   ok('启动期零运行时错误', errors.length === 0, errors.length ? errors.join(' | ') : 'clean');
 

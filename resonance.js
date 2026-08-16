@@ -189,7 +189,9 @@ const RESONANCE = {
     '谢拉格|喀兰贸易':      { kw: 'shieldPeriodic', src: '谢拉格', factions: ['喀兰贸易'], scale: 0.6, label: '北境互助' },
     '莱塔尼亚|叙拉古':      { kw: 'castAmp',       src: '莱塔尼亚', factions: ['叙拉古'], scale: 0.6, label: '同源咏唱' },
     '鲤氏侦探事务所|龙门':   { kw: 'guardAura',     src: '龙门', factions: ['鲤氏侦探事务所'], scale: 0.6, label: '属地庇佑' },
-    '企鹅物流|龙门':         { kw: 'guardAura',     src: '龙门', factions: ['企鹅物流'], scale: 0.6, label: '主场物流网络' }
+    '企鹅物流|龙门':         { kw: 'guardAura',     src: '龙门', factions: ['企鹅物流'], scale: 0.6, label: '主场物流网络' },
+    // v3.0 共鸣深化：炎|龙门 bonus 承诺落地——龙门 units 获得灼烧渗透（burnDoT 溅射）
+    '炎|龙门':              { kw: 'burnDoT',       src: '炎', factions: ['龙门'], scale: 0.6, label: '炎流渗透' }
   },
 
   // ============ 计算入口 ============
