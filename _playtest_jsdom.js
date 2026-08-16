@@ -616,6 +616,30 @@ async function run(dom) {
       '开=' + (sM.indexOf('开启形态') >= 0) + ' 关=' + (sM.indexOf('关闭形态') >= 0));
   } catch (e) { fail++; console.log('  FAIL 弹窗/借据/刷新: ' + e.message); }
 
+  // —— v3.0 1-4 费干员 3★ 大招批量机制化（calibrate_opskills.py：desc 提取 hits/targets/mult）——
+  try {
+    const ops9 = window.eval('__DATA').operators;
+    // 左乐：7 次斩击 × 最多 3 名敌人（245%）
+    const zl9 = ops9.find(o => o.name === '左乐');
+    ok('1-4费：左乐 7 连斩×3目标', zl9.skill.effect.hits === 7 && zl9.skill.effect.targets === 3,
+      JSON.stringify(zl9.skill.effect));
+    // 乌尔比安：攻击力 260% + 最大生命+80%
+    const ub9 = ops9.find(o => o.name === '乌尔比安');
+    ok('1-4费：乌尔比安 hpMax+80% 攻260%', ub9.skill.effect.selfBuff && ub9.skill.effect.selfBuff.hpMax === 0.8 && ub9.skill.effect.mult === 2.6,
+      JSON.stringify(ub9.skill.effect));
+    // 5 费保护：真银斩/黄昏不被批量覆盖破坏
+    const yh9 = ops9.find(o => o.name === '银灰');
+    const st9 = ops9.find(o => o.name === '史尔特尔');
+    ok('1-4费批量：5费手工精调保护（真银斩/黄昏完整）',
+      yh9.skill.effect.selfBuff && yh9.skill.effect.selfDebuff && yh9.skill.effect.dur === 8 &&
+      st9.skill.effect.selfBuff && st9.skill.effect.mult === 3.3,
+      '银灰dur=' + yh9.skill.effect.dur + ' 史尔特尔mult=' + st9.skill.effect.mult);
+    // 覆盖度：op.skill 带机制字段 ≥ 30
+    let mechCnt = 0;
+    ops9.forEach(o => { const e = o.skill && o.skill.effect; if (e && (e.hits || e.targets || e.radius || e.spReset || e.selfBuff || e.selfDebuff || e.morph || e.stunChance)) mechCnt++; });
+    ok('1-4费批量：全干员 op.skill 机制覆盖 ≥30', mechCnt >= 30, 'mech=' + mechCnt);
+  } catch (e) { fail++; console.log('  FAIL 1-4费技能: ' + e.message); }
+
   // 启动期零脚本错误（jsdomError = 未捕获异常 / 资源加载失败）
   ok('启动期零运行时错误', errors.length === 0, errors.length ? errors.join(' | ') : 'clean');
 
