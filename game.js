@@ -1230,8 +1230,10 @@
       const amp = (src.magicAmp || 1) * (src.castAmpMul || 1);
       if (src.dmgType === 'magic') dmg *= amp;
       else dmg *= (src.castAmpMul || 1);
-      // 防御减免（pierce 忽略部分防御）
+      // 防御减免（pierce 忽略部分防御；技能 selfDebuff 承伤侧减防——真银斩防御-70% 等）
       let effDef = tgt.def * (1 - (src.pierce || 0));
+      if (tgt._skDefDebuff && t >= tgt._skDefDebuff.until) tgt._skDefDebuff = null;
+      if (tgt._skDefDebuff) effDef *= (1 - tgt._skDefDebuff.v);
       effDef = Math.max(0, effDef);
       const mit = src.dmgType === 'magic' ? 120 / (120 + effDef) : 100 / (100 + effDef);
       const mitigated = dmg * mit;
@@ -1308,10 +1310,28 @@
     }
 
     function castSkill(u) {
-      const eff = u.skill.effect, arch = u.skill.archetype;
+      const eff = u.skill.effect || {}, arch = u.skill.archetype;
       const allies = all.filter(x => x.alive && x.side === u.side);
       const foes = all.filter(x => x.alive && x.side !== u.side);
       let line = u.name + ' 释放【' + u.skill.name + '】';
+      // v3.0 原版机制：selfBuff（真银斩攻击+100% 等）/ selfDebuff（防御-70% 等）/ selfHpPct（黄昏回满血）
+      const sb = eff.selfBuff, sd = eff.selfDebuff;
+      const sbDur = eff.dur || 5;
+      if (sb) {
+        if (sb.atk) u._skAtkBuff = { v: sb.atk, until: t + sbDur };
+        if (sb.spd) u._skSpdBuff = { v: sb.spd, until: t + sbDur };
+        if (sb.def) u._skDefBuff = { v: sb.def, until: t + sbDur };
+        if (sb.hpPct) { const _hr = Math.round(u.maxHp * sb.hpPct); u.hp = Math.min(u.maxHp, u.hp + _hr); line += ' 回复' + Math.round(sb.hpPct * 100) + '%生命'; }
+        if (sb.hpMax) { u.maxHp = Math.round(u.maxHp * sb.hpMax); u.hp = u.maxHp; line += ' 生命上限+' + Math.round(sb.hpMax * 100) + '%'; }
+        line += ' 自身强化';
+      }
+      if (sd) {
+        if (sd.def) u._skDefDebuff = { v: sd.def, until: t + sbDur };
+        if (sd.atk) u._skAtkDebuff = { v: sd.atk, until: t + sbDur };
+        line += '（代价）';
+      }
+      // 技能期攻击乘数：selfBuff.atk 增强 × selfDebuff.atk 削弱（只影响本次施法伤害，持续期留待后续批次）
+      const skAtkMul = (1 + (sb && sb.atk || 0)) * (1 - (sd && sd.atk || 0));
       // 暖机（rampHit）：施法也累积攻击加成
       if (u.rampHitPer) u.rampHitAcc = Math.min(u.rampHitCap, u.rampHitAcc + u.rampHitPer);
       const ramp = 1 + (u.rampHitAcc || 0);
@@ -1319,18 +1339,31 @@
       // 技能独立射程：默认沿用施法者自身 range，支持单技能 skill.range 覆盖（干员技能单独做射程）
       const skRange = (u.skill && u.skill.range != null) ? u.skill.range : u.range;
       if (arch === 'burst' || arch === 'lifesteal' || arch === 'execute') {
-        const ne = nearestEnemy(u);
-        const tgt = (ne.tgt && ne.d <= skRange) ? ne.tgt : null;
-        if (tgt) {
+        // v3.0 原版机制：hits 连射（目标死亡自动重选）+ radius 溅射 + spReset 击杀回技力（史尔特尔烈焰魔剑）
+        const hits = eff.hits || 1;
+        let total = 0, cur = null, hitCount = 0;
+        for (let hi = 0; hi < hits; hi++) {
+          if (!cur || !cur.alive) { const ne = nearestEnemy(u); cur = (ne.tgt && ne.d <= skRange) ? ne.tgt : null; }
+          if (!cur) break;
           let m = eff.mult;
-          if (arch === 'execute' && tgt.hp / tgt.maxHp < (eff.thresh || 0.35)) m *= 1.8;
-          const dmg = dealDamage(u, tgt, u.atk * m * amp);
-          line += ' → ' + tgt.name + ' -' + dmg;
+          if (arch === 'execute' && cur.hp / cur.maxHp < (eff.thresh || 0.35)) m *= 1.8;
+          const dmg = dealDamage(u, cur, u.atk * m * amp * skAtkMul);
+          total += dmg; hitCount++;
           if (arch === 'lifesteal') u.hp = Math.min(u.maxHp, u.hp + Math.round(dmg * (eff.leech || 0.5)));
-        } else line += '（射程外）';
+          if (!cur.alive && eff.spReset) { u.sp = u.spMax; line += ' 击杀回技力'; }
+          if (eff.radius && cur.alive) {
+            all.forEach(o => { if (o.alive && o.side !== u.side && o !== cur && cheb(o, cur) <= eff.radius) total += dealDamage(u, o, u.atk * m * amp * skAtkMul * (eff.radiusMult || 0.5)); });
+          }
+        }
+        line += (total > 0 ? ' → ' + (hits > 1 ? hitCount + '连击' : '') + ' -' + total : '（射程外）');
       } else if (arch === 'aoe') {
+        // v3.0 原版机制：targets 目标数限制（真银斩至多 6 目标、火山随机 6 目标）
         let tot = 0;
-        foes.filter(fo => cheb(fo, u) <= skRange).forEach(fo => { tot += dealDamage(u, fo, u.atk * eff.mult * amp); });
+        let inRange = foes.filter(fo => cheb(fo, u) <= skRange);
+        if (eff.targets && inRange.length > eff.targets) {
+          inRange = inRange.sort((a, b) => cheb(a, u) - cheb(b, u)).slice(0, eff.targets);
+        }
+        inRange.forEach(fo => { tot += dealDamage(u, fo, u.atk * eff.mult * amp * skAtkMul); });
         line += (tot > 0 ? ' 范围打击 -' + tot : '（射程外）');
       } else if (arch === 'heal') {
         const wounded = allies.some(x => x.hp < x.maxHp);

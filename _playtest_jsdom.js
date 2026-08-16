@@ -508,6 +508,37 @@ async function run(dom) {
     ok('铭刻触发共鸣：羁绊面板点亮「龙门」呼应对', html6.indexOf('龙门') >= 0, 'html 含龙门=' + (html6.indexOf('龙门') >= 0));
   } catch (e) { fail++; console.log('  FAIL 铭刻共鸣: ' + e.message); }
 
+  // —— v3.0 技能原版机制化：hits 连射 / targets 多目标 / selfBuff / selfDebuff / spReset 引擎生效 ——
+  try {
+    const d = window.document;
+    const G7 = RH.G;
+    const ops7 = window.eval('__DATA').operators;
+    const DM7 = { atk:1, hp:1, def:1, aspd:1, crit:0, magicAmp:1, healAmp:1, spInit:0, spRegen:1 };
+    // 1. 数据层：3★ 大招参数按原版机制（能天使 5 连射 / 银灰真银斩 6 目标+代价 / 史尔特尔回血）
+    const ex7 = ops7.find(o => o.name === '能天使');
+    const yh7 = ops7.find(o => o.name === '银灰');
+    const st7 = ops7.find(o => o.name === '史尔特尔');
+    ok('技能机制：能天使 3★ hits=5（过载 5 连射）', ex7.skill.effect.hits === 5, JSON.stringify(ex7.skill.effect));
+    ok('技能机制：银灰真银斩 targets=6 + selfDebuff', yh7.skill.effect.targets === 6 && !!yh7.skill.effect.selfDebuff,
+      JSON.stringify(yh7.skill.effect));
+    ok('技能机制：史尔特尔黄昏 selfBuff 回血', st7.skill.effect.selfBuff && st7.skill.effect.selfBuff.hpPct === 1.0,
+      JSON.stringify(st7.skill.effect));
+    // 2. 引擎层：能天使实战出 5 连击、银灰出 范围打击+（代价）
+    const ua7 = RH.makeCombatUnit(ex7, 3, 'ally', DM7, {}, null, null, []);
+    const uy7 = RH.makeCombatUnit(yh7, 3, 'ally', DM7, {}, null, null, []);
+    ua7.sp = ua7.spMax; uy7.sp = uy7.spMax;
+    const foe7 = ops7.filter(o => o.stats.cost <= 3).slice(0, 4)
+      .map(o => RH.makeCombatUnit(o, 1, 'enemy', DM7, {}, null, null, []));
+    const ePos7 = foe7.map((f, i) => ({ x: 5 + (i % 2), y: 1 + Math.floor(i / 2) }));
+    const rA = RH.simulateBattleGrid([ua7], foe7, [{x:0,y:3}], ePos7);
+    const sA = JSON.stringify(rA.frames || []);
+    const rY = RH.simulateBattleGrid([uy7], foe7, [{x:0,y:3}], ePos7);
+    const sY = JSON.stringify(rY.frames || []);
+    ok('技能机制：能天使实战「5连击」', sA.indexOf('5连击') >= 0, sA.indexOf('5连击') >= 0 ? 'y' : 'n');
+    ok('技能机制：银灰实战「自身强化+（代价）」', sY.indexOf('自身强化') >= 0 && sY.indexOf('（代价）') >= 0,
+      '强化=' + (sY.indexOf('自身强化') >= 0) + ' 代价=' + (sY.indexOf('（代价）') >= 0));
+  } catch (e) { fail++; console.log('  FAIL 技能机制: ' + e.message); }
+
   // 启动期零脚本错误（jsdomError = 未捕获异常 / 资源加载失败）
   ok('启动期零运行时错误', errors.length === 0, errors.length ? errors.join(' | ') : 'clean');
 
