@@ -556,6 +556,49 @@ async function run(dom) {
     ok('B2：水月实战「眩晕」', JSON.stringify(rM.frames || []).indexOf('眩晕') >= 0, 'n');
   } catch (e) { fail++; console.log('  FAIL 技能机制: ' + e.message); }
 
+  // —— v3.0 环境&策略弹窗关闭（toggle/遮罩/ESC）+ 高利贷借据 + 策略刷新 ——
+  try {
+    const d = window.document;
+    const G8 = RH.G;
+    // 1. 弹窗三种关闭途径
+    const m8 = d.getElementById('envStratModal');
+    const btn8 = d.getElementById('envStratBtn');
+    const close8 = d.getElementById('envStratClose');
+    btn8.click();
+    const o1 = !m8.classList.contains('hidden');
+    btn8.click(); // toggle 关
+    const o2 = m8.classList.contains('hidden');
+    btn8.click(); m8.click(); // 遮罩关
+    const o3 = m8.classList.contains('hidden');
+    btn8.click();
+    d.body.dispatchEvent(new d.defaultView.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); // ESC 关
+    const o4 = m8.classList.contains('hidden');
+    ok('弹窗关闭：toggle/遮罩/ESC 三途径', o1 && o2 && o3 && o4, '开=' + o1 + ' tog=' + o2 + ' mask=' + o3 + ' esc=' + o4);
+    // 2. 高利贷有界借据（期望 +15，5 回合后消失）
+    const loan8 = RH.STRATEGY_BY_ID['s_tempo_loan'];
+    const gamble8 = RH.STRATEGY_BY_ID['s_tempo_gamble'];
+    ok('高利贷：+30/后5回合-3（期望+15 非负）', loan8.effects.goldNow === 30 && loan8.effects.loanRounds === 5,
+      JSON.stringify(loan8.effects));
+    ok('赌徒协议：50% 得 20（期望+10）', gamble8.effects.goldGamble === 20, JSON.stringify(gamble8.effects));
+    G8.gold = 100; G8._stratLoan = { per: loan8.effects.loanPer, rounds: loan8.effects.loanRounds };
+    let roundsPaid = 0;
+    for (let i = 0; i < 7; i++) { if (G8._stratLoan && G8._stratLoan.rounds > 0) { G8.gold += G8._stratLoan.per; G8._stratLoan.rounds--; roundsPaid++; } }
+    ok('高利贷借据：恰好扣 5 回合后消失', roundsPaid === 5 && G8._stratLoan.rounds === 0, 'paid=' + roundsPaid);
+    // 3. 策略刷新按钮（2 次机会 · 2💰）
+    G8.gold = 10; G8._stratRerollLeft = null; G8.strategies = []; G8.stratCount = 0;
+    const sNode8 = G8.nodes.find(n => n.type === 'strategy');
+    RH.showStrategyScreen(sNode8);
+    const rrBtn = d.getElementById('btnStratReroll');
+    const goldB4 = G8.gold;
+    if (rrBtn) rrBtn.click();
+    ok('策略刷新：扣 2💰 重洗、次数减一', !!rrBtn && G8.gold === goldB4 - 2 && G8._stratRerollLeft === 1,
+      'gold=' + G8.gold + ' left=' + G8._stratRerollLeft);
+    // 4. 塞雷娅钙质化群疗
+    const saria8 = window.eval('__DATA').operators.find(o => o.name === '塞雷娅');
+    ok('B3：塞雷娅钙质化 群疗+敌防55%', saria8.skill.effect.all === true && saria8.skill.effect.enemyShred === 0.55,
+      JSON.stringify(saria8.skill.effect));
+  } catch (e) { fail++; console.log('  FAIL 弹窗/借据/刷新: ' + e.message); }
+
   // 启动期零脚本错误（jsdomError = 未捕获异常 / 资源加载失败）
   ok('启动期零运行时错误', errors.length === 0, errors.length ? errors.join(' | ') : 'clean');
 

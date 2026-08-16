@@ -1371,14 +1371,31 @@
         inRange.forEach(fo => { tot += dealDamage(u, fo, u.atk * eff.mult * amp * skAtkMul); });
         line += (tot > 0 ? ' 范围打击 -' + tot : '（射程外）');
       } else if (arch === 'heal') {
-        const wounded = allies.some(x => x.hp < x.maxHp);
-        const low = allies.filter(x => x.hp < x.maxHp && cheb(x, u) <= skRange).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
-        if (low) {
-          let h = Math.round(u.atk * eff.mult * (u.healAmp || 1));
-          if (u.healCrit && Math.random() < u.healCrit) h = Math.round(h * 2); // v2.5 M3 医疗 8 阶：治疗暴击
-          low.hp = Math.min(low.maxHp, low.hp + h); line += ' 治疗 ' + low.name + ' +' + h + (u.healCrit && h > Math.round(u.atk * eff.mult * (u.healAmp || 1)) ? '（暴击）' : '');
+        // v3.0 B3：eff.all 群疗（射程内全部友军，塞雷娅钙质化/药物配置）+ eff.enemyShred 敌军减防（法伤易伤近似）
+        if (eff.all) {
+          let tot = 0;
+          allies.filter(x => cheb(x, u) <= skRange).forEach(x => {
+            let h = Math.round(u.atk * eff.mult * (u.healAmp || 1));
+            if (u.healCrit && Math.random() < u.healCrit) h = Math.round(h * 2);
+            x.hp = Math.min(x.maxHp, x.hp + h); tot += h;
+          });
+          if (eff.enemyShred) {
+            foes.filter(fo => cheb(fo, u) <= skRange).forEach(fo => {
+              fo.def = Math.max(0, fo.def * (1 - eff.enemyShred));
+            });
+            line += ' 敌防-' + Math.round(eff.enemyShred * 100) + '%';
+          }
+          line += (tot > 0 ? ' 群疗 +' + tot : '（友军满血）');
+        } else {
+          const wounded = allies.some(x => x.hp < x.maxHp);
+          const low = allies.filter(x => x.hp < x.maxHp && cheb(x, u) <= skRange).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+          if (low) {
+            let h = Math.round(u.atk * eff.mult * (u.healAmp || 1));
+            if (u.healCrit && Math.random() < u.healCrit) h = Math.round(h * 2); // v2.5 M3 医疗 8 阶：治疗暴击
+            low.hp = Math.min(low.maxHp, low.hp + h); line += ' 治疗 ' + low.name + ' +' + h + (u.healCrit && h > Math.round(u.atk * eff.mult * (u.healAmp || 1)) ? '（暴击）' : '');
+          }
+          else line += (wounded ? '（射程外）' : '（友军满血）');
         }
-        else line += (wounded ? '（射程外）' : '（友军满血）');
       } else if (arch === 'shield') {
         const tgt = (eff.target === 'self') ? u
           : (allies.filter(x => x !== u && cheb(x, u) <= skRange).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0] || u);
@@ -1810,12 +1827,12 @@
     { id: 's_rule_vanguard', name: '开局号令', tier: 'gold', category: 'rule', sub: 'B3', risk: 'safe', growth: 'instant', desc: '战斗开始全体干员攻速 +30%。', effects: { startAspdPct: 0.30 } },
     { id: 's_rule_synergy', name: '兵贵神速', tier: 'bronze', category: 'rule', sub: 'B3', risk: 'safe', growth: 'instant', desc: '战斗开始全体干员起手技力 +5。', effects: { startSpPct: 5 } },
     { id: 's_rule_revive', name: '战场急救', tier: 'silver', category: 'rule', sub: 'B3', risk: 'conditional', desc: '全队首次阵亡时以 20% 血量复活一次（每场仅一次）。', effects: { reviveOncePct: 0.20 } },
-    { id: 's_rule_warclan', name: '先声夺人', tier: 'color', category: 'rule', sub: 'B3', risk: 'costly', growth: 'instant', desc: '战斗开始全体起手技力 +12，但全队攻速 -10%。', effects: { startSpPct: 12, allAspdPct: -0.10 } },
+    { id: 's_rule_warclan', name: '先声夺人', tier: 'color', category: 'rule', sub: 'B3', risk: 'costly', growth: 'instant', desc: '战斗开始全体起手技力 +18，但全队攻速 -8%。', effects: { startSpPct: 18, allAspdPct: -0.08 } },
     // C4 风险投资
     { id: 's_tempo_interest', name: '利息协议', tier: 'bronze', category: 'tempo', sub: 'C4', risk: 'safe', growth: 'scaling', desc: '每回合金币利息 +50%（滚雪球越滚越多）。', effects: { interestRate: 0.5 } },
     { id: 's_tempo_streak', name: '连胜赏金', tier: 'silver', category: 'tempo', sub: 'C4', risk: 'conditional', desc: '连胜或连败 ≥2 时，每回合额外 +2 金币。', effects: { winStreakGold: 2 } },
-    { id: 's_tempo_gamble', name: '赌徒协议', tier: 'gold', category: 'tempo', sub: 'C4', risk: 'gamble', growth: 'instant', desc: '立即掷骰：50% 得 12 金币，50% 失去 4 金币。', effects: { goldGamble: 12 } },
-    { id: 's_tempo_loan', name: '高利贷', tier: 'color', category: 'tempo', sub: 'C4', risk: 'costly', growth: 'instant', desc: '立即 +18 金币，但此后每回合 -3 金币。', effects: { goldNow: 18, goldPerRound: -3 } },
+    { id: 's_tempo_gamble', name: '赌徒协议', tier: 'gold', category: 'tempo', sub: 'C4', risk: 'gamble', growth: 'instant', desc: '立即掷骰：50% 得 20 金币，50% 空手而归。', effects: { goldGamble: 20 } },
+    { id: 's_tempo_loan', name: '高利贷', tier: 'color', category: 'tempo', sub: 'C4', risk: 'costly', growth: 'instant', desc: '立即 +30 金币，此后 5 回合每回合 -3 金币（有界代价，借鸡生蛋）。', effects: { goldNow: 30, loanPer: -3, loanRounds: 5 } },
   ];  const STRATEGY_BY_ID = {}; STRATEGY_POOL.forEach(s => STRATEGY_BY_ID[s.id] = s);
 
   // v3.0 行为 kw → 中文标签（羁绊/独行 behavior 展示用）
@@ -2791,6 +2808,8 @@
     if (s >= 2) streakBonus += (se.winStreakGold || 0);
     const base = Math.min(round + 2, 7);
     G.gold += base + interest + streakBonus + se.goldPerRound;
+    // v3.0 高利贷：有界借据扣款（回合制，扣完自动消失）
+    if (G._stratLoan && G._stratLoan.rounds > 0) { G.gold += G._stratLoan.per; G._stratLoan.rounds--; }
     G.exp += 2 + (ef.expBonus || 0) + se.expPerRound;
     levelUp();
     rollShop();
@@ -2831,9 +2850,10 @@
     }
     return chosen.slice(0, n);
   }
-  function showStrategyScreen(node) {
+  // v3.0 策略节点：三选一 + 刷新（每次节点 2 次机会，2 金币/次）
+  function renderStrategyPicks(node) {
     const minTier = ['bronze', 'silver', 'gold'][Math.min(G.stratCount, 2)];
-    // 去重（痛点①）：已选 ID 永不返回。软档位：先按 tier 过滤，不足 3 张可选则放宽到全池（仍排除已选）。
+    // 去重：已选 ID 永不返回。软档位：先按 tier 过滤，不足 3 张可选则放宽到全池（仍排除已选）。
     let pool = STRATEGY_POOL.filter(s => tierRank(s.tier) >= tierRank(minTier) && G.strategies.indexOf(s.id) < 0);
     if (pool.length < 3) pool = STRATEGY_POOL.filter(s => G.strategies.indexOf(s.id) < 0);
     if (pool.length === 0) pool = STRATEGY_POOL.slice(); // 极端：全选过，允许重复兜底
@@ -2867,14 +2887,36 @@
         if (selS.effects.goldNow) G.gold += selS.effects.goldNow;
         if (selS.effects.goldGamble) { if (Math.random() < 0.5) G.gold += selS.effects.goldGamble; else G.gold = Math.max(0, G.gold - Math.round(selS.effects.goldGamble * 0.33)); }
         if (selS.effects.expNow) { G.exp += selS.effects.expNow; levelUp(); }
+        // v3.0 高利贷：有界借据（后 N 回合每回合 -per）
+        if (selS.effects.loanPer) G._stratLoan = { per: selS.effects.loanPer, rounds: selS.effects.loanRounds || 5 };
       }
       $('strategyScreen').classList.add('hidden');
       enterShopRound(node); // 策略节点同时进入一回合（普通战斗）
     });
+    // v3.0 刷新工具栏：每次节点 2 次机会，2 金币/次
+    const rr = $('stratRerollBar');
+    if (rr) {
+      const left = G._stratRerollLeft || 0;
+      rr.innerHTML = left > 0
+        ? '<button id="btnStratReroll" class="btn small" type="button">🎲 刷新策略（' + left + ' 次 · 2💰）</button>'
+        : '<span style="color:var(--text-3);font-size:12px">刷新次数已用完</span>';
+      const br = $('btnStratReroll');
+      if (br) br.onclick = () => {
+        if ((G._stratRerollLeft || 0) <= 0) return;
+        if (G.gold < 2) { flash('金币不足（刷新需 2💰）'); return; }
+        G.gold -= 2; G._stratRerollLeft--;
+        if (window.SFX) SFX.play('click');
+        renderStrategyPicks(node); // 重新洗牌（已选不重复，风险配额保留）
+        if (typeof renderTop === 'function') renderTop();
+      };
+    }
+  }
+  function showStrategyScreen(node) {
+    G._stratRerollLeft = 2; // 每次策略节点 2 次刷新机会
+    renderStrategyPicks(node);
     $('strategyScreen').classList.remove('hidden');
     if (window.AUDIO) AUDIO.setMusic('exploration');
   }
-
   // —— 市场节点（每阶段 1 次）：10 干员 + 5 装备 任选购买，补强后开战 ——
   function showMarketScreen(node) {
     // 生成补给池（干员：随机 5 + 定向 5——按玩家已有小阵营补缺；装备：全类型 5 件，稀有度随等级解锁）
@@ -4397,6 +4439,8 @@
       if (e.key === 'Escape' && $('shopPopover') && !$('shopPopover').classList.contains('hidden')) { $('btnShopClose').click(); return; }
       // v2.7 ESC 关闭商店弹层（优先级最高）
       if (e.key === 'Escape' && $('shopPopover') && !$('shopPopover').classList.contains('hidden')) { $('btnShopClose').click(); return; }
+      // v3.0 修：ESC 关闭「环境&策略」弹窗
+      if (e.key === 'Escape' && $('envStratModal') && !$('envStratModal').classList.contains('hidden')) { closeEnvStrat(); return; }
       if (e.key === 'Escape' && G.selected != null) { selectUnit(G.selected); return; }
       // v2.5 快捷键：1-5 买商店卡 / E 部署选中干员到棋盘 / F 开战（仅非 overlay 且非战斗中）
       if (!$('arena').classList.contains('hidden') && !document.querySelector('.overlay:not(.hidden)')) {
@@ -4483,9 +4527,16 @@
       if (window.SFX) SFX.play('click');
     };
     // v4.4 环境 & 策略查看：📋 按钮弹层（当前投资环境 + 已选策略）
+    const closeEnvStrat = () => {
+      const m = $('envStratModal');
+      if (m) { m.classList.add('hidden'); m.setAttribute('aria-hidden', 'true'); }
+    };
     if ($('envStratBtn')) $('envStratBtn').onclick = () => {
       const body = $('envStratBody');
       if (!body) return;
+      // v3.0 修：弹窗已打开时再点按钮 → 关闭（toggle）；遮罩点击/ESC 也可关
+      const mm = $('envStratModal');
+      if (mm && !mm.classList.contains('hidden')) { closeEnvStrat(); if (window.SFX) SFX.play('click'); return; }
       let h = '<div style="margin:2px 0 8px;font-weight:700;color:var(--gold-strong)">投资环境</div>';
       const env = G.env;
       h += env
@@ -4508,11 +4559,12 @@
       if (m) { m.classList.remove('hidden'); m.setAttribute('aria-hidden', 'false'); }
       if (window.SFX) SFX.play('click');
     };
-    if ($('envStratClose')) $('envStratClose').onclick = () => {
-      const m = $('envStratModal');
-      if (m) { m.classList.add('hidden'); m.setAttribute('aria-hidden', 'true'); }
-      if (window.SFX) SFX.play('click');
-    };
+    if ($('envStratClose')) $('envStratClose').onclick = () => { closeEnvStrat(); if (window.SFX) SFX.play('click'); };
+    const envStratModalEl = $('envStratModal');
+    if (envStratModalEl) envStratModalEl.addEventListener('click', e => {
+      // v3.0 修：点遮罩（弹窗外区域）关闭，点 panel 内部不关
+      if (e.target === envStratModalEl) { closeEnvStrat(); if (window.SFX) SFX.play('click'); }
+    });
     if ($('btnReplay')) $('btnReplay').onclick = () => {
       if (!G._lastRes) return;
       if (window.SFX) SFX.play('click');
