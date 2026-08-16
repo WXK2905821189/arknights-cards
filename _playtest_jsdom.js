@@ -537,6 +537,23 @@ async function run(dom) {
     ok('技能机制：能天使实战「5连击」', sA.indexOf('5连击') >= 0, sA.indexOf('5连击') >= 0 ? 'y' : 'n');
     ok('技能机制：银灰实战「自身强化+（代价）」', sY.indexOf('自身强化') >= 0 && sY.indexOf('（代价）') >= 0,
       '强化=' + (sY.indexOf('自身强化') >= 0) + ' 代价=' + (sY.indexOf('（代价）') >= 0));
+    // 3. B2：剩余大招精调（推进之王碎颅击眩晕 / 水月必晕 / 令岁兽强化）
+    const pw7 = ops7.find(o => o.name === '推进之王');
+    const sy7 = ops7.find(o => o.name === '水月');
+    const lg7 = ops7.find(o => o.name === '令');
+    ok('B2：推进之王碎颅击 380%+40%眩晕1.5s', pw7.skill.effect.mult === 3.8 && pw7.skill.effect.stunChance === 0.4,
+      JSON.stringify(pw7.skill.effect));
+    ok('B2：水月镜花水月 3目标+必晕1s', sy7.skill.effect.targets === 3 && sy7.skill.effect.stunChance === 1.0,
+      JSON.stringify(sy7.skill.effect));
+    ok('B2：令宁作吾 自身攻防+100%', lg7.skill.effect.selfBuff && lg7.skill.effect.selfBuff.atk === 1.0,
+      JSON.stringify(lg7.skill.effect));
+    // 水月实战必晕
+    const us7 = RH.makeCombatUnit(sy7, 3, 'ally', DM7, {}, null, null, []);
+    us7.sp = us7.spMax;
+    const foe7b = ops7.filter(o => o.stats.cost <= 2).slice(0, 3)
+      .map(o => RH.makeCombatUnit(o, 1, 'enemy', DM7, {}, null, null, []));
+    const rM = RH.simulateBattleGrid([us7], foe7b, [{x:0,y:3}], foe7b.map((f,i)=>({x:5+(i%2),y:1+Math.floor(i/2)})));
+    ok('B2：水月实战「眩晕」', JSON.stringify(rM.frames || []).indexOf('眩晕') >= 0, 'n');
   } catch (e) { fail++; console.log('  FAIL 技能机制: ' + e.message); }
 
   // 启动期零脚本错误（jsdomError = 未捕获异常 / 资源加载失败）

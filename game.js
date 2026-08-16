@@ -1350,6 +1350,11 @@
           const dmg = dealDamage(u, cur, u.atk * m * amp * skAtkMul);
           total += dmg; hitCount++;
           if (arch === 'lifesteal') u.hp = Math.min(u.maxHp, u.hp + Math.round(dmg * (eff.leech || 0.5)));
+          // v3.0 B2：技能附带眩晕（推进之王碎颅击 40% 晕 1.5s / 水月必晕 1s）
+          if (eff.stunChance && Math.random() < eff.stunChance && cur.alive) {
+            cur.stunUntil = t + (eff.stunDur || 1.2);
+            line += ' 眩晕 ' + cur.name;
+          }
           if (!cur.alive && eff.spReset) { u.sp = u.spMax; line += ' 击杀回技力'; }
           if (eff.radius && cur.alive) {
             all.forEach(o => { if (o.alive && o.side !== u.side && o !== cur && cheb(o, cur) <= eff.radius) total += dealDamage(u, o, u.atk * m * amp * skAtkMul * (eff.radiusMult || 0.5)); });
@@ -2284,11 +2289,12 @@
     renderAll(); saveGame();
   }
 
-  // v2.1 养狼：商店喂养面板（仅当作战区有叙拉古干员时显示）
+  // v4.5 养狼面板：折叠为单按钮 🐺养狼 Lv.X，点击展开喂养选项
+  // 触发条件：场上有 ≥2 名叙拉古阵营干员（叙拉古羁绊 thr[0]=2 触发时才出现）
   function renderFeedPanel() {
     const panel = $('feedPanel'); if (!panel) return;
-    const hasXila = Object.values(G.board).some(u => u.op.bonds && u.op.bonds['阵营'] === '叙拉古');
-    if (!hasXila) { panel.classList.add('hidden'); return; }
+    const xilaCount = Object.values(G.board).filter(u => u.op.bonds && u.op.bonds['阵营'] === '叙拉古').length;
+    if (xilaCount < 2) { panel.classList.add('hidden'); return; }
     panel.classList.remove('hidden');
     const ss = G.summonState || { wolf: { level: 1, exp: 0 } };
     const lv = ss.wolf.level, exp = ss.wolf.exp;
@@ -2303,7 +2309,7 @@
     const meatBtn = $('btnFeedMeat'); if (meatBtn) meatBtn.disabled = G.gold < 3;
     const rationBtn = $('btnFeedRation'); if (rationBtn) rationBtn.disabled = G.gold < 5;
     const msg = $('feedMsg'); if (msg) msg.textContent = '';
-    // v2.1 UI：形态图标 + 主题色 + 升级闪光特效（狼崽 🐾 / 成年狼 🐺 / 狼王 👑）
+    // 形态图标（狼崽 🐾 / 成年狼 🐺 / 狼王 👑）
     const form = lv >= SUMMON_MAX_LEVEL ? 'king' : (lv >= 3 ? 'adult' : 'pup');
     const formIcon = form === 'king' ? '👑' : (form === 'adult' ? '🐺' : '🐾');
     panel.classList.remove('form-pup', 'form-adult', 'form-king');
@@ -4450,6 +4456,16 @@
     $('btnExp').onclick = buyExp;
     if ($('btnFeedMeat')) $('btnFeedMeat').onclick = () => buyFeed('meat');
     if ($('btnFeedRation')) $('btnFeedRation').onclick = () => buyFeed('ration');
+    if ($('btnFeedToggle')) $('btnFeedToggle').onclick = () => {
+      const body = $('feedBody'); const tgl = $('btnFeedToggle');
+      if (!body || !tgl) return;
+      const expanded = !body.classList.contains('hidden');
+      body.classList.toggle('hidden', expanded);
+      tgl.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+      const chev = tgl.querySelector('.feed-chev');
+      if (chev) chev.textContent = expanded ? '▾' : '▴';
+      if (window.SFX) SFX.play('click');
+    };
     $('btnFight').onclick = onFight;
     if ($('btnPause')) $('btnPause').onclick = () => {
       G._playPaused = !G._playPaused;
